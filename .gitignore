@@ -9,6 +9,6 @@ secrets*.bak
 config_local.h
 restore/
 docs/lan-monitor.log
-docs/lan-monitor.ps1
+# lan-monitor.ps1 is tracked (HIL soak); only the log is local
 tools/_logo_render.html
 tools/_k9dtv_logo_*.png

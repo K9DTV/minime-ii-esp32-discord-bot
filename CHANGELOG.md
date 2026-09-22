@@ -1,6 +1,10 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.40** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.41** (see `VERSION` and README).
+
+## 0.7.41
+
+- CI beyond compile-only: `tools/ci_sanity.py` (VERSION sync, one `.ino`, no AJ6 types, secrets not tracked) then compile. Local HIL playbook: `docs/HIL_SOAK.md` + tracked `docs/lan-monitor.ps1` (`-BaseUrl` / `MINIME_LAN`). Confirm flash via `Display · v0.7.41`.
 
 ## 0.7.40
 

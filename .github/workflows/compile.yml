@@ -1,7 +1,7 @@
-# Compile MiniMe II for Guition JC3248W535EN (ESP32-S3, AXS15231B, OPI PSRAM, 16MB flash).
-# Does not upload or run on hardware.
+# Compile + host sanity for MiniMe II (Guition JC3248W535EN / ESP32-S3).
+# Does not upload or run on hardware. Local HIL soak: docs/HIL_SOAK.md
 
-name: Compile
+name: CI
 
 on:
   push:
@@ -11,7 +11,17 @@ on:
   workflow_dispatch:
 
 jobs:
+  sanity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Host sanity (no board)
+        run: python3 tools/ci_sanity.py
+
   compile:
+    needs: sanity
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

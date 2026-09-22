@@ -1,6 +1,6 @@
 # MiniMe II — code review notes (pro pass)
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.40**.
+What we **fixed** vs what we **left** and why. Current: **v0.7.41**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -47,6 +47,7 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.40**.
 | Discord REST header timeout retry | **0.7.37** — same attempt budget as 429; short backoff + Gateway pump |
 | Core 0 MmLog bridge | **0.7.39** — enqueue → `drainCore0Logs` on Core 1; drops = ring overflow only |
 | Nested `gwPumping` HB-only | **0.7.40** — pruned; re-entry no-op (flag kept for defer / Wi-Fi) |
+| CI beyond compile | **0.7.41** — host `ci_sanity.py` + compile; HIL soak = local `docs/HIL_SOAK.md` |
 
 ## Known tradeoffs (not deferred bugs)
 
@@ -59,14 +60,10 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.40**.
 
 Unrolled 0.7.33/0.7.35. Not re-tried in 0.7.38 (HOL isolated). Retry only with dump evidence.
 
-### 2 — CI compile-only / no HIL
-
-Honest in README.
-
-### 3 — Remaining `String` on cold HTTPS/command reply paths
+### 2 — Remaining `String` on cold HTTPS/command reply paths
 
 Bodies / Discord posts / `!ask` still use `String`. Tracked users + guild IDs done in 0.7.36. More only if heap pressure shows on those paths.
 
-### 4 — Architectural (not this release)
+### 3 — Architectural (not this release)
 
 LCD vs web layouts are independent (no `/api/ui` sync).
