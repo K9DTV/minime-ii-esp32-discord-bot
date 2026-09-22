@@ -1,23 +1,23 @@
-# MiniMe II — Discord bot on Guition JC3248W535EN
+# MiniMe II -- Discord bot on Guition JC3248W535EN
 
 [![Compile](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/compile.yml/badge.svg)](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/compile.yml)
 
 **Project page:** https://k9dtv.com/project-minime.html  
-**Sister project:** [MiniMe I (SSD1327 OLED)](https://github.com/K9DTV/minime-esp32-discord-bot) — not this repo.
+**Sister project:** [MiniMe I (SSD1327 OLED)](https://github.com/K9DTV/minime-esp32-discord-bot) -- not this repo.
 
-MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-S3-N16R8 + **AXS15231B** color LCD with in-cell touch). This is **not** a breadboard build and **not** MiniMe I’s OLED board.
+MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-S3-N16R8 + **AXS15231B** color LCD with in-cell touch). This is **not** a breadboard build and **not** MiniMe I's OLED board.
 
-**Display:** panel native **320×480** (portrait); firmware paints **480×320** landscape via **GFX Library for Arduino** (`Arduino_ESP32QSPI` + `Arduino_AXS15231B` + `Arduino_Canvas`). No SSD1327 / U8g2 and no capacitive GPIO wake pad.
+**Display:** panel native **320x480** (portrait); firmware paints **480x320** landscape via **GFX Library for Arduino** (`Arduino_ESP32QSPI` + `Arduino_AXS15231B` + `Arduino_Canvas`). No SSD1327 / U8g2 and no capacitive GPIO wake pad.
 
-**LCD ↔ LAN web:** the glass dashboard and `http://<board-ip>/` are designed as a **close match** — same Display (metrics|users) / Log (LOG|Serial) pairing and the same status fields. Light/Dark on the glass and in the browser are **independent** (each has its own chip).
+**LCD <-> LAN web:** the glass dashboard and `http://<board-ip>/` are designed as a **close match** -- same Display (metrics|users) / Log (LOG|Serial) pairing and the same status fields (including internal SRAM bar + PSRAM free/total when present). Light/Dark on the glass and in the browser are **independent** (each has its own chip).
 
-**Not prime time yet.** The LCD and LAN web UI are a **starting point** and will go through **a lot of changes**. Expect layouts, chrome, and polish to keep moving. You are invited to flash it, poke Discord/`!help`, and play with the glass and the browser — just know this is early Guition work, not a finished product UI.
+**Not prime time yet.** The LCD and LAN web UI are a **starting point** and will go through **a lot of changes**. Expect layouts, chrome, and polish to keep moving. You are invited to flash it, poke Discord/`!help`, and play with the glass and the browser -- just know this is early Guition work, not a finished product UI.
 
-**Status:** Guition module firmware · **v0.7.8** (see `VERSION` / `CHANGELOG.md`) · **WIP UI**. Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware - **v0.7.17** (see `VERSION` / `CHANGELOG.md`) - **WIP UI**. Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
-1. Library Manager → **GFX Library for Arduino** (moononournation) → Install (build must include `Arduino_AXS15231B` / QSPI)
+1. Library Manager -> **GFX Library for Arduino** (moononournation) -> Install (build must include `Arduino_AXS15231B` / QSPI)
 2. Also: ArduinoJson 6, WebSockets, OneWire, DallasTemperature, Adafruit NeoPixel, NTPClient
 
 No **JC3248W535EN-Touch-LCD**, **JPEGDecoder**, or **U8g2**.
@@ -28,11 +28,11 @@ the IDE is using a **second, broken** GFX install. Arduino reports something lik
 `Used: ...\libraries\Arduino_GFX`  
 `Not used: ...\libraries\GFX_Library_for_Arduino`
 
-**Fix (you do this in the Arduino libraries folder — Cursor will not touch it):**
+**Fix (you do this in the Arduino libraries folder -- Cursor will not touch it):**
 
 1. Quit Arduino IDE.  
-2. **Move out of `libraries\` entirely** (Desktop/trash — not a rename inside `libraries`) any folder still named `Arduino_GFX` or `Arduino_GFX_old`.  
-3. Keep `GFX_Library_for_Arduino` (Library Manager’s real package).  
+2. **Move out of `libraries\` entirely** (Desktop/trash -- not a rename inside `libraries`) any folder still named `Arduino_GFX` or `Arduino_GFX_old`.  
+3. Keep `GFX_Library_for_Arduino` (Library Manager's real package).  
 4. Reopen IDE. Log must say `Used: ...\GFX_Library_for_Arduino` only.
 
 **If those same errors continue with `GFX_Library_for_Arduino`:**  
@@ -47,7 +47,7 @@ AI helped with firmware edits, multi-file layout, and GitHub updates. I owned th
 
 ## Ongoing project
 
-- **LCD + LAN web UI** — heavy redesign ahead; what you see now is a baseline to iterate on
+- **LCD + LAN web UI** -- heavy redesign ahead; what you see now is a baseline to iterate on
 - **Desk case / enclosure** for the Guition module (this is already the module board, not a breadboard prototype)
 
 Done recently: dual-core LCD vs Gateway, Display/Log + Light/Dark chips, DM/@mention flags, dirty redraw, Wi-Fi ArduinoOTA (`!ota`), LAN dashboard matched to the LCD layout.
@@ -60,25 +60,25 @@ Same list Discord shows for `!help`:
 
 **Public commands** (DMs, `TARGET_CHANNEL_ID`, or `TARGET_CHANNEL_ID1`):
 
-- `!apod` — NASA Astronomy Picture of the Day
-- `!ask <question>` — DeepSeek text reply in chat
-- `!display <text>` — transient overlay on the LCD (not the `!display` word)
-- `!help` — this command list
-- `!iss` — International Space Station position
-- `!news` — space / high-tech headlines
-- `!physics` — latest arXiv physics papers
-- `!sys` — system diagnostics (uptime, heap, RSSI, IP, OTA host, gateway, firmware URL)
-- `!ota` — Wi-Fi ArduinoOTA info (IP / hostname / port 3232). **Public** on purpose; mild LAN info disclosure if the channel is public.
-- `!temp` — indoor DS18B20 temperature
-- `!time` — bot local time (US Pacific, DST aware)
-- `!weather <zip>` — US ZIP weather (OpenWeatherMap)
+- `!apod` -- NASA Astronomy Picture of the Day
+- `!ask <question>` -- DeepSeek text reply in chat
+- `!display <text>` -- transient overlay on the LCD
+- `!help` -- this command list
+- `!iss` -- International Space Station position
+- `!news` -- space / high-tech headlines
+- `!physics` -- latest arXiv physics papers
+- `!sys` -- system diagnostics (uptime, internal heap, PSRAM, RSSI, gateway, firmware URL)
+- `!temp` -- indoor DS18B20 temperature
+- `!time` -- bot local time (US Pacific, DST aware)
+- `!weather <zip>` -- US ZIP weather (OpenWeatherMap)
 
 **Owner-only** (`OWNER_ID_STR`):
 
-- `!servo <0-90>` — servo angle (updates the `Srv` bar; optional external servo on GPIO 17)
-- `!clear` — clear DM / mention alert flags on the LCD
+- `!ota` -- Wi-Fi ArduinoOTA info (IP / hostname / port 3232)
+- `!servo <0-90>` -- servo angle (updates the `Srv` bar; optional external servo on GPIO 17)
+- `!clear` -- clear DM / mention alert flags on the LCD
 
-This Guition module has **no LED1 / LED2** and **no on-board RGB**. (Firmware may still compile optional `!led` for a NeoPixel if you wire one yourself; it is not part of this board.)
+This Guition module has **no LED1 / LED2** and **no on-board RGB**. `!led` is not shipped (no handler).
 
 ### Channel / DM commands
 
@@ -102,15 +102,15 @@ Commands work in `TARGET_CHANNEL_ID`, `TARGET_CHANNEL_ID1`, and DMs. **No automa
 
 Everything below runs on one **ESP32-S3**. Discord stays in the cloud; MiniMe talks to it two ways, paints the LCD, serves a LAN web dashboard, and wakes the panel from in-cell touch.
 
-![MiniMe architecture flowchart — same layout as k9dtv.com/project-minime.html](docs/arch-flow.svg)
+![MiniMe architecture flowchart -- same layout as k9dtv.com/project-minime.html](docs/arch-flow.svg)
 
 *Same flowchart as the project page (diagram art may still show MiniMe I labels; this board is Guition + LCD).*
 
-- **Gateway** — live link for chat commands, presence, Online/Idle, heartbeats (must not stall during long HTTPS). Heartbeats start after Hello (jittered first send); a missing OP11 ACK past the Discord interval plus **15 s** grace forces disconnect (`HB_ACK_TIMEOUT`). **Identify-only** after drops (no session resume); one `beginSslWithBundle` at boot (ESP32 CA bundle — not plain `beginSSL`/`setInsecure`), then library reconnect only.
-- **REST** — bot posts replies and loads member names; also pulls science/weather/AI over HTTPS/HTTP. Outbound TLS uses the ESP32 **CA cert bundle** (no `setInsecure`). One shared `WiFiClientSecure`; `httpsInUse` prevents overlapping HTTPS from `stop()`ing each other. Gateway WebSocket TLS uses the same CA blob via WebSockets `beginSslWithBundle`.
-- **LCD** — **480×320** landscape status board on the Guition panel (native **320×480**); idle blanks backlight only (Wi-Fi and Gateway stay up). Metrics + users (or LOG + Serial in Log layout). Redraw every **1 s** with dirty tracking. LAN API exposes the same fills as percents.
-- **LAN web UI** — browser twin of the LCD layout at `http://<board-ip>/` (close match; independent Light/Dark); polls `/api/status` every **2 s** (CSS/JS in `web_assets.h`). **MmLog** feeds web LOG/Serial only (no USB Serial / UART0 log dump).
-- **Touch** — wakes the LCD and hits the IC chips (theme / layout). Does not change Discord Online/Idle.
+- **Gateway** -- live link for chat commands, presence, Online/Idle, heartbeats (must not stall during long HTTPS). Heartbeats start after Hello (jittered first send); a missing OP11 ACK past the Discord interval plus **15 s** grace forces disconnect (`HB_ACK_TIMEOUT`). **Identify-only** after drops (no session resume); one `beginSslWithBundle` at boot (ESP32 CA bundle -- not plain `beginSSL`/`setInsecure`), then library reconnect only.
+- **REST** -- bot posts replies and loads member names; also pulls science/weather/AI over HTTPS/HTTP. Outbound TLS uses the ESP32 **CA cert bundle** (no `setInsecure`). One shared `WiFiClientSecure`; `httpsInUse` prevents overlapping HTTPS from `stop()`ing each other. Gateway WebSocket TLS uses the same CA blob via WebSockets `beginSslWithBundle`.
+- **LCD** -- **480x320** landscape status board on the Guition panel (native **320x480**); idle blanks backlight only (Wi-Fi and Gateway stay up). Metrics + users (or LOG + Serial in Log layout). Redraw every **1 s** with dirty tracking. LAN API exposes the same fills as percents.
+- **LAN web UI** -- browser twin of the LCD layout at `http://<board-ip>/` (close match; independent Light/Dark); polls `/api/status` every **2 s** (CSS/JS in `web_assets.h`). **MmLog** feeds web LOG/Serial only (no USB Serial / UART0 log dump).
+- **Touch** -- wakes the LCD and hits the IC chips (theme / layout). Does not change Discord Online/Idle.
 
 ### Dual-core (ESP32-S3)
 
@@ -119,22 +119,22 @@ Everything below runs on one **ESP32-S3**. Discord stays in the cloud; MiniMe ta
 | **1** (`loop`) | Discord Gateway + heartbeats, HTTPS REST, ArduinoOTA, LAN web server, command queue drain, `publishDashSnap` |
 | **0** (`uiTask`) | Touch I2C, DS18B20 poll, `updateDisplay` / QSPI flush, backlight idle |
 
-Shared UI state is a published **DashSnap** (seqlock; Core 1 writes, Core 0 paints). Discord `MESSAGE_CREATE` only enqueues; `handleCommand` runs from Core 1 `loop()` so TLS never runs inside the Gateway WebSocket callback. Mid-draw `pumpGateway()` is gone — LCD flush no longer starves heartbeats.
+Shared UI state is a published **DashSnap** (seqlock; Core 1 writes, Core 0 paints). Discord `MESSAGE_CREATE` only enqueues; `handleCommand` runs from Core 1 `loop()` so TLS never runs inside the Gateway WebSocket callback. Mid-draw `pumpGateway()` is gone -- LCD flush no longer starves heartbeats.
 
-**What dual-core fixes:** QSPI / touch / temp sensor no longer block Gateway heartbeats. Long HTTPS fetches (weather, news, APOD, ISS, physics, DeepSeek) run on Core 1 but body reads pump the Gateway via `readHttpBodyAfterHeaders` (same as DeepSeek). Chat still enters via the command queue → `drainDiscordCmds` → `handleCommand` (the stall length is the fetch itself; HB stays alive during the body wait).
+**What dual-core fixes:** QSPI / touch / temp sensor no longer block Gateway heartbeats. Long HTTPS fetches (weather, news, APOD, ISS, physics, DeepSeek) run on Core 1 but body reads pump the Gateway via `readHttpBodyAfterHeaders` (same as DeepSeek). Chat still enters via the command queue -> `drainDiscordCmds` -> `handleCommand` (the stall length is the fetch itself; HB stays alive during the body wait).
 
 ### Why this is hard (on one MCU)
 
 - Discord Gateway heartbeats must keep running while long HTTPS calls use the same TLS client (dual-core removes LCD/QSPI from that fight; fetch bodies pump HB via `readHttpBodyAfterHeaders`).
 - Large Gateway JSON lives in **PSRAM**; small Wi-Fi/TLS buffers must **not**.
-- Backlight can turn off while Wi-Fi and the Gateway stay up (panel sleep ≠ chip sleep).
+- Backlight can turn off while Wi-Fi and the Gateway stay up (panel sleep != chip sleep).
 - Up to **24** live presence rows + 24h command counts on one landscape panel.
 
 ---
 
 ## LCD dashboard
 
-**Panel:** Guition JC3248W535EN AXS15231B, native **320×480**, firmware canvas **480×320** landscape (`Arduino_Canvas`). Layout in `display.cpp` (`drawDashboard` + `DashSnap` dirty tracking).
+**Panel:** Guition JC3248W535EN AXS15231B, native **320x480**, firmware canvas **480x320** landscape (`Arduino_Canvas`). Layout in `display.cpp` (`drawDashboard` + `DashSnap` dirty tracking).
 
 The LAN page is meant to **match** this layout (Display = metrics|users, Log = LOG|Serial). Glass and browser Light/Dark stay independent.
 
@@ -150,9 +150,9 @@ The LAN page is meant to **match** this layout (Display = metrics|users, Log = L
 
 Right chip is LCD-only (**independent** of the LAN Display/Log layout). Left IC chip toggles **Light / Dark** palette on the LCD only (**independent** of the LAN web theme).
 
-Header band: K9DTV logo (`k9dtv_logo_rgb565.h` — dark + bright RGB565) + two menu-chip style buttons. Regenerate with `python MinimeII/tools/gen_k9dtv_logo_rgb565.py` (Playwright Chromium + Pillow) from site dark/bright SVGs.
+Header band: K9DTV logo (`k9dtv_logo_rgb565.h` -- dark + bright RGB565) + two menu-chip style buttons. Regenerate with `python MinimeII/tools/gen_k9dtv_logo_rgb565.py` (Playwright Chromium + Pillow) from site dark/bright SVGs.
 
-Empty user slots show `---`. Names from startup REST member fetch (nick → global name → username). Presence from the Gateway. Command counts reset every 24 hours.
+Empty user slots show `---`. Names from startup REST member fetch (nick -> global name -> username). Presence from the Gateway. Command counts reset every 24 hours.
 
 DM to the bot and @mention of `OWNER_ID_STR` set **DM** / **Mention** flags on the left panel; owner `!clear` clears them.
 
@@ -179,7 +179,7 @@ Discord presence still goes Idle after **5 minutes** quiet (CPU drops to **160 M
 
 Secrets live in **`MiniMe_Discord_Bot_II/secrets.h`** (gitignored; keep real secrets **outside** this workspace). No sketch source file holds Wi-Fi, tokens, or IDs.
 
-1. Copy `MiniMe_Discord_Bot_II/secrets.example.h` → `secrets.h` (on your machine, outside the repo if that is your rule)
+1. Copy `MiniMe_Discord_Bot_II/secrets.example.h` -> `secrets.h` (on your machine, outside the repo if that is your rule)
 2. Fill in real values and **delete** the `#define MINIME_SECRETS_IS_EXAMPLE 1` line (compile errors if it remains).
 
 ```cpp
@@ -220,15 +220,15 @@ Boot loads LCD names from `BOT_GUILD_ID` and from the guilds of the target chann
 <summary><strong>How to get a Discord bot token (<code>BOT_TOKEN</code>)</strong></summary>
 
 1. Open [Discord Developer Portal](https://discord.com/developers/applications) and sign in.
-2. **New Application** → name it → Create.
-3. Left sidebar: **Bot** → **Add Bot** if needed.
-4. Under **Token**, **Reset Token** / **Copy** → `BOT_TOKEN` in `secrets.h`.
-5. Enable **Privileged Gateway Intents**: Message Content, Server Members, Presence. If any are off, Discord closes the socket right after Identify (often no `READY` / `OP9` in our log — close can look like a bare `WS_DISCONNECTED_WIFI_UP` loop).
+2. **New Application** -> name it -> Create.
+3. Left sidebar: **Bot** -> **Add Bot** if needed.
+4. Under **Token**, **Reset Token** / **Copy** -> `BOT_TOKEN` in `secrets.h`.
+5. Enable **Privileged Gateway Intents**: Message Content, Server Members, Presence. If any are off, Discord closes the socket right after Identify (often no `READY` / `OP9` in our log -- close can look like a bare `WS_DISCONNECTED_WIFI_UP` loop).
 6. Identify intents: `INTENTS_MINIME` in `minime_config.h` (`static_assert` checks `== 37635`). Boot log: `[GW] intents=37635`.
 
 ### Invite the bot to your server
 
-1. Developer Portal → **OAuth2** → **URL Generator**.
+1. Developer Portal -> **OAuth2** -> **URL Generator**.
 2. Scopes: `bot`. Minimum permissions: View Channels, Send Messages, Read Message History.
 3. Open the URL, pick your server, authorize.
 4. The bot stays offline until the ESP32 connects.
@@ -238,10 +238,10 @@ Boot loads LCD names from `BOT_GUILD_ID` and from the guilds of the target chann
 <details>
 <summary><strong>How to get your owner ID (<code>OWNER_ID_STR</code>)</strong></summary>
 
-This is **your Discord user ID**, not the bot’s ID.
+This is **your Discord user ID**, not the bot's ID.
 
-1. Discord: **User Settings** → **Advanced** → enable **Developer Mode**.
-2. Right-click **your own avatar** → **Copy User ID**.
+1. Discord: **User Settings** -> **Advanced** -> enable **Developer Mode**.
+2. Right-click **your own avatar** -> **Copy User ID**.
 3. Paste into `OWNER_ID_STR` in `secrets.h`.
 
 </details>
@@ -251,8 +251,8 @@ This is **your Discord user ID**, not the bot’s ID.
 
 Developer Mode must be on.
 
-- **Channel:** right-click the text channel → **Copy Channel ID**.
-- **Guild / server:** right-click the server icon → **Copy Server ID** → `BOT_GUILD_ID`.
+- **Channel:** right-click the text channel -> **Copy Channel ID**.
+- **Guild / server:** right-click the server icon -> **Copy Server ID** -> `BOT_GUILD_ID`.
 
 The bot must be able to **see and send** in those channels.
 
@@ -262,7 +262,7 @@ The bot must be able to **see and send** in those channels.
 <summary><strong>How to get an OpenWeatherMap key (<code>WEATHER_API_KEY</code>)</strong></summary>
 
 1. Free account at [OpenWeatherMap](https://home.openweathermap.org/users/sign_up).
-2. [API keys](https://home.openweathermap.org/api_keys) → paste into `WEATHER_API_KEY`.
+2. [API keys](https://home.openweathermap.org/api_keys) -> paste into `WEATHER_API_KEY`.
 3. New keys can take a few hours. `!weather` uses `zip={zip},US` and `units=imperial`.
 
 </details>
@@ -273,15 +273,15 @@ The bot must be able to **see and send** in those channels.
 
 | Command | Source | Key? |
 |---|---|---|
-| `!news` | [Spaceflight News API](https://api.spaceflightnewsapi.net/) — 3 headlines | No |
-| `!physics` | [arXiv](https://arxiv.org/) `cat:physics` — 3 newest papers | No |
-| `!apod` | [NASA APOD](https://api.nasa.gov/) — title, short explanation, image URL | Yes |
-| `!iss` | [Open Notify](http://open-notify.org/) — ISS lat / lon | No |
+| `!news` | [Spaceflight News API](https://api.spaceflightnewsapi.net/) -- 3 headlines | No |
+| `!physics` | [arXiv](https://arxiv.org/) `cat:physics` -- 3 newest papers | No |
+| `!apod` | [NASA APOD](https://api.nasa.gov/) -- title, short explanation, image URL | Yes |
+| `!iss` | [Open Notify](http://open-notify.org/) -- ISS lat / lon | No |
 
 <details>
 <summary><strong>How to get a NASA key (<code>NASA_API_KEY</code>)</strong></summary>
 
-1. [api.nasa.gov](https://api.nasa.gov/) → free key → paste into `NASA_API_KEY`.
+1. [api.nasa.gov](https://api.nasa.gov/) -> free key -> paste into `NASA_API_KEY`.
 2. `DEMO_KEY` works for light testing but is shared and rate-limited.
 
 </details>
@@ -289,7 +289,7 @@ The bot must be able to **see and send** in those channels.
 <details>
 <summary><strong>How to get a DeepSeek key (<code>DEEPSEEK_API_KEY</code>)</strong></summary>
 
-1. [DeepSeek Platform](https://platform.deepseek.com/) → [API Keys](https://platform.deepseek.com/api_keys).
+1. [DeepSeek Platform](https://platform.deepseek.com/) -> [API Keys](https://platform.deepseek.com/api_keys).
 2. Paste into `DEEPSEEK_API_KEY`. Replies capped at **2000** characters.
 
 </details>
@@ -300,7 +300,7 @@ The bot must be able to **see and send** in those channels.
 
 Board: **Guition JC3248W535EN** module (ESP32-S3-N16R8 + AXS15231B LCD + in-cell touch). Not a breadboard; not MiniMe I.
 
-**Display:** native **320×480**; firmware **480×320** landscape (`Arduino_ESP32QSPI` + `Arduino_AXS15231B` + Canvas).
+**Display:** native **320x480**; firmware **480x320** landscape (`Arduino_ESP32QSPI` + `Arduino_AXS15231B` + Canvas).
 
 | Device | GPIO |
 |---|---|
@@ -314,7 +314,7 @@ Change pins in `minime_config.h` if your wiring differs. **No LED1 / LED2**, **n
 
 ### DS18B20 (GPIO 10, if fitted)
 
-TO-92, powered from **3.3 V**. Internal pull-up enabled; a **4.7 kΩ** DQ→3.3 V resistor is still recommended.
+TO-92, powered from **3.3 V**. Internal pull-up enabled; a **4.7 kohm** DQ->3.3 V resistor is still recommended.
 
 | TO-92 lead (flat toward you, leads down) | Connect to |
 |---|---|
@@ -340,7 +340,7 @@ Capacitive touch on the AXS15231B wakes the LCD after backlight-off and hits the
 ### What touch does *not* do
 
 - Does not send Discord messages, set Discord Online/Idle, or move the servo by itself.
-- The ESP32, Wi-Fi, and Gateway **never sleep** — only the backlight turns off.
+- The ESP32, Wi-Fi, and Gateway **never sleep** -- only the backlight turns off.
 
 </details>
 
@@ -355,14 +355,14 @@ GitHub Actions compiles this sketch on push (see the **Compile** badge). That is
 3. Provide `secrets.h` (from `secrets.example.h`) with Wi-Fi, token, keys, and IDs.
 4. Set **Tools** as in the table below for this **Guition N16R8** module.
 5. Libraries: GFX Library for Arduino, WebSockets, ArduinoJson, OneWire, DallasTemperature, Adafruit NeoPixel, NTPClient.
-6. Upload. Confirm with Discord `!help` and the LAN page header (`Display · v` + `MINIME_VERSION` / `VERSION`). Tap the glass to wake after backlight off.
+6. Upload. Confirm with Discord `!help` and the LAN page header (`Display - v` + `MINIME_VERSION` / `VERSION`). Tap the glass to wake after backlight off.
 
 ### Required Tools settings (N16R8)
 
 | Tools menu | Setting for MiniMe II |
 |---|---|
 | **Board** | **ESP32S3 Dev Module** (not generic ESP32 Dev Module) |
-| **USB CDC On Boot** | **Enabled** (upload / OTA; Monitor stays quiet — logs on LAN web UI) |
+| **USB CDC On Boot** | **Enabled** (upload / OTA; Monitor stays quiet -- logs on LAN web UI) |
 | **USB Mode** | **Hardware CDC and JTAG** |
 | **Flash Size** | **16MB (128Mb)** |
 | **Flash Mode** | **QIO 80MHz** (typical) |
@@ -376,10 +376,10 @@ GitHub Actions compiles this sketch on push (see the **Compile** badge). That is
 
 ### RAM / flash notes
 
-- **RAM:** internal SRAM + **8MB OPI PSRAM**. **PSRAM → OPI PSRAM** must be on.
-- Large Discord Gateway JSON (`GW_DOC_PSRAM`, **256KB**) is in **PSRAM on purpose**.
+- **RAM:** internal SRAM + **8MB OPI PSRAM**. **PSRAM -> OPI PSRAM** must be on.
+- Large Discord Gateway JSON (`GW_DOC_PSRAM`, **256KB**) and LAN `statusDoc` use `SpiRamJsonDocument` (PSRAM via `heap_caps_*`). Default `DynamicJsonDocument` is internal SRAM only.
 - Do **not** enable `heap_caps_malloc_extmem_enable` for small allocations (Wi-Fi / TLS in PSRAM can crash).
-- **Flash:** **16MB**. `partitions.csv` is dual OTA + small coredump — **no filesystem**. First flash USB; later Wi-Fi OTA (`!ota`).
+- **Flash:** **16MB**. `partitions.csv` is dual OTA + small coredump -- **no filesystem**. First flash USB; later Wi-Fi OTA (`!ota`).
 
 ---
 
@@ -397,4 +397,4 @@ Original MiniMe II source, README, changelog, and docs in this repo are under a
 **non-commercial** license: personal and educational use is allowed; commercial
 use requires the copyright holder's prior express written permission. See `LICENSE`.
 
-That grant does **not** cover Arduino/ESP32 libraries, Discord, or other APIs. Install the libraries under **Arduino IDE setup** and follow each service’s rules for keys and bots.
+That grant does **not** cover Arduino/ESP32 libraries, Discord, or other APIs. Install the libraries under **Arduino IDE setup** and follow each service's rules for keys and bots.

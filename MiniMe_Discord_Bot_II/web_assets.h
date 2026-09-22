@@ -123,7 +123,7 @@ if(lb)lb.addEventListener('click',function(){
 applyLayout(layoutNow()==='log'?'display':'log',true);
 lb.blur();
 });
-function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));}
+function esc(s){return String(s==null||s===undefined?'':s).replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));}
 function bar(pct){pct=Math.max(0,Math.min(100,+pct||0));return '<span class="bar"><i style="width:'+pct+'%"></i></span>';}
 function mline(lab,n,pct){return '<div class="mline"><span class="k">'+lab+'</span><span class="n">'+n+'</span>'+bar(pct)+'</div>';}
 function srow(k,v){return '<span class="k">'+esc(k)+'</span><span class="v">'+v+'</span>';}
@@ -146,7 +146,8 @@ if(metrics)metrics.innerHTML=
 '<div class="metric"><span class="k">Bot</span> '+esc(bot)+' <span class="muted" style="float:right">'+esc(j.date)+'</span></div>'+
 mline('Sig',esc(j.rssi)+' dBm',j.sigPct)+
 '<div class="metric" style="color:var(--cyan)">Up '+esc(j.uptime)+'  T '+temp+'</div>'+
-mline('Heap',esc(j.heapFree)+'/'+esc(j.heapTotal),j.heapPct)+
+mline('SRAM',esc(j.heapFree)+'/'+esc(j.heapTotal),j.heapPct)+
+(j.psramTotal?('<div class="metric"><span class="k">PSRAM</span> '+esc(j.psramFree)+'/'+esc(j.psramTotal)+'</div>'):'')+
 mline('Srv',esc(j.servo)+'\u00b0',j.srvPct)+
 '<div class="metric"><span class="'+idC+'">Id:'+(j.identified?'yes':'no')+'</span> &nbsp; Users:'+esc(j.usersActive)+'/'+esc(j.usersMax)+'</div>'+
 '<div class="metric"><span class="'+al+'">DM:'+(dmOn?'ON':'off')+'  Mention:'+(menOn?'ON':'off')+'</span></div>'+

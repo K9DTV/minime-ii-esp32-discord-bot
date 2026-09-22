@@ -1,16 +1,19 @@
 #include "minime.h"
 #include "esp_crt_bundle.h"
+#include <new>
 
 WiFiClientSecure httpsClient;
 bool httpsInUse = false;
 
 void boardMemTotals(uint32_t& memFree, uint32_t& memTotal) {
-  uint32_t psramSize = ESP.getPsramSize();
-  uint32_t psramFree = ESP.getFreePsram();
-  if (psramSize < BOARD_PSRAM_BYTES) psramSize = BOARD_PSRAM_BYTES;
-  if (ESP.getPsramSize() == 0 || psramFree < 1) psramFree = BOARD_PSRAM_BYTES;
-  memTotal = ESP.getHeapSize() + psramSize;
-  memFree = ESP.getFreeHeap() + psramFree;
+  // Internal SRAM only — LCD/web heap bar must not hide internal exhaustion behind free PSRAM.
+  memTotal = ESP.getHeapSize();
+  memFree = ESP.getFreeHeap();
+}
+
+void boardPsramTotals(uint32_t& psFree, uint32_t& psTotal) {
+  psTotal = ESP.getPsramSize();
+  psFree = ESP.getFreePsram();
 }
 
 void uptimeDhms(unsigned long& days, unsigned long& hours, unsigned long& minutes, unsigned long& seconds) {
@@ -24,20 +27,26 @@ void uptimeDhms(unsigned long& days, unsigned long& hours, unsigned long& minute
 
 String getSystemInfo() {
   long rssi = WiFi.RSSI();
-  uint32_t freeHeap = 0, totalHeap = 0;
+  uint32_t freeHeap = 0, totalHeap = 0, freePs = 0, totalPs = 0;
   boardMemTotals(freeHeap, totalHeap);
+  boardPsramTotals(freePs, totalPs);
   unsigned long days = 0, hours = 0, minutes = 0, seconds = 0;
   uptimeDhms(days, hours, minutes, seconds);
   String uptimeStr = String(days) + "d " + String(hours) + "h " + String(minutes) + "m " + String(seconds) + "s";
-  return "📊 **System Diagnostics:**\n"
+  String msg = "📊 **System Diagnostics:**\n"
          "• **Uptime:** " + uptimeStr + "\n"
-         "• **Free Heap:** " + String((unsigned long)freeHeap) + " / " +
-         String((unsigned long)totalHeap) + " bytes\n"
-         "• **WiFi RSSI:** " + String(rssi) + " dBm\n"
-         "• **IP:** " + WiFi.localIP().toString() + "\n"
-         "• **OTA host:** " + String(OTA_HOSTNAME) + ".local\n"
+         "• **Internal heap:** " + String((unsigned long)freeHeap) + " / " +
+         String((unsigned long)totalHeap) + " bytes\n";
+  if (totalPs > 0) {
+    msg += "• **PSRAM:** " + String((unsigned long)freePs) + " / " +
+           String((unsigned long)totalPs) + " bytes\n";
+  } else {
+    msg += "• **PSRAM:** none\n";
+  }
+  msg += "• **WiFi RSSI:** " + String(rssi) + " dBm\n"
          "• **Gateway Status:** " + String((gatewayConnected && identified) ? "Connected" : "Disconnected") + "\n"
          "• **Firmware:** https://github.com/K9DTV/minime-ii-esp32-discord-bot";
+  return msg;
 }
 
 bool sendDiscordMessage(const String& channelId, const String& content, bool suppressEmbeds) {
@@ -170,6 +179,7 @@ uint8_t httpsGetOpen(const char* host, const String& path, unsigned long headerT
   outContentLength = -1;
   if (httpsInUse) return 1;
   if (!httpsAcquire(host)) return 3;
+  if (!userAgent || !userAgent[0]) userAgent = MINIME_USER_AGENT;
   String req = String("GET ") + path + " HTTP/1.1\r\n"
                "Host: " + host + "\r\n"
                "User-Agent: " + userAgent + "\r\n";
@@ -190,6 +200,7 @@ uint8_t httpGetOpen(WiFiClient& client, const char* host, const String& path,
   if (!client.connect(host, 80)) return 3;
   client.print(String("GET ") + path + " HTTP/1.1\r\n"
                "Host: " + host + "\r\n"
+               "User-Agent: " + String(MINIME_USER_AGENT) + "\r\n"
                "Connection: close\r\n\r\n");
   if (!skipHttpHeaders(client, headerTimeoutMs, outChunked, outContentLength)) {
     client.stop();
@@ -246,19 +257,39 @@ bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
   outBody = "";
   const size_t maxBody = 48000;
   if (chunked) {
+    uint8_t emptySizeLines = 0;
     while (millis() < deadlineMs) {
       while (!client.available() && client.connected() && millis() < deadlineMs) {
         pumpGateway();
         delay(5);
       }
-      if (!client.available()) break;
+      if (!client.available()) {
+        // Missing final 0-chunk (or timeout). Do not treat accumulated body as success.
+        client.stop();
+        return false;
+      }
       String sizeLine;
-      if (!readHttpLineCapped(client, sizeLine, deadlineMs)) break;
-      if (sizeLine.length() == 0) continue;
+      if (!readHttpLineCapped(client, sizeLine, deadlineMs)) {
+        client.stop();
+        return false;
+      }
+      // Rare bare CRLF between chunks (malformed / CDN quirk). Bound so endless CRLFs
+      // cannot spin past deadlineMs without failing. Trailer already ate the post-chunk CRLF.
+      if (sizeLine.length() == 0) {
+        if (++emptySizeLines > 8) {
+          client.stop();
+          return false;
+        }
+        continue;
+      }
+      emptySizeLines = 0;
       int sc = sizeLine.indexOf(';');
       if (sc >= 0) sizeLine = sizeLine.substring(0, sc);
       long chunkSize = strtol(sizeLine.c_str(), nullptr, 16);
-      if (chunkSize <= 0) break;
+      if (chunkSize <= 0) {
+        // Final 0-size chunk: complete message (empty body still false for callers).
+        return outBody.length() > 0;
+      }
       long got = 0;
       bool hitCap = false;
       while (got < chunkSize && millis() < deadlineMs) {
@@ -270,24 +301,30 @@ bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
             if (outBody.length() >= maxBody) hitCap = true;
           }
         } else if (!client.connected()) {
-          break;
+          client.stop();
+          return false; // truncated mid-chunk
         } else {
           pumpGateway();
           delay(1);
         }
       }
+      if (got < chunkSize) {
+        client.stop();
+        return false; // deadline mid-chunk
+      }
       // Always consume trailing CRLF after the chunk (or abandon socket).
       String trailer;
       if (!readHttpLineCapped(client, trailer, deadlineMs)) {
         client.stop();
-        return outBody.length() > 0;
+        return false; // partial body is not success (same class as 0.7.8 CL truncate)
       }
       if (hitCap) {
         client.stop();
         return false; // capped body is incomplete — not success
       }
     }
-    return outBody.length() > 0;
+    client.stop();
+    return false; // deadline without final 0-chunk
   }
   if (contentLength > 0) {
     while ((int)outBody.length() < contentLength && millis() < deadlineMs) {
@@ -303,8 +340,14 @@ bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
       pumpGateway();
       delay(5);
     }
-    return outBody.length() > 0;
+    if ((int)outBody.length() < contentLength) {
+      client.stop();
+      return false; // incomplete Content-Length body
+    }
+    return true;
   }
+  // Until-close fallback (no chunked, no Content-Length). Best-effort only: peer close
+  // with a partial body still returns length>0. Callers must validate JSON / shape.
   while (millis() < deadlineMs) {
     while (client.available()) {
       outBody += (char)client.read();
@@ -341,7 +384,7 @@ bool discordRestGet(const String& path, String& outBody, String& outStatus) {
     "Authorization: Bot " + String(BOT_TOKEN) + "\r\n"
     "Accept: application/json\r\n"
     "Accept-Encoding: identity\r\n"
-    "User-Agent: MiniMeBot/1.0\r\n"
+    "User-Agent: " + String(MINIME_USER_AGENT) + "\r\n"
     "Connection: close\r\n\r\n";
   httpsClient.print(request);
 
@@ -396,7 +439,6 @@ bool appendMembersFromGuild(const String& guildId, uint8_t maxToAdd) {
   if (jsonStart < 0 || (objStart >= 0 && objStart < jsonStart)) {
     return false;
   }
-  if (jsonStart > 0) body = body.substring(jsonStart);
 
   StaticJsonDocument<256> filter;
   filter[0]["nick"] = true;
@@ -405,13 +447,21 @@ bool appendMembersFromGuild(const String& guildId, uint8_t maxToAdd) {
   filter[0]["user"]["global_name"] = true;
   filter[0]["user"]["bot"] = true;
 
-  DynamicJsonDocument doc(8192);
-  DeserializationError err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
+  // Heap/PSRAM — not on Core 1 setup/loop stack (DynamicJsonDocument 8 KB would blow 8–16 KB stack).
+  static DynamicJsonDocument* memberDoc = nullptr;
+  if (!memberDoc) {
+    memberDoc = new (std::nothrow) DynamicJsonDocument(8192);
+  }
+  if (!memberDoc) return false;
+  memberDoc->clear();
+  // Parse from offset — avoid body.substring() second large String copy.
+  DeserializationError err = deserializeJson(
+      *memberDoc, body.c_str() + jsonStart, DeserializationOption::Filter(filter));
   if (err) {
     return false;
   }
 
-  JsonArray members = doc.as<JsonArray>();
+  JsonArray members = memberDoc->as<JsonArray>();
   if (members.isNull()) {
     return false;
   }

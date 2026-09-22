@@ -58,6 +58,15 @@ void formatLocalDateStr(char* buf, size_t bufLen) {
            tmLocal.tm_mday, tmLocal.tm_year + 1900);
 }
 
+void formatLocalTimeStr(char* buf, size_t bufLen) {
+  if (!buf || bufLen == 0) return;
+  // Avoid NTPClient::getFormattedTime() String alloc on the 1 Hz dash / web poll path.
+  snprintf(buf, bufLen, "%02u:%02u:%02u",
+           (unsigned)timeClient.getHours(),
+           (unsigned)timeClient.getMinutes(),
+           (unsigned)timeClient.getSeconds());
+}
+
 void formatUptimeStr(char* buf, size_t bufLen) {
   if (!buf || bufLen == 0) return;
   unsigned long d = 0, h = 0, m = 0, s = 0;

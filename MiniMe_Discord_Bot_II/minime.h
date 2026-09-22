@@ -1,11 +1,18 @@
 #ifndef MINIME_H
 #define MINIME_H
 
+// Arduino-ESP32 3.x: must be defined before Arduino.h / esp32-hal.h (SET_LOOP_TASK_STACK_SIZE
+// after Arduino.h is a no-op once CONFIG_ARDUINO_LOOP_STACK_SIZE is fixed at the 8 KB default).
+#ifndef ARDUINO_LOOP_STACK_SIZE
+#define ARDUINO_LOOP_STACK_SIZE 16384
+#endif
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
+#include <esp_heap_caps.h>
 #include <Wire.h>
 #include <Arduino_GFX_Library.h>
 #include <OneWire.h>
@@ -23,6 +30,23 @@
 #error "Using secrets.example.h template — copy to secrets.h, fill values, remove MINIME_SECRETS_IS_EXAMPLE"
 #endif
 #include "minime_config.h"
+
+// Large JSON arenas prefer PSRAM (AJ6/7). Do not use default DynamicJsonDocument for
+// GW_DOC_PSRAM / STATUS_DOC — default allocator is internal SRAM only.
+struct SpiRamAllocator {
+  void* allocate(size_t size) {
+    void* p = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!p) p = heap_caps_malloc(size, MALLOC_CAP_8BIT);
+    return p;
+  }
+  void deallocate(void* pointer) { heap_caps_free(pointer); }
+  void* reallocate(void* pointer, size_t new_size) {
+    void* p = heap_caps_realloc(pointer, new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!p) p = heap_caps_realloc(pointer, new_size, MALLOC_CAP_8BIT);
+    return p;
+  }
+};
+using SpiRamJsonDocument = BasicJsonDocument<SpiRamAllocator>;
 
 // MmLog -> web UI LOG/Serial only (no USB Serial / UART0).
 class MmLogClass : public Print {
@@ -57,11 +81,12 @@ extern WiFiUDP ntpUDP;
 extern NTPClient timeClient;
 void updateLocalTime();
 void formatLocalDateStr(char* buf, size_t bufLen);
+void formatLocalTimeStr(char* buf, size_t bufLen);
 void formatUptimeStr(char* buf, size_t bufLen);
 
 // ====== DISCORD GATEWAY ======
 extern WebSocketsClient gatewayWS;
-extern DynamicJsonDocument* gwDoc;
+extern SpiRamJsonDocument* gwDoc;
 extern bool gatewayConnected;
 extern bool identified;
 extern int heartbeatIntervalMs;
@@ -103,7 +128,7 @@ bool httpsAcquire(const char* host, uint32_t timeoutMs = 15000); // claim + conn
 void httpsRelease(); // stop shared client + clear httpsInUse
 uint8_t httpsGetOpen(const char* host, const String& path, unsigned long headerTimeoutMs,
                      bool& outChunked, int& outContentLength,
-                     const char* userAgent = "MiniMeBot/1.0",
+                     const char* userAgent = MINIME_USER_AGENT,
                      const char* extraHeaders = nullptr);
 uint8_t httpGetOpen(WiFiClient& client, const char* host, const String& path,
                     unsigned long headerTimeoutMs, bool& outChunked, int& outContentLength);
@@ -119,7 +144,8 @@ bool appendMembersFromGuild(const String& guildId, uint8_t maxToAdd);
 bool fetchGuildMembersAtStartup();
 bool sendDiscordMessage(const String& channelId, const String& content, bool suppressEmbeds = false);
 String getSystemInfo();
-void boardMemTotals(uint32_t& memFree, uint32_t& memTotal);
+void boardMemTotals(uint32_t& memFree, uint32_t& memTotal);   // internal SRAM
+void boardPsramTotals(uint32_t& psFree, uint32_t& psTotal);    // 0/0 if no PSRAM
 void uptimeDhms(unsigned long& days, unsigned long& hours, unsigned long& minutes, unsigned long& seconds);
 
 // ====== DISPLAY (Arduino_GFX: ESP32QSPI + AXS15231B + Canvas) ======

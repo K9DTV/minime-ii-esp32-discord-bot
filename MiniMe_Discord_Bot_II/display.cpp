@@ -229,9 +229,9 @@ static void drawDashBarAt(int16_t x, int16_t y, const char* label, int fillFull,
   if (fillW > 0) gfx->fillRect(barX + 1, y, fillW, 8, p.barFl);
 }
 
-static void drawSysRow(int16_t x, int16_t y, const char* k, const String& v, const DashPalette& p) {
+static void drawSysRow(int16_t x, int16_t y, const char* k, const char* v, const DashPalette& p) {
   prtCol(p.muted, k, x, y, 1);
-  prtCol(p.text, v, x + 56, y, 1);
+  prtCol(p.text, v ? v : "", x + 56, y, 1);
 }
 
 // Snapshot of what the LCD shows; Core 1 publishes, Core 0 paints.
@@ -252,6 +252,7 @@ struct DashSnap {
   int8_t bot; // 2 online else idle
   long rssi;
   uint32_t memFree, memTotal;
+  uint32_t psFree, psTotal; // 0/0 if no PSRAM
   int servoDeg;
   int tempC10; // -9990 = error
   bool identified;
@@ -304,8 +305,7 @@ static void captureSnap(DashSnap& s) {
   s.themeLight = lcdThemeLight;
   s.layoutLog = lcdLayoutLog;
   updateLocalTime();
-  String t = timeClient.getFormattedTime();
-  strncpy(s.timeStr, t.c_str(), sizeof(s.timeStr) - 1);
+  formatLocalTimeStr(s.timeStr, sizeof(s.timeStr));
   formatLocalDateStr(s.dateStr, sizeof(s.dateStr));
   formatUptimeStr(s.upStr, sizeof(s.upStr));
   if (!gatewayConnected) s.gw = -1;
@@ -314,6 +314,7 @@ static void captureSnap(DashSnap& s) {
   s.bot = (int8_t)botDiscordStatus;
   s.rssi = WiFi.RSSI();
   boardMemTotals(s.memFree, s.memTotal);
+  boardPsramTotals(s.psFree, s.psTotal);
   s.servoDeg = lastServoDeg;
   // dashTempC/F written by Core 0 pollTemperatureNonBlocking only — never block here.
   s.tempC10 = (dashTempC > -998.0f) ? (int)(dashTempC * 10.0f) : -9990;
@@ -342,8 +343,11 @@ static void captureSnap(DashSnap& s) {
   s.mention = alertMention;
   s.httpsBusy = httpsInUse;
   strncpy(s.event, lastEventLine.length() ? lastEventLine.c_str() : "-", sizeof(s.event) - 1);
-  String ip = WiFi.localIP().toString();
-  strncpy(s.ip, ip.c_str(), sizeof(s.ip) - 1);
+  {
+    IPAddress ip = WiFi.localIP();
+    snprintf(s.ip, sizeof(s.ip), "%u.%u.%u.%u",
+             (unsigned)ip[0], (unsigned)ip[1], (unsigned)ip[2], (unsigned)ip[3]);
+  }
   s.cpuMhz = getCpuFrequencyMhz();
   s.userHash = hashUsers();
   s.logGen = lcdLogGen();
@@ -398,6 +402,7 @@ static bool snapLeftEqual(const DashSnap& a, const DashSnap& b) {
       && a.gw == b.gw && a.bot == b.bot
       && a.rssi == b.rssi
       && a.memFree == b.memFree && a.memTotal == b.memTotal
+      && a.psFree == b.psFree && a.psTotal == b.psTotal
       && a.servoDeg == b.servoDeg && a.tempC10 == b.tempC10
       && a.identified == b.identified && a.nActive == b.nActive
       && a.dm == b.dm && a.mention == b.mention && a.httpsBusy == b.httpsBusy
@@ -501,7 +506,7 @@ static void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   }
   y += 11;
 
-  drawDashBarAt(cx, y, "Heap", dashHeapBarW(s.memFree, s.memTotal), p);
+  drawDashBarAt(cx, y, "SRAM", dashHeapBarW(s.memFree, s.memTotal), p);
   y += 10;
   {
     char hb[28];
@@ -509,6 +514,13 @@ static void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
     prtCol(p.muted, hb, cx + 36, y, 1);
   }
   y += 10;
+  if (s.psTotal > 0) {
+    char pb[36];
+    snprintf(pb, sizeof(pb), "PSRAM %lu/%lu",
+             (unsigned long)s.psFree, (unsigned long)s.psTotal);
+    prtCol(p.muted, pb, cx, y, 1);
+    y += 10;
+  }
   drawDashBarAt(cx, y, "Srv", dashSrvBarW(s.servoDeg), p);
   y += 12;
 
@@ -537,7 +549,12 @@ static void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   }
   y += 12;
 
-  String ota = String(OTA_HOSTNAME) + ".local";
+  static char otaHost[40];
+  static bool otaHostReady = false;
+  if (!otaHostReady) {
+    snprintf(otaHost, sizeof(otaHost), "%s.local", OTA_HOSTNAME);
+    otaHostReady = true;
+  }
   char cpuBuf[16];
   snprintf(cpuBuf, sizeof(cpuBuf), "%u MHz", (unsigned)s.cpuMhz);
   char wrBuf[28];
@@ -546,11 +563,11 @@ static void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   char periodBuf[16];
   snprintf(periodBuf, sizeof(periodBuf), "%lu ms", (unsigned long)DASH_REFRESH_MS);
 
-  drawSysRow(cx, y, "IP", String(s.ip), p); y += 10;
-  drawSysRow(cx, y, "OTA", ota, p); y += 10;
-  drawSysRow(cx, y, "CPU", String(cpuBuf), p); y += 10;
-  drawSysRow(cx, y, "Write", String(wrBuf), p); y += 10;
-  drawSysRow(cx, y, "Period", String(periodBuf), p);
+  drawSysRow(cx, y, "IP", s.ip, p); y += 10;
+  drawSysRow(cx, y, "OTA", otaHost, p); y += 10;
+  drawSysRow(cx, y, "CPU", cpuBuf, p); y += 10;
+  drawSysRow(cx, y, "Write", wrBuf, p); y += 10;
+  drawSysRow(cx, y, "Period", periodBuf, p);
 }
 
 static void drawRightPanel(const DashSnap& s, const DashPalette& p) {
@@ -712,14 +729,17 @@ void showTransient(const String& line1, const String& line2, const String& line3
   transientLine3 = line3;
   transientUntilMs = millis() + (durationMs ? durationMs : 3000UL);
   // Sticky Event (LCD + web msg1): all three lines. Web msg2 flash uses 1+2+3 while untilMs.
-  String e = line1;
-  if (line2.length()) {
-    if (e.length()) e += " ";
-    e += line2;
-  }
-  if (line3.length()) {
-    if (e.length()) e += " ";
-    e += line3;
+  char e[120];
+  size_t n = 0;
+  e[0] = '\0';
+  const String* parts[3] = {&line1, &line2, &line3};
+  for (uint8_t p = 0; p < 3; p++) {
+    if (!parts[p]->length()) continue;
+    if (n && n + 1 < sizeof(e)) e[n++] = ' ';
+    for (size_t i = 0; i < parts[p]->length() && n + 1 < sizeof(e); i++) {
+      e[n++] = (*parts[p])[i];
+    }
+    e[n] = '\0';
   }
   noteLastEvent(e);
 }

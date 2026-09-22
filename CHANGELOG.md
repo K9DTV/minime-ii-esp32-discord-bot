@@ -1,6 +1,60 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.8** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.17** (see `VERSION` and README).
+
+## 0.7.17
+
+- `gwDoc` (256 KB) and `statusDoc` (32 KB): `SpiRamJsonDocument` / `SpiRamAllocator` (same pattern as `!ask`). Was default `DynamicJsonDocument` → internal SRAM (boot heapPct ~93). Confirm flash via `Display · v0.7.17`.
+
+## 0.7.16
+
+- Chunked body: bound empty size-line skips (CDN bare-CRLF quirk); still require final 0-chunk.
+- `webLogFeed`: drop if `xPortGetCoreID() != 1` (ring vs `handleStatus`).
+- Until-close body path: documented best-effort (callers validate JSON). Confirm flash via `Display · v0.7.16`.
+
+## 0.7.15
+
+- `readHttpBodyAfterHeaders` chunked: trailer / size-line / mid-chunk failure returns **false** (no partial-body success). Content-Length incomplete also **false**.
+- Loop stack: `static_assert(ARDUINO_LOOP_STACK_SIZE == 16384)` next to strong override.
+- Document: `webLogFeed` / MmLog Core-1-only (no ring mutex vs `handleStatus`). Confirm flash via `Display · v0.7.15`.
+
+## 0.7.14
+
+- Loop stack (Arduino-ESP32 3.x): `ARDUINO_LOOP_STACK_SIZE 16384` before `Arduino.h` in `minime.h`, plus strong `getArduinoLoopTaskStackSize()` in the `.ino`. 0.7.13's `SET_LOOP_TASK_STACK_SIZE` after `minime.h` was a no-op on 3.x (same class of miss as 0.7.11). Confirm via `[SYS] loop stack free HWM` (16 KB => often >~2000 words remaining after setup).
+- LCD: PSRAM free/total row on left panel (DashSnap + `boardPsramTotals`) to match web/`!sys`.
+- `!ask`: after `SpiRamJsonDocument` alloc, treat `capacity()==0` as out of memory (not "JSON parse NoMemory").
+- Confirm flash via `Display · v0.7.14`.
+
+## 0.7.13
+
+- Loop stack: documented `SET_LOOP_TASK_STACK_SIZE(16*1024)` after `minime.h`; one-shot `[SYS] loop stack free HWM` log. (**Superseded by 0.7.14** — that macro after Arduino.h does not raise the stack on ESP32 core 3.x.)
+- `!ask`: PSRAM `BasicJsonDocument` + `nothrow`; parse from `c_str()+offset` (no substring copy).
+- Heap bar / `!sys`: **internal** heap only; separate PSRAM lines / JSON fields.
+- `MINIME_USER_AGENT` single source. `appendMembersFromGuild` doc off stack. Confirm flash via `Display · v0.7.13`.
+
+## 0.7.12
+
+- LOG vs Serial restored: Serial = normal MmLog; LOG = body between `[GW] === FULL LOG ===` / `END LOG` (60 s drop-ring dump; clear on each dump start). Confirm flash via `Display · v0.7.12`.
+
+## 0.7.11
+
+- `!ask`: DeepSeek parse doc is heap/PSRAM `DynamicJsonDocument` (no 24 KB stack `StaticJsonDocument`).
+- Core 1 loop stack: `getArduinoLoopTaskStackSize()` **before** any `#include` (16 KB strong override).
+- `boardMemTotals`: real `ESP.getPsramSize()` / `getFreePsram()` (no fake 8 MB).
+- `httpGetOpen`: `User-Agent: MiniMeBot/1.0` (OWM / ISS). Confirm flash via `Display · v0.7.11`.
+
+## 0.7.10
+
+- LOG panel: MmLog lines feed rolling `webFullLines` again (empty after full-dump opt-out).
+- `!sys`: drop IP / OTA host (use owner `!ota` for those).
+- `!ota` owner-only in README (matches code/help). `!led` handler removed.
+- Web `esc()`: numeric `0` no longer becomes empty (`s||''` bug).
+- `ChunkPrint::write` bulk `memcpy`. Confirm flash via `Display · v0.7.10`.
+
+## 0.7.9
+
+- Hot-path `String` reduction: `formatLocalTimeStr`; LCD snap/draw use `char[]`; Gateway log ring is fixed `char[][]`; LAN `/` and `/api/status` stream via chunked `Print` (`serializeJson` to `ChunkPrint`, no 25 KB JSON `String`).
+- Confirm flash via `Display · v0.7.9`.
 
 ## 0.7.8
 

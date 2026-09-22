@@ -1,6 +1,6 @@
 # MiniMe II — code review notes (pro pass)
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.8**.
+What we **fixed** vs what we **left** and why. Current: **v0.7.17**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -13,42 +13,46 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.8**.
 | DashSnap sync | 0.7.1 — seqlock + 1 s publish throttle |
 | Fetch body HB pumps | 0.7.6 — weather / news / APOD / ISS / arXiv use `readHttpBodyAfterHeaders` |
 | `*GetOpen` returns chunked/CL | 0.7.7 — body reader no longer guesses “until close” |
-| Gateway TLS verify | **0.7.8** — `beginSslWithBundle` + CA blob (not `beginSSL`/`setInsecure`) |
-| Body truncation ≠ success | **0.7.8** — 48 KB / hitCap returns `false` |
-| Presence eviction | **0.7.8** — unknown presence no longer `addOrPickUserSlot` |
-| Owner gate use count | **0.7.8** — `recordUserUse` after `isOwner` on `!led`/`!servo`/`!clear` |
-| Firmware URL | **0.7.8** — `K9DTV/minime-ii-esp32-discord-bot` |
-| DashSnap stack | **0.7.8** — static snap buffers; Core 1 loop stack 16 KB; seqlock `taskYIELD` |
-| Cross-core display flags | **0.7.8** — `std::atomic` for asleep / activity / `dashForceFull` |
-| Version single source | **0.7.8** — `MINIME_VERSION` + `VERSION`; web header derives it |
-| GW debug leftovers | **0.7.8** — `GW_LOG_MAX` 40; alive 60 s; full dump opt-in |
-| `showTransient` duration | 0.7.3 — honors `durationMs`; `!display` 6 s |
-| Boot `gwDoc` / `statusDoc` | 0.7.4–0.7.5 — alloc fail → halt; `gwDoc` checked before Canvas |
-| Nested `pumpGateway` HB-only | 0.6.4 — still kept for HTTPS-from-wait paths |
-| OTA / HTTPS caps / touch timeout / Bot:N | 0.6.4–0.6.7 |
+| Gateway TLS verify | 0.7.8 — `beginSslWithBundle` + CA blob |
+| Body truncation ≠ success | 0.7.8 — 48 KB / hitCap returns `false` |
+| Presence eviction | 0.7.8 — unknown presence no longer `addOrPickUserSlot` |
+| Owner gate / firmware URL / atomics / VERSION | 0.7.8 |
+| Hot-path `String` / chunked web | 0.7.9 |
+| LOG/Serial split | 0.7.12 — FULL LOG dump body vs normal MmLog |
+| DeepSeek off stack | 0.7.11+; **0.7.13** PSRAM `BasicJsonDocument` + `nothrow` + no substring; **0.7.14** `capacity()==0` => OOM |
+| Loop stack override | **0.7.14** — `ARDUINO_LOOP_STACK_SIZE` before `Arduino.h` + strong `getArduinoLoopTaskStackSize()` (0.7.11/0.7.13 were no-ops on core 3.x); verify HWM log |
+| Heap vs PSRAM | **0.7.13** — bar/`heap*` = internal; PSRAM separate; **0.7.14** LCD PSRAM row |
+| `MINIME_USER_AGENT` | **0.7.13** — single `#define` |
+| Members JSON on stack | **0.7.13** — heap `DynamicJsonDocument*` for guild members |
+| Chunked body truncate ≠ success | **0.7.15** — trailer/size/mid-chunk/`Content-Length` incomplete → `false` |
+| Large JSON in PSRAM | **0.7.17** — `gwDoc` / `statusDoc` / `deepSeekDoc` via shared `SpiRamJsonDocument` |
 
 ## Still deferred (why)
 
-### 1 — `String` on hot paths
-
-**Can be fixed** (fixed `char[]` / `serializeJson` to `Print` / chunked web sends). Not done: multi-file rewrite. Watch `heapFree` before investing.
-
-### 2 — Discord 429 / Retry-After
+### 1 — Discord 429 / Retry-After
 
 `sendDiscordMessage` uses status line only. Hobby-acceptable.
 
-### 3 — ArduinoJson 6
+### 2 — ArduinoJson 6
 
 Pinned; v7 later.
 
-### 4 — Explicit TWDT register/reset
+### 3 — Explicit TWDT register/reset
 
 Rely on Arduino-ESP32 default + `delay`/`yield`. Documented.
 
-### 5 — CI compile-only / no HIL
+### 4 — CI compile-only / no HIL
 
 Honest in README.
 
-### 6 — Delete nested `gwPumping` HB-only path
+### 5 — Delete nested `gwPumping` HB-only path
 
 Plan: keep until a week of stable Gateway after dual-core, then prune.
+
+### 6 — Remaining `String` on cold paths
+
+Command handlers / HTTPS body buffers / tracked user IDs still use `String`. Acceptable until heap pressure shows up on those paths.
+
+### 7 — MmLog / webLogFeed cross-core
+
+Rings have no mutex. **0.7.16:** `webLogFeed` drops if `xPortGetCoreID() != 1`. Still do not call MmLog from Core 0 for intentional logs.

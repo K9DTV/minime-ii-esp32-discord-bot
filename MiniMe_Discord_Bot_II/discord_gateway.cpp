@@ -3,7 +3,7 @@
 #include "esp_wifi.h"
 
 WebSocketsClient gatewayWS;
-DynamicJsonDocument* gwDoc = nullptr;
+SpiRamJsonDocument* gwDoc = nullptr;
 bool gatewayConnected     = false;
 bool identified           = false;
 bool gotHello             = false;
@@ -14,27 +14,22 @@ String sessionId;
 unsigned long lastBotActivityMillis = 0;
 uint8_t botDiscordStatus = 0;
 
-// Serial drop/reconnect diagnostics (ring for DROP_START / RECOVERED).
+// Serial drop/reconnect diagnostics (ring dumped to LOG panel every 60 s).
 static const uint8_t GW_LOG_MAX = 40;
-// Set to 1 to dump the ring to MmLog every 60 s (floods web LOG; off by default).
-#ifndef GW_DEBUG_FULL_LOG_DUMP
-#define GW_DEBUG_FULL_LOG_DUMP 0
-#endif
-static String gwLog[GW_LOG_MAX];
+static const uint8_t GW_LOG_COLS = 96;
+static char gwLog[GW_LOG_MAX][GW_LOG_COLS + 1];
 static uint8_t gwLogCount = 0;
-static String gwLogLastAdded;
-static String gwDropStartEvent;
+static char gwLogLastAdded[GW_LOG_COLS + 1];
+static char gwDropStartEvent[GW_LOG_COLS + 1];
 static bool gwInDropState = false;
 static unsigned long gwLastDropRemindMillis = 0;
-#if GW_DEBUG_FULL_LOG_DUMP
 static unsigned long gwLastFullLogMillis = 0;
-#endif
 static unsigned long gwReconnectIntervalMs = 5000;
 static const unsigned long GW_RECONNECT_BASE_MS = 5000UL;
 static const unsigned long GW_RECONNECT_MAX_MS = 5000UL; // was 60000; keep tries short so drop recovery stays under ~30s when Discord answers
 static const unsigned long GW_RECONNECT_FAST_MS = 200UL; // after drop: IDENTIFY ASAP
 static unsigned long gwLastWifiKickMillis = 0;
-static String gwLastDropKind;
+static char gwLastDropKind[32];
 static bool gwLoggedConnectDuringDrop = false;
 static unsigned long gwDropStartedMillis = 0;
 static unsigned long gwLastDisconnectMillis = 0;
@@ -45,39 +40,50 @@ static unsigned long hbSentMillis = 0;
 static bool gwPumping = false;
 static bool gwDeferPresenceOnline = false;
 
-static String gwStamp() {
-  return String(millis());
-}
-
-static void gwLogAppend(const String& ev) {
-  if (gwLogCount > 0 && gwLogLastAdded == ev) return;
-  gwLogLastAdded = ev;
-  String line = String("[") + gwStamp() + "] " + ev;
+static void gwLogAppend(const char* ev) {
+  if (!ev || !ev[0]) return;
+  if (gwLogCount > 0 && strcmp(gwLogLastAdded, ev) == 0) return;
+  strncpy(gwLogLastAdded, ev, GW_LOG_COLS);
+  gwLogLastAdded[GW_LOG_COLS] = '\0';
+  char line[GW_LOG_COLS + 1];
+  snprintf(line, sizeof(line), "[%lu] %s", (unsigned long)millis(), ev);
   MmLog.print("[GW] ");
   MmLog.println(line);
   if (gwLogCount < GW_LOG_MAX) {
-    gwLog[gwLogCount++] = line;
+    strncpy(gwLog[gwLogCount], line, GW_LOG_COLS);
+    gwLog[gwLogCount][GW_LOG_COLS] = '\0';
+    gwLogCount++;
   } else {
-    for (uint8_t i = 1; i < GW_LOG_MAX; i++) gwLog[i - 1] = gwLog[i];
-    gwLog[GW_LOG_MAX - 1] = line;
+    for (uint8_t i = 1; i < GW_LOG_MAX; i++) {
+      memcpy(gwLog[i - 1], gwLog[i], GW_LOG_COLS + 1);
+    }
+    strncpy(gwLog[GW_LOG_MAX - 1], line, GW_LOG_COLS);
+    gwLog[GW_LOG_MAX - 1][GW_LOG_COLS] = '\0';
   }
 }
 
 void gwLogEvent(const String& ev) {
-  gwLogAppend(ev);
+  gwLogAppend(ev.c_str());
 }
 
 // kind = coarse category (dedupe); detail = full text for first DROP_START / new kinds
-static void gwNoteDrop(const String& kind, const String& detail) {
+static void gwNoteDrop(const char* kind, const char* detail) {
+  if (!kind) kind = "";
+  if (!detail) detail = "";
   if (!gwInDropState) {
     gwInDropState = true;
     gwDropStartedMillis = millis();
-    gwDropStartEvent = detail;
-    gwLastDropKind = kind;
+    strncpy(gwDropStartEvent, detail, GW_LOG_COLS);
+    gwDropStartEvent[GW_LOG_COLS] = '\0';
+    strncpy(gwLastDropKind, kind, sizeof(gwLastDropKind) - 1);
+    gwLastDropKind[sizeof(gwLastDropKind) - 1] = '\0';
     gwLastDropRemindMillis = millis();
-    gwLogAppend(String("DROP_START: ") + detail);
-  } else if (kind != gwLastDropKind) {
-    gwLastDropKind = kind;
+    char start[GW_LOG_COLS + 1];
+    snprintf(start, sizeof(start), "DROP_START: %s", detail);
+    gwLogAppend(start);
+  } else if (strcmp(kind, gwLastDropKind) != 0) {
+    strncpy(gwLastDropKind, kind, sizeof(gwLastDropKind) - 1);
+    gwLastDropKind[sizeof(gwLastDropKind) - 1] = '\0';
     gwLogAppend(detail);
   }
 }
@@ -86,8 +92,8 @@ static void gwClearDropState() {
   if (!gwInDropState) return;
   gwLogAppend("RECOVERED");
   gwInDropState = false;
-  gwDropStartEvent = "";
-  gwLastDropKind = "";
+  gwDropStartEvent[0] = '\0';
+  gwLastDropKind[0] = '\0';
   gwLoggedConnectDuringDrop = false;
   gwDropStartedMillis = 0;
   gwFastIdentifyPending = false;
@@ -97,13 +103,17 @@ static void gwClearDropState() {
 static void gwClearSession(const char* reason) {
   sessionId = "";
   lastSeq = 0;
-  gwLogAppend(String("CLEAR_SESSION ") + (reason ? reason : ""));
+  char buf[64];
+  snprintf(buf, sizeof(buf), "CLEAR_SESSION %s", reason ? reason : "");
+  gwLogAppend(buf);
 }
 
 static void gwSetReconnectIntervalMs(unsigned long ms) {
   gwReconnectIntervalMs = ms;
   gatewayWS.setReconnectInterval(gwReconnectIntervalMs);
-  gwLogAppend(String("RECONNECT_INTERVAL_MS=") + String(gwReconnectIntervalMs));
+  char buf[48];
+  snprintf(buf, sizeof(buf), "RECONNECT_INTERVAL_MS=%lu", (unsigned long)gwReconnectIntervalMs);
+  gwLogAppend(buf);
 }
 
 // Drop path: short reconnect so DISCONNECTED cannot climb to 5s.
@@ -115,7 +125,7 @@ static void gwArmFastIdentify(const char* reason) {
 
 void gwSerialService() {
   unsigned long now = millis();
-  // Alive pulse (60 s) so the web Serial ring is not dominated by heartbeats.
+  // Alive pulse (60 s) — Serial panel only (outside FULL LOG markers).
   static unsigned long gwLastAliveMillis = 0;
   if (gwLastAliveMillis == 0) gwLastAliveMillis = now;
   if (now - gwLastAliveMillis >= 60000UL) {
@@ -133,13 +143,13 @@ void gwSerialService() {
     MmLog.print(" drop=");
     MmLog.println(gwInDropState ? "1" : "0");
   }
-  if (gwInDropState && gwDropStartEvent.length() &&
+  if (gwInDropState && gwDropStartEvent[0] &&
       (now - gwLastDropRemindMillis >= 5000UL)) {
     gwLastDropRemindMillis = now;
     MmLog.print("[GW] DROP still (started): ");
     MmLog.println(gwDropStartEvent);
   }
-#if GW_DEBUG_FULL_LOG_DUMP
+  // Dump drop/reconnect ring into LOG panel (web routes FULL LOG..END LOG -> fulllog).
   if (now - gwLastFullLogMillis >= 60000UL) {
     gwLastFullLogMillis = now;
     MmLog.println("[GW] === FULL LOG ===");
@@ -157,7 +167,6 @@ void gwSerialService() {
     }
     MmLog.println("[GW] === END LOG ===");
   }
-#endif
 }
 
 static void gwSetReconnectBackoff(bool reset) {
@@ -198,7 +207,9 @@ static void bindGatewayHost(const char* host) {
 #endif
   gatewayWS.onEvent(gatewayEvent);
   gatewayWS.setReconnectInterval(gwReconnectIntervalMs);
-  gwLogAppend(String("BIND_HOST ") + host);
+  char bindMsg[64];
+  snprintf(bindMsg, sizeof(bindMsg), "BIND_HOST %s", host);
+  gwLogAppend(bindMsg);
 }
 
 void connectGateway() {
@@ -336,7 +347,10 @@ static void pumpGatewayKeepAlive() {
   unsigned long hbAckDeadline = hbInterval + GW_HB_ACK_GRACE_MS;
   if (hbAckPending) {
     if (now - hbSentMillis >= hbAckDeadline) {
-      gwLogAppend(String("HB_ACK_TIMEOUT after_ms=") + String(now - hbSentMillis));
+      char toMsg[48];
+      snprintf(toMsg, sizeof(toMsg), "HB_ACK_TIMEOUT after_ms=%lu",
+               (unsigned long)(now - hbSentMillis));
+      gwLogAppend(toMsg);
       gwArmFastIdentify("hb_ack");
       hbAckPending = false;
       gatewayWS.disconnect();
@@ -390,30 +404,31 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       hbAckPending = false;
 
       bool wifiUp = (WiFi.status() == WL_CONNECTED);
-      String kind = wifiUp ? "WS_DISCONNECTED_WIFI_UP" : "WS_DISCONNECTED_WIFI_DOWN";
-      String detail = kind;
-      if (payload && length > 0) {
-        detail += " reason=";
-        size_t n = length < 80 ? length : 80;
-        for (size_t i = 0; i < n; i++) {
+      const char* kind = wifiUp ? "WS_DISCONNECTED_WIFI_UP" : "WS_DISCONNECTED_WIFI_DOWN";
+      char detail[GW_LOG_COLS + 1];
+      size_t n = 0;
+      n += (size_t)snprintf(detail + n, sizeof(detail) - n, "%s", kind);
+      if (payload && length > 0 && n + 9 < sizeof(detail)) {
+        n += (size_t)snprintf(detail + n, sizeof(detail) - n, " reason=");
+        size_t lim = length < 40 ? length : 40;
+        for (size_t i = 0; i < lim && n + 1 < sizeof(detail); i++) {
           char c = (char)payload[i];
-          if (c >= 32 && c < 127) detail += c;
+          if (c >= 32 && c < 127) detail[n++] = c;
         }
+        detail[n] = '\0';
       }
-      detail += " rssi=";
-      detail += String(WiFi.RSSI());
-      detail += " seq=";
-      detail += String(lastSeq);
-      detail += " session=";
-      detail += sessionId.length() ? "yes" : "no";
+      snprintf(detail + n, sizeof(detail) - n, " rssi=%ld seq=%d session=%s",
+               (long)WiFi.RSSI(), lastSeq, sessionId.length() ? "yes" : "no");
 
       gwNoteDrop(kind, detail);
       gwLoggedConnectDuringDrop = false;
       gwLastDisconnectMillis = millis();
-      gwLogAppend(String("DISCONNECT_AT millis=") + String(gwLastDisconnectMillis)
-                + " rssi=" + String(WiFi.RSSI())
-                + " heap=" + String(ESP.getFreeHeap())
-                + " psram=" + String(ESP.getFreePsram()));
+      char discAt[96];
+      snprintf(discAt, sizeof(discAt),
+               "DISCONNECT_AT millis=%lu rssi=%ld heap=%lu psram=%lu",
+               (unsigned long)gwLastDisconnectMillis, (long)WiFi.RSSI(),
+               (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getFreePsram());
+      gwLogAppend(discAt);
       noteLastEvent(wifiUp ? "GW drop" : "GW wifi down");
 
       // Identify-only after drops. Do not beginSslWithBundle again — library reconnects to BIND_HOST.
@@ -434,8 +449,10 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       gwFastIdentifyPending = false;
       unsigned long nowMs = millis();
       unsigned long gapMs = gwLastDisconnectMillis ? (nowMs - gwLastDisconnectMillis) : 0;
-      gwLogAppend(String("CONNECT_AT millis=") + String(nowMs)
-                + " gap_ms=" + String(gapMs));
+      char connAt[64];
+      snprintf(connAt, sizeof(connAt), "CONNECT_AT millis=%lu gap_ms=%lu",
+               nowMs, gapMs);
+      gwLogAppend(connAt);
       if (!gwInDropState || !gwLoggedConnectDuringDrop) {
         gwLogAppend("WS_CONNECTED");
         if (gwInDropState) gwLoggedConnectDuringDrop = true;
@@ -443,14 +460,16 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       break;
     }
     case WStype_ERROR: {
-      String detail = "WS_ERROR";
-      if (payload && length > 0) {
-        detail += " ";
-        size_t n = length < 80 ? length : 80;
-        for (size_t i = 0; i < n; i++) {
+      char detail[GW_LOG_COLS + 1];
+      size_t n = (size_t)snprintf(detail, sizeof(detail), "WS_ERROR");
+      if (payload && length > 0 && n + 2 < sizeof(detail)) {
+        detail[n++] = ' ';
+        size_t lim = length < 80 ? length : 80;
+        for (size_t i = 0; i < lim && n + 1 < sizeof(detail); i++) {
           char c = (char)payload[i];
-          if (c >= 32 && c < 127) detail += c;
+          if (c >= 32 && c < 127) detail[n++] = c;
         }
+        detail[n] = '\0';
       }
       gwNoteDrop("WS_ERROR", detail);
       break;
@@ -487,7 +506,9 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       gwDoc->clear();
       DeserializationError err = deserializeJson(*gwDoc, payload, length, DeserializationOption::Filter(gwFilter));
       if (err) {
-        gwLogAppend(String("JSON_ERR ") + err.c_str());
+        char jerr[48];
+        snprintf(jerr, sizeof(jerr), "JSON_ERR %s", err.c_str());
+        gwLogAppend(jerr);
         return;
       }
       int op = (*gwDoc)["op"] | -1;
@@ -506,7 +527,9 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
           lastHeartbeatMillis = millis();
         }
         gotHello = true;
-        gwLogAppend(String("OP10_HELLO hb_ms=") + String(heartbeatIntervalMs));
+        char hello[40];
+        snprintf(hello, sizeof(hello), "OP10_HELLO hb_ms=%d", heartbeatIntervalMs);
+        gwLogAppend(hello);
         sendIdentify();
         return;
       }
@@ -526,7 +549,9 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
         if (!deserializeJson(small, payload, length)) {
           resumable = small["d"] | false;
         }
-        String detail = String("OP9_INVALID_SESSION resumable=") + (resumable ? "1" : "0");
+        char detail[48];
+        snprintf(detail, sizeof(detail), "OP9_INVALID_SESSION resumable=%c",
+                 resumable ? '1' : '0');
         gwNoteDrop(detail, detail);
         gwArmFastIdentify("op9");
         gatewayWS.disconnect();
@@ -546,7 +571,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
           sessionId = (*gwDoc)["d"]["session_id"] | "";
           gwSetReconnectBackoff(true);
           gwClearDropState();
-          gwLogAppend(String("READY session=") + (sessionId.length() ? "yes" : "no"));
+          gwLogAppend(sessionId.length() ? "READY session=yes" : "READY session=no");
           JsonArray guilds = (*gwDoc)["d"]["guilds"].as<JsonArray>();
           if (!guilds.isNull()) {
             for (JsonObject g : guilds) {

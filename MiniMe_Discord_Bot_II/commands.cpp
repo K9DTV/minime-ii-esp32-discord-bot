@@ -1,8 +1,11 @@
 #include "minime.h"
+#include <new>
 
 bool askNeedPost = false;
 String askPendingQuestion;
 String askPendingChannelId;
+
+static SpiRamJsonDocument* deepSeekDoc = nullptr;
 
 String collapseWhitespace(String s) {
   s.replace("\n", " ");
@@ -278,7 +281,7 @@ bool askDeepSeek(const String& question, String& outReport) {
     "Content-Type: application/json\r\n"
     "Accept: application/json\r\n"
     "Accept-Encoding: identity\r\n"
-    "User-Agent: MiniMeBot/1.0\r\n"
+    "User-Agent: " MINIME_USER_AGENT "\r\n"
     "Content-Length: " + String(body.length()) + "\r\n"
     "Connection: close\r\n\r\n" +
     body;
@@ -304,24 +307,34 @@ bool askDeepSeek(const String& question, String& outReport) {
     outReport = "DeepSeek: no JSON body. " + truncateText(statusLine, 80);
     return false;
   }
-  if (jsonStart > 0) {
-    respBody = respBody.substring(jsonStart);
-  }
   StaticJsonDocument<128> filter;
   filter["choices"][0]["message"]["content"] = true;
   filter["error"]["message"] = true;
-  StaticJsonDocument<DEEPSEEK_JSON_DOC> doc;
-  DeserializationError err = deserializeJson(doc, respBody, DeserializationOption::Filter(filter));
+
+  // AJ6/7 filter zero-copy: strings in deepSeekDoc point into respBody until we copy answer below.
+  // Do not hoist deepSeekDoc past respBody's lifetime without copying fields out.
+  if (!deepSeekDoc) {
+    deepSeekDoc = new (std::nothrow) SpiRamJsonDocument(DEEPSEEK_JSON_DOC);
+  }
+  if (!deepSeekDoc || deepSeekDoc->capacity() == 0) {
+    outReport = "DeepSeek: out of memory (JSON doc).";
+    return false;
+  }
+  deepSeekDoc->clear();
+  // Parse from offset — no respBody.substring() second 48 KB copy.
+  DeserializationError err = deserializeJson(
+      *deepSeekDoc, respBody.c_str() + jsonStart, DeserializationOption::Filter(filter));
   if (err) {
     outReport = "DeepSeek JSON parse error (" + String(err.c_str()) + ").";
     return false;
   }
-  if (doc.containsKey("error")) {
-    String emsg = doc["error"]["message"] | "API error";
+  if (deepSeekDoc->containsKey("error")) {
+    String emsg = (*deepSeekDoc)["error"]["message"] | "API error";
     outReport = "DeepSeek error: " + truncateText(emsg, 200);
     return false;
   }
-  String answer = collapseWhitespace(doc["choices"][0]["message"]["content"] | "");
+  // Copy out before respBody (and filter views) leave scope.
+  String answer = collapseWhitespace((*deepSeekDoc)["choices"][0]["message"]["content"] | "");
   if (answer.length() == 0) {
     outReport = "DeepSeek returned an empty answer. " + truncateText(statusLine, 60);
     return false;
@@ -386,7 +399,7 @@ static void showIfPosted(const char* label, const String& okLine2, bool posted) 
 
 // Commands whose args are the rest of the line (multi-word). Others take one token.
 static bool cmdConsumesRest(const String& cmd) {
-  return cmd == "!ask" || cmd == "!display" || cmd == "!led";
+  return cmd == "!ask" || cmd == "!display";
 }
 
 static void stripTrailingPunct(String& s) {
@@ -465,7 +478,7 @@ void handleCommand(const String& content, const String& authorId, const String& 
       "• `!iss` — Current International Space Station position.\n"
       "• `!news` — Space and high-tech science headlines.\n"
       "• `!physics` — Latest arXiv physics papers.\n"
-      "• `!sys` — System diagnostics (uptime, heap, RSSI, IP, OTA host, gateway, firmware URL).\n"
+      "• `!sys` — System diagnostics (uptime, internal heap, PSRAM, RSSI, gateway, firmware URL).\n"
       "• `!temp` — Reads the current indoor temperature sensor.\n"
       "• `!time` — Displays the current bot time.\n"
       "• `!weather <zip>` — Fetches the weather report for a US ZIP code.\n\n"
@@ -555,8 +568,9 @@ void handleCommand(const String& content, const String& authorId, const String& 
   if (cmdWord == "!time") {
     recordUserUse(authorId, authorName);
     updateLocalTime();
-    String currentTime = timeClient.getFormattedTime();
-    String msg = "🕒 Current Bot Time: " + currentTime;
+    char currentTime[12];
+    formatLocalTimeStr(currentTime, sizeof(currentTime));
+    String msg = String("🕒 Current Bot Time: ") + currentTime;
     showIfPosted("Time", currentTime, sendDiscordMessage(channelId, msg));
     return;
   }
@@ -594,7 +608,7 @@ void handleCommand(const String& content, const String& authorId, const String& 
     }
     return;
   }
-  if (cmdWord == "!led" || cmdWord == "!servo" || cmdWord == "!clear") {
+  if (cmdWord == "!servo" || cmdWord == "!clear") {
     if (!isOwner(authorId)) {
       if (!isDM) {
         sendDiscordMessage(channelId, "You are not allowed to use this command.");
@@ -606,30 +620,6 @@ void handleCommand(const String& content, const String& authorId, const String& 
       clearAlertFlags();
       showIfPosted("clear", "alerts OFF",
                    sendDiscordMessage(channelId, "DM/mention alerts cleared"));
-      return;
-    }
-    if (cmdWord == "!led") {
-      String a = args;
-      a.trim();
-      String al = a;
-      al.toLowerCase();
-      if (al == "on") {
-        setLedRgb(255, 255, 255);
-        showIfPosted("LED", "ON", sendDiscordMessage(channelId, "LED ON (255 255 255)"));
-      } else if (al == "off") {
-        setLedRgb(0, 0, 0);
-        showIfPosted("LED", "OFF", sendDiscordMessage(channelId, "LED OFF"));
-      } else {
-        uint8_t r, g, b;
-        if (!parseRgbTriplet(a, r, g, b)) {
-          sendDiscordMessage(channelId, "Usage: !led on/off  or  !led <r> <g> <b> (0-255)");
-          return;
-        }
-        setLedRgb(r, g, b);
-        String msg = "LED RGB " + String(r) + " " + String(g) + " " + String(b);
-        showIfPosted("LED", String(r) + "," + String(g) + "," + String(b),
-                     sendDiscordMessage(channelId, msg));
-      }
       return;
     }
     if (cmdWord == "!servo") {

@@ -33,12 +33,20 @@
  Libs: GFX Library for Arduino (AXS15231B), ArduinoJson 6, WebSockets, etc.
  Partition: sketch partitions.csv = 2x ~7.9MB OTA apps.
 */
+
 #include "minime.h"
 #include "cores.h"
 #include "esp_wifi.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <new>
 
-// Core 1 loop stack: DashSnap publish + HTTPS String bodies need headroom beyond default 8 KB.
-SET_LOOP_TASK_STACK_SIZE(16 * 1024);
+// Strong override of core weak default (8 KB). ARDUINO_LOOP_STACK_SIZE is also set in
+// minime.h before Arduino.h for ESP32 core 3.x CONFIG path. Must match core linkage (C++).
+static_assert(ARDUINO_LOOP_STACK_SIZE == 16384, "keep minime.h macro and strong override in sync");
+size_t getArduinoLoopTaskStackSize() {
+  return (size_t)ARDUINO_LOOP_STACK_SIZE;
+}
 
 void connectWiFi() {
   WiFi.mode(WIFI_STA);
@@ -63,8 +71,8 @@ void connectWiFi() {
 
 void setup() {
   mmSerialBegin();
-  gwDoc = new DynamicJsonDocument(GW_DOC_PSRAM);
-  if (!gwDoc) {
+  gwDoc = new (std::nothrow) SpiRamJsonDocument(GW_DOC_PSRAM);
+  if (!gwDoc || gwDoc->capacity() == 0) {
     MmLog.println(F("Fatal: gwDoc alloc failed (PSRAM?)"));
     // delay() feeds TWDT; board stays here until power cycle (no OTA/web/Gateway).
     while (true) {
@@ -120,6 +128,18 @@ void setup() {
 }
 
 void loop() {
+  static bool loggedStackOnce = false;
+  if (!loggedStackOnce) {
+    loggedStackOnce = true;
+    // FreeRTOS remaining high-water words (4 B each on ESP32).
+    // ~16 KB stack => after setup HWM often >~2000 words; ~8 KB usually ~1500-2000.
+    UBaseType_t hwm = uxTaskGetStackHighWaterMark(NULL);
+    MmLog.print("[SYS] loop stack free HWM words=");
+    MmLog.print((unsigned)hwm);
+    MmLog.print(" (~");
+    MmLog.print((unsigned)(hwm * sizeof(StackType_t)));
+    MmLog.println(" B)");
+  }
   pumpOta();
   pumpWebUi();
   // While flashing, do not run Discord / UI publish (starves OTA → timeouts / odd replies like '864')

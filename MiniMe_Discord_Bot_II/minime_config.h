@@ -2,7 +2,8 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.8"
+#define MINIME_VERSION "0.7.17"
+#define MINIME_USER_AGENT "MiniMeBot/1.0"
 
 // Discord content max is 2000. !ask max_tokens / JSON buffer sized to fit one message.
 const int DISCORD_CONTENT_MAX = 2000;
@@ -36,7 +37,7 @@ const long PDT_OFFSET_SEC = -25200; // UTC-7
 
 // ====== DISCORD GATEWAY ======
 const size_t GW_DOC_PSRAM = 262144;   // 256KB
-const uint32_t BOARD_PSRAM_BYTES = 8UL * 1024UL * 1024UL; // this ESP32-S3 board
+// Guition N16R8 has 8 MB PSRAM; boardMemTotals reports ESP.getPsramSize()/getFreePsram() (no clamp).
 const unsigned long BOT_PRESENCE_IDLE_MS = 300000UL; // 5 minutes quiet -> Idle
 // Extra wait past Discord heartbeat_interval before HB_ACK_TIMEOUT kills the socket.
 // Stops false zombies when OP11 is late (ESP32 TLS / Wi-Fi jitter).

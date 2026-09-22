@@ -1,13 +1,16 @@
 #include "minime.h"
 #include <WebServer.h>
+#include <string.h>
+#include <new>
 #include "k9dtv_logo_svg.h"
 #include "k9dtv_logo_bright_svg.h"
 #include "menu_chip_svg.h"
 #include "web_assets.h"
 
 // Display | SysInfo; under both LOG | Serial.
-// Serial: fixed ring (drop top when full, new line at bottom); no scrollbar.
-// MmLog still feeds web only (USB Serial quiet). FULL/END headers stripped from LOG.
+// Serial: all MmLog lines except FULL LOG dump body.
+// LOG: body between [GW] === FULL LOG === and === END LOG === (drop/reconnect ring snapshot).
+// Headers themselves are stripped; each FULL LOG start clears the LOG panel.
 
 static WebServer webServer(WEB_UI_PORT);
 static bool webUiReady = false;
@@ -122,7 +125,8 @@ static void webLogCommitLine() {
   webLogAcc[webLogAccLen] = '\0';
   if (lineIsFullStart(webLogAcc)) {
     webInFullLog = true;
-    // Do not wipe the rolling LOG on a dump header (keeps history).
+    // New dump replaces prior drop snapshot (headers themselves are omitted).
+    webFullClear();
     webLogAccLen = 0;
     return;
   }
@@ -132,8 +136,10 @@ static void webLogCommitLine() {
     return;
   }
   if (webInFullLog) {
+    // LOG panel: gateway drop ring body between FULL LOG / END LOG only.
     webFullPush(webLogAcc);
   } else {
+    // Serial panel: normal MmLog (alive, boot, DROP still, etc.).
     ringPush(webSerialLines, WEB_SERIAL_N, webSerialHead, webSerialCount, webLogAcc);
     webLogGenCounter++;
   }
@@ -141,6 +147,8 @@ static void webLogCommitLine() {
 }
 
 void webLogFeed(const uint8_t* buffer, size_t size) {
+  // Rings have no mutex vs handleStatus. Drop writes from Core 0 (uiTask must not MmLog).
+  if (xPortGetCoreID() != 1) return;
   if (!buffer || size == 0) return;
   for (size_t i = 0; i < size; i++) {
     char c = (char)buffer[i];
@@ -158,20 +166,17 @@ void webLogFeed(const uint8_t* buffer, size_t size) {
   }
 }
 
-static void dashFields(String& timeStr, String& dateStr, String& upStr,
+static void dashFields(char* timeStr, size_t timeLen,
+                       char* dateStr, size_t dateLen,
+                       char* upStr, size_t upLen,
                        int& sigPct, int& heapPct, int& srvPct,
                        long& rssi, uint32_t& memFree, uint32_t& memTotal,
-                       String& msg1, String& msg2) {
+                       char* msg1, size_t msg1Len,
+                       char* msg2, size_t msg2Len) {
   updateLocalTime();
-  timeStr = timeClient.getFormattedTime();
-
-  char dateBuf[24];
-  formatLocalDateStr(dateBuf, sizeof(dateBuf));
-  dateStr = dateBuf;
-
-  char upBuf[28];
-  formatUptimeStr(upBuf, sizeof(upBuf));
-  upStr = upBuf;
+  formatLocalTimeStr(timeStr, timeLen);
+  formatLocalDateStr(dateStr, dateLen);
+  formatUptimeStr(upStr, upLen);
 
   // Percents from LCD bar fills (dashSigBarW / dashHeapBarW / dashSrvBarW).
   rssi = WiFi.RSSI();
@@ -183,39 +188,84 @@ static void dashFields(String& timeStr, String& dateStr, String& upStr,
   heapPct = dashBarPct(dashHeapBarW(memFree, memTotal), DASH_SIG_HEAP_BAR_MAX);
   srvPct = dashBarPct(dashSrvBarW(lastServoDeg), DASH_SRV_BAR_MAX);
 
-  msg1 = lastEventLine;
-  msg2 = "";
-  if (millis() < transientUntilMs) {
-    // Brief flash detail still available to web while Event line stays sticky.
-    if (transientLine1.length()) msg2 = transientLine1;
-    if (transientLine2.length()) {
-      if (msg2.length()) msg2 += " ";
-      msg2 += transientLine2;
-    }
-    if (transientLine3.length()) {
-      if (msg2.length()) msg2 += " ";
-      msg2 += transientLine3;
+  if (msg1 && msg1Len) {
+    strncpy(msg1, lastEventLine.c_str(), msg1Len - 1);
+    msg1[msg1Len - 1] = '\0';
+  }
+  if (msg2 && msg2Len) {
+    msg2[0] = '\0';
+    if (millis() < transientUntilMs) {
+      size_t n = 0;
+      const String* parts[3] = {&transientLine1, &transientLine2, &transientLine3};
+      for (uint8_t p = 0; p < 3; p++) {
+        if (!parts[p]->length()) continue;
+        if (n && n + 1 < msg2Len) msg2[n++] = ' ';
+        for (size_t i = 0; i < parts[p]->length() && n + 1 < msg2Len; i++) {
+          msg2[n++] = (*parts[p])[i];
+        }
+        msg2[n] = '\0';
+      }
     }
   }
 }
 
-// CSS lives in web_assets.h (WEB_UI_CSS).
+// Buffer Print writes and flush as WebServer chunked body (no giant String).
+class ChunkPrint : public Print {
+ public:
+  explicit ChunkPrint(WebServer& s) : srv(s), len(0) {}
+  size_t write(uint8_t c) override {
+    buf[len++] = (char)c;
+    if (len >= sizeof(buf)) flushBuf();
+    return 1;
+  }
+  size_t write(const uint8_t* data, size_t size) override {
+    if (!data || size == 0) return 0;
+    size_t done = 0;
+    while (done < size) {
+      size_t room = sizeof(buf) - len;
+      if (room == 0) {
+        flushBuf();
+        room = sizeof(buf);
+      }
+      size_t n = size - done;
+      if (n > room) n = room;
+      memcpy(buf + len, data + done, n);
+      len += n;
+      done += n;
+      if (len >= sizeof(buf)) flushBuf();
+    }
+    return done;
+  }
+  void finish() {
+    flushBuf();
+    srv.sendContent(""); // empty chunk ends Transfer-Encoding: chunked
+  }
+ private:
+  WebServer& srv;
+  char buf[512];
+  size_t len;
+  void flushBuf() {
+    if (len == 0) return;
+    srv.sendContent(buf, len);
+    len = 0;
+  }
+};
 
-static void appendBrand(String& html) {
-  html += F("<div class=\"top\"><div class=\"top-row\">");
-  html += F("<button type=\"button\" id=\"theme-toggle\" class=\"theme-chip-trigger\" aria-pressed=\"false\" aria-label=\"Switch to light mode\">");
-  html += F("<img class=\"menu-chip-icon\" id=\"theme-chip-img\" src=\"/chip.svg\" width=\"64\" height=\"64\" alt=\"\" aria-hidden=\"true\">");
-  html += F("<span class=\"menu-chip-label\" aria-hidden=\"true\">");
-  html += F("<span class=\"theme-toggle-glyph\" id=\"theme-chip-glyph\">&#9728;</span>");
-  html += F("<span class=\"theme-toggle-text\" id=\"theme-chip-text\">Light</span></span></button>");
-  html += F("<header class=\"brand\">");
-  html += F("<a class=\"logo-link\" href=\"https://k9dtv.com\" target=\"_blank\" rel=\"noopener\">");
-  html += F("<img class=\"logo\" id=\"brand-logo\" src=\"/logo.svg\" width=\"343\" height=\"107\" alt=\"K9DTV\"></a></header>");
-  html += F("<button type=\"button\" id=\"layout-toggle\" class=\"theme-chip-trigger\" aria-pressed=\"false\" aria-label=\"Switch to log view\">");
-  html += F("<img class=\"menu-chip-icon\" id=\"layout-chip-img\" src=\"/chip.svg\" width=\"64\" height=\"64\" alt=\"\" aria-hidden=\"true\">");
-  html += F("<span class=\"menu-chip-label\" aria-hidden=\"true\">");
-  html += F("<span class=\"theme-toggle-text\" id=\"layout-chip-text\">Display</span></span></button>");
-  html += F("</div><p class=\"sub\">MiniMe A Discord Server APP</p></div>");
+static void printBrand(Print& out) {
+  out.print(F("<div class=\"top\"><div class=\"top-row\">"));
+  out.print(F("<button type=\"button\" id=\"theme-toggle\" class=\"theme-chip-trigger\" aria-pressed=\"false\" aria-label=\"Switch to light mode\">"));
+  out.print(F("<img class=\"menu-chip-icon\" id=\"theme-chip-img\" src=\"/chip.svg\" width=\"64\" height=\"64\" alt=\"\" aria-hidden=\"true\">"));
+  out.print(F("<span class=\"menu-chip-label\" aria-hidden=\"true\">"));
+  out.print(F("<span class=\"theme-toggle-glyph\" id=\"theme-chip-glyph\">&#9728;</span>"));
+  out.print(F("<span class=\"theme-toggle-text\" id=\"theme-chip-text\">Light</span></span></button>"));
+  out.print(F("<header class=\"brand\">"));
+  out.print(F("<a class=\"logo-link\" href=\"https://k9dtv.com\" target=\"_blank\" rel=\"noopener\">"));
+  out.print(F("<img class=\"logo\" id=\"brand-logo\" src=\"/logo.svg\" width=\"343\" height=\"107\" alt=\"K9DTV\"></a></header>"));
+  out.print(F("<button type=\"button\" id=\"layout-toggle\" class=\"theme-chip-trigger\" aria-pressed=\"false\" aria-label=\"Switch to log view\">"));
+  out.print(F("<img class=\"menu-chip-icon\" id=\"layout-chip-img\" src=\"/chip.svg\" width=\"64\" height=\"64\" alt=\"\" aria-hidden=\"true\">"));
+  out.print(F("<span class=\"menu-chip-label\" aria-hidden=\"true\">"));
+  out.print(F("<span class=\"theme-toggle-text\" id=\"layout-chip-text\">Display</span></span></button>"));
+  out.print(F("</div><p class=\"sub\">MiniMe A Discord Server APP</p></div>"));
 }
 
 static void sendNoCacheHeaders() {
@@ -224,40 +274,39 @@ static void sendNoCacheHeaders() {
   webServer.sendHeader("Expires", "0");
 }
 
-static String buildRootHtml() {
-  String html;
-  html.reserve(19000);
-  html += F("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">");
-  html += F("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">");
-  html += F("<meta http-equiv=\"Cache-Control\" content=\"no-store, no-cache, must-revalidate, max-age=0\">");
-  html += F("<meta http-equiv=\"Pragma\" content=\"no-cache\">");
-  html += F("<meta http-equiv=\"Expires\" content=\"0\">");
-  html += F("<script>");
-  html += FPSTR(WEB_UI_BOOT_JS);
-  html += F("</script>");
-  html += F("<title>MiniMe</title><style>");
-  html += FPSTR(WEB_UI_CSS);
-  html += F("</style></head><body><main>");
-  appendBrand(html);
+static void streamRootHtml(Print& out) {
+  out.print(F("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">"));
+  out.print(F("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"));
+  out.print(F("<meta http-equiv=\"Cache-Control\" content=\"no-store, no-cache, must-revalidate, max-age=0\">"));
+  out.print(F("<meta http-equiv=\"Pragma\" content=\"no-cache\">"));
+  out.print(F("<meta http-equiv=\"Expires\" content=\"0\">"));
+  out.print(F("<script>"));
+  out.print(FPSTR(WEB_UI_BOOT_JS));
+  out.print(F("</script>"));
+  out.print(F("<title>MiniMe</title><style>"));
+  out.print(FPSTR(WEB_UI_CSS));
+  out.print(F("</style></head><body><main>"));
+  printBrand(out);
 
-  html += F("<div class=\"layout\">");
-  html += F("<section class=\"box\" id=\"box-metrics\"><h2>Display · v");
-  html += MINIME_VERSION;
-  html += F("</h2>");
-  html += F("<div id=\"metrics\" class=\"dash muted\">Loading...</div></section>");
-  html += F("<section class=\"box\" id=\"box-users\"><h2>Users</h2>");
-  html += F("<div id=\"users\" class=\"users muted\">Loading...</div></section>");
-  html += F("<section class=\"box\" id=\"box-logfile\"><h2>LOG</h2>");
-  html += F("<div id=\"logfile\" class=\"serial\"><div class=\"empty\">Waiting...</div></div></section>");
-  html += F("<section class=\"box\" id=\"box-serial\"><h2>Serial</h2>");
-  html += F("<div id=\"serial\" class=\"serial noscroll\"><div class=\"empty\">Waiting...</div></div></section>");
-  html += F("<div id=\"err\" class=\"err\" hidden></div>");
-  html += F("</div></main><script>var POLL_MS=");
-  html += String((unsigned long)WEB_STATUS_POLL_MS);
-  html += F(";</script><script>");
-  html += FPSTR(WEB_UI_JS);
-  html += F("</script></body></html>");
-  return html;
+  out.print(F("<div class=\"layout\">"));
+  out.print(F("<section class=\"box\" id=\"box-metrics\"><h2>Display · v"));
+  out.print(MINIME_VERSION);
+  out.print(F("</h2>"));
+  out.print(F("<div id=\"metrics\" class=\"dash muted\">Loading...</div></section>"));
+  out.print(F("<section class=\"box\" id=\"box-users\"><h2>Users</h2>"));
+  out.print(F("<div id=\"users\" class=\"users muted\">Loading...</div></section>"));
+  out.print(F("<section class=\"box\" id=\"box-logfile\"><h2>LOG</h2>"));
+  out.print(F("<div id=\"logfile\" class=\"serial\"><div class=\"empty\">Waiting...</div></div></section>"));
+  out.print(F("<section class=\"box\" id=\"box-serial\"><h2>Serial</h2>"));
+  out.print(F("<div id=\"serial\" class=\"serial noscroll\"><div class=\"empty\">Waiting...</div></div></section>"));
+  out.print(F("<div id=\"err\" class=\"err\" hidden></div>"));
+  out.print(F("</div></main><script>var POLL_MS="));
+  char pollBuf[16];
+  snprintf(pollBuf, sizeof(pollBuf), "%lu", (unsigned long)WEB_STATUS_POLL_MS);
+  out.print(pollBuf);
+  out.print(F(";</script><script>"));
+  out.print(FPSTR(WEB_UI_JS));
+  out.print(F("</script></body></html>"));
 }
 
 template <size_t N>
@@ -275,20 +324,35 @@ static int roundTempHalfAway(float v) {
 }
 
 // Allocated once in setupWebUi() (after PSRAM is up), then reused with clear().
-static DynamicJsonDocument* statusDoc = nullptr;
+static SpiRamJsonDocument* statusDoc = nullptr;
 static const size_t STATUS_DOC_BYTES = 32768;
 
-static String buildStatusJson() {
-  String timeStr, dateStr, upStr, msg1, msg2;
+static void handleRoot() {
+  sendNoCacheHeaders();
+  webServer.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  webServer.send(200, "text/html; charset=utf-8", "");
+  ChunkPrint out(webServer);
+  streamRootHtml(out);
+  out.finish();
+}
+
+static void handleStatus() {
+  sendNoCacheHeaders();
+  if (!statusDoc) {
+    webServer.send(500, "application/json", "{\"err\":\"statusDoc\"}");
+    return;
+  }
+
+  // Stack buffers must stay live until serializeJson finishes (AJ6 stores const char* by ptr).
+  char timeStr[12], dateStr[24], upStr[28], msg1[40], msg2[128], ipBuf[16];
   int sigPct = 0, heapPct = 0, srvPct = 0;
   long rssi = 0;
   uint32_t memFree = 0, memTotal = 0;
-  dashFields(timeStr, dateStr, upStr, sigPct, heapPct, srvPct, rssi, memFree, memTotal, msg1, msg2);
+  dashFields(timeStr, sizeof(timeStr), dateStr, sizeof(dateStr), upStr, sizeof(upStr),
+             sigPct, heapPct, srvPct, rssi, memFree, memTotal,
+             msg1, sizeof(msg1), msg2, sizeof(msg2));
 
-  if (!statusDoc) {
-    return String(F("{\"err\":\"statusDoc\"}"));
-  }
-  DynamicJsonDocument& doc = *statusDoc;
+  SpiRamJsonDocument& doc = *statusDoc;
   doc.clear();
   doc["gw"] = gatewayConnected;
   doc["identified"] = identified;
@@ -305,19 +369,36 @@ static String buildStatusJson() {
   doc["heapFree"] = memFree;
   doc["heapTotal"] = memTotal;
   doc["heapPct"] = heapPct;
+  {
+    uint32_t psFree = 0, psTotal = 0;
+    boardPsramTotals(psFree, psTotal);
+    doc["psramFree"] = psFree;
+    doc["psramTotal"] = psTotal;
+  }
   doc["cpuMhz"] = (unsigned)getCpuFrequencyMhz();
   doc["servo"] = lastServoDeg;
   doc["srvPct"] = srvPct;
-  doc["ip"] = WiFi.localIP().toString();
-  doc["ota"] = String(OTA_HOSTNAME) + ".local";
-  doc["lcd"] = displayAsleep ? "asleep" : "awake";
+  {
+    IPAddress ip = WiFi.localIP();
+    snprintf(ipBuf, sizeof(ipBuf), "%u.%u.%u.%u",
+             (unsigned)ip[0], (unsigned)ip[1], (unsigned)ip[2], (unsigned)ip[3]);
+  }
+  doc["ip"] = ipBuf;
+  static char otaHost[40];
+  static bool otaHostReady = false;
+  if (!otaHostReady) {
+    snprintf(otaHost, sizeof(otaHost), "%s.local", OTA_HOSTNAME);
+    otaHostReady = true;
+  }
+  doc["ota"] = otaHost;
+  doc["lcd"] = displayAsleep.load() ? "asleep" : "awake";
   doc["dashFlushMs"] = (unsigned long)lastDashFlushMs;
   doc["dashDrawMs"] = (unsigned long)lastDashDrawMs;
   doc["dashRefreshMs"] = DASH_REFRESH_MS;
   doc["dm"] = alertDm;
   doc["mention"] = alertMention;
   doc["httpsBusy"] = httpsInUse;
-  doc["lastEvent"] = lastEventLine;
+  doc["lastEvent"] = lastEventLine.c_str();
   doc["msg1"] = msg1;
   doc["msg2"] = msg2;
 
@@ -333,10 +414,8 @@ static String buildStatusJson() {
     }
     u["name"] = name;
     u["status"] = statusToWord(trackedUsers[row].active ? trackedUsers[row].status : 0);
-    char botBuf[12];
-    snprintf(botBuf, sizeof(botBuf), "%lu",
-             (unsigned long)(trackedUsers[row].active ? trackedUsers[row].useCount24h : 0));
-    u["bot"] = botBuf;
+    // Number avoids a per-row temp char[] dangling-pointer under AJ6 zero-copy.
+    u["bot"] = (unsigned long)(trackedUsers[row].active ? trackedUsers[row].useCount24h : 0);
   }
   doc["usersActive"] = nActive;
   doc["usersMax"] = MAX_TRACKED_USERS;
@@ -346,20 +425,11 @@ static String buildStatusJson() {
   JsonArray serialArr = doc.createNestedArray("serial");
   appendRingToJsonArray(serialArr, webSerialLines, webSerialHead, webSerialCount);
 
-  String out;
-  out.reserve(measureJson(doc) + 16);
+  webServer.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  webServer.send(200, "application/json", "");
+  ChunkPrint out(webServer);
   serializeJson(doc, out);
-  return out;
-}
-
-static void handleRoot() {
-  sendNoCacheHeaders();
-  webServer.send(200, "text/html; charset=utf-8", buildRootHtml());
-}
-
-static void handleStatus() {
-  sendNoCacheHeaders();
-  webServer.send(200, "application/json", buildStatusJson());
+  out.finish();
 }
 
 static void handleLogo() {
@@ -390,10 +460,9 @@ void setupWebUi() {
   webSerialCount = 0;
   webLogAccLen = 0;
   if (!statusDoc) {
-    // Same pattern as gwDoc: allocate after boot so large JSON can use PSRAM.
-    statusDoc = new DynamicJsonDocument(STATUS_DOC_BYTES);
+    statusDoc = new (std::nothrow) SpiRamJsonDocument(STATUS_DOC_BYTES);
   }
-  if (!statusDoc) {
+  if (!statusDoc || statusDoc->capacity() == 0) {
     MmLog.println(F("Fatal: statusDoc alloc failed (PSRAM?)"));
     showTransient("Fatal", "No statusDoc");
     // Same policy as gwDoc: delay() feeds TWDT; halt until power cycle.
