@@ -36,7 +36,10 @@ jobs:
           # Direct Arduino_AXS15231B path -- no JC3248W535EN-Touch-LCD wrapper.
 
       - name: Prepare secrets placeholder
-        run: cp MiniMe_Discord_Bot_II/secrets.example.h MiniMe_Discord_Bot_II/secrets.h
+        run: |
+          cp MiniMe_Discord_Bot_II/secrets.example.h MiniMe_Discord_Bot_II/secrets.h
+          # Example template trips #error until this flag is removed (same as local secrets.h).
+          sed -i '/MINIME_SECRETS_IS_EXAMPLE/d' MiniMe_Discord_Bot_II/secrets.h
 
       - name: Compile sketch
         run: |
