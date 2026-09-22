@@ -53,10 +53,12 @@ void setupTouch() {
 void pollTouchWake() {
   unsigned long now = millis();
   uint16_t x = 0, y = 0;
-  bool touched = touchIrqFlag;
+  const bool irq = touchIrqFlag;
   touchIrqFlag = false;
-
-  if (displayAsleep || touched || digitalRead(TOUCH_INT_PIN) == LOW) {
+  // IRQ flag or pin low => try one I2C read; debounce below handles doubles.
+  const bool activity = displayAsleep.load() || irq || (digitalRead(TOUCH_INT_PIN) == LOW);
+  bool touched = false;
+  if (activity) {
     if (lcdTouchPoint(x, y)) touched = true;
   }
 
@@ -72,7 +74,7 @@ void pollTouchWake() {
   touchWasActive = true;
 
   // Wake-from-sleep: backlight only (no chip toggle on the same tap).
-  if (displayAsleep) {
+  if (displayAsleep.load()) {
     noteDisplayActivity();
     return;
   }

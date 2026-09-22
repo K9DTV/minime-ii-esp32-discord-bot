@@ -1,6 +1,104 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.22** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.40** (see `VERSION` and README).
+
+## 0.7.40
+
+- Prune nested `gwPumping` HB-only path: re-entry is a no-op (dual-core cmds no longer run inside `gatewayWS.loop`). Keep `gwPumping` for presence defer + Wi-Fi kick gate. Confirm flash via `Display · v0.7.40`.
+
+## 0.7.39
+
+- Core 0 MmLog bridge: enqueue lines to Core 1 (`drainCore0Logs`); Serial shows `[C0] …`. Ring overflow still counted as `mmLogDropCore0`.
+- DS18B20 disconnect logs via bridge (≤1/min). Confirm flash via `Display · v0.7.39`.
+
+## 0.7.38
+
+- `!ask` HOL only (no TWDT): DeepSeek dedicated TLS; `pumpNetWait` drains only when `!httpsInUse`; `DrainBusyGuard` RAII.
+- Confirm flash via `Display · v0.7.38`. If panic: lines above `ELF file SHA256` or `!coredump`.
+
+## 0.7.37
+
+- `sendDiscordMessage`: retry on HTTPS header timeout (same attempt budget as 429; 500 ms backoff + Gateway pump). Confirm flash via `Display · v0.7.37`.
+
+## 0.7.36
+
+- ArduinoJson **6 → 7**: `JsonDocument` + `SpiRamAllocator` (no `Static`/`Dynamic`/`BasicJsonDocument`); `to<>` / `add<>` instead of `createNested*`. CI pins `ArduinoJson@7.4.2`.
+- Cold-path `String` cut: `TrackedUser` id/name and cached guild IDs are fixed `char[]` (no heap churn per presence/slot).
+- Confirm flash via `Display · v0.7.36`. TWDT / `!ask` HOL unchanged (still unrolled).
+
+## 0.7.35
+
+- Unroll 0.7.34 again after crash: drop explicit TWDT, mid-TLS drain, dedicated DeepSeek TLS (same shape as 0.7.33).
+- Kept: LCD `Ver`, cmd-error ring, `httpsAwaitHeaders(Client&)`. Confirm flash via `Display · v0.7.35`.
+
+## 0.7.34
+
+- Retry 0.7.30 features with safer gates: DeepSeek dedicated TLS again; TWDT add/reset (loop + uiTask around paint + `pumpNetWait`).
+- Drain during TLS waits only when `!httpsInUse` (no mid-shared-fetch busy spam); `DrainBusyGuard` RAII for nested drain flag.
+- Confirm flash via `Display · v0.7.34`. If panic: capture lines above `ELF file SHA256` or `!coredump`.
+
+## 0.7.33
+
+- Unroll 0.7.30 risk set after `RTC_SW_CPU_RST` / ELF SHA panic (no header captured): drop explicit TWDT add/reset, mid-TLS `drainDiscordCmds`, dedicated DeepSeek TLS (back on shared `httpsClient` + `httpsInUse` queue stall).
+- Kept: LCD `Ver`, cmd-error ring, `httpsAwaitHeaders(Client&)`. Confirm flash via `Display · v0.7.33`.
+
+## 0.7.32
+
+- Docs: renumber deferred list; record mid-fetch **busy** tradeoff + `drainCmdsBusy` note (0.7.30 review).
+- Clarify 0.7.30 HOL: queue no longer stalls; shared-client cmds drained during an in-flight fetch get a fast busy reply (see `[CMDERR]`). Confirm flash via `Display · v0.7.32`.
+
+## 0.7.31
+
+- Cmd-error ring (10): Discord failure replies (`busy`, fetch/sensor errors, post fail) via `sendDiscordCmdError` / `noteCmdErrorReply`.
+- Visible on `!sys` (newest 5) and LCD Log→Serial as `[CMDERR] …`. Confirm flash via `Display · v0.7.31`.
+
+## 0.7.30
+
+- TWDT: explicit `esp_task_wdt_add`/`reset` on loop (Core 1) and `uiTask` (Core 0); resets in HTTPS wait pumps.
+- `!ask` HOL: DeepSeek uses its own TLS client (not `httpsInUse`); drain cmds during TLS waits; queue no longer stalls on busy HTTPS.
+- LCD: `Ver` row shows `MINIME_VERSION`. Confirm flash via `Display · v0.7.30`.
+
+## 0.7.29
+
+- Owner `!coredump`: read flash coredump partition (0xFD0000 / 0x30000) — task, PC, ExcCause, backtrace, panic reason; `!coredump clear` erases. Confirm flash via `Display · v0.7.29`.
+
+## 0.7.28
+
+- `connectWiFi` moved to `wifi_connect.cpp` (`.ino` is setup/loop only).
+- README: only one `.ino` in the sketch folder (Arduino merges all; second `.ino` => redefinition). Confirm flash via `Display · v0.7.28`.
+
+## 0.7.27
+
+- Loop stack: drop sketch `getArduinoLoopTaskStackSize()` — ESP32 core 3.3+ already defines it from `ARDUINO_LOOP_STACK_SIZE` (was redefinition). Confirm flash via `Display · v0.7.27`.
+
+## 0.7.26
+
+- Org split: `command_fetch.cpp` (API/DeepSeek) vs `commands.cpp` (tokenize/dispatch).
+- Org split: LCD → `display.cpp` + `display_overlay.cpp` + `dash_snap.cpp` + `display_draw.cpp` (+ `display_internal.h`).
+- Gateway JSON filter: file-scope `gwFilter`, built in `connectGateway` (not on first TEXT). Confirm flash via `Display · v0.7.26`.
+
+## 0.7.25
+
+- Event sticky: `showTransient` no longer overwrites `lastEventLine` (Gateway/`noteLastEvent` only).
+- Wi‑Fi: `ensureWifiForGateway` skips reconnect while `gwPumping` or `httpsInUse` (no mid‑TLS disconnect).
+- Users: `recordUserUse` no longer forces status On; Discord presence owns Online/Idle/DND/Off.
+- CPU: `updateBotPresenceIdle` drops to 160 MHz even if Gateway never identified.
+- HTTP body: block reads + `String::reserve`/`concat` (chunked/CL/until‑close) instead of per‑byte `+=`.
+- NTP: DST offset recompute at most once per 60 s (1 Hz dash no longer zeros offset every tick).
+- Filter note: `gwFilter["d"]["status"]` already present for `PRESENCE_UPDATE`. Confirm flash via `Display · v0.7.25`.
+
+## 0.7.24
+
+- Temp: `dashTempStore` / `dashTempSnapshot` under one mux (C/F + timestamp together).
+- Transient until: expire under same overlay mux (no clear-vs-set race).
+- FULL LOG match requires `[GW] === …` prefix; Core0 drop count after null/size check; counter lives in `web_ui.cpp`.
+- `/api/status`: `measureJson` vs 48 KB ceiling before send. Confirm flash via `Display · v0.7.24`.
+
+## 0.7.23
+
+- Cross-core UI overlay: transient/Event are fixed `char[]` + `portMUX` (no torn `String`); DM/Mention atomic.
+- FULL LOG markers match via `strstr`; Core 0 `MmLog` drops counted (`!sys` / status JSON).
+- `!temp` / LCD / web: sample stale if >30 s. `statusDoc` 48 KB. Confirm flash via `Display · v0.7.23`.
 
 ## 0.7.22
 

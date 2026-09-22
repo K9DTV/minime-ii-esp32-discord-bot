@@ -31,22 +31,29 @@
 #endif
 #include "minime_config.h"
 
-// Large JSON arenas prefer PSRAM (AJ6/7). Do not use default DynamicJsonDocument for
-// GW_DOC_PSRAM / STATUS_DOC — default allocator is internal SRAM only.
-struct SpiRamAllocator {
-  void* allocate(size_t size) {
+// Large JSON arenas prefer PSRAM (ArduinoJson 7). Do not use default JsonDocument for
+// Gateway / status / DeepSeek — default allocator is internal SRAM only.
+struct SpiRamAllocator : ArduinoJson::Allocator {
+  void* allocate(size_t size) override {
     void* p = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!p) p = heap_caps_malloc(size, MALLOC_CAP_8BIT);
     return p;
   }
-  void deallocate(void* pointer) { heap_caps_free(pointer); }
-  void* reallocate(void* pointer, size_t new_size) {
+  void deallocate(void* pointer) override { heap_caps_free(pointer); }
+  void* reallocate(void* pointer, size_t new_size) override {
     void* p = heap_caps_realloc(pointer, new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!p) p = heap_caps_realloc(pointer, new_size, MALLOC_CAP_8BIT);
     return p;
   }
 };
-using SpiRamJsonDocument = BasicJsonDocument<SpiRamAllocator>;
+inline SpiRamAllocator& mmSpiRamJsonAlloc() {
+  static SpiRamAllocator alloc;
+  return alloc;
+}
+// Soft size hints (AJ7 grows elastically; used for overflow checks / comments).
+inline JsonDocument* newSpiRamJsonDoc() {
+  return new (std::nothrow) JsonDocument(&mmSpiRamJsonAlloc());
+}
 
 // MmLog -> web UI LOG/Serial only (no USB Serial / UART0).
 class MmLogClass : public Print {
@@ -62,15 +69,21 @@ void mmSerialBegin();
 #define MM_USB_CDC_ON_BOOT 0
 #endif
 void webLogFeed(const uint8_t* buffer, size_t size);
+void drainCore0Logs(); // Core 1: flush Core 0 enqueued MmLog lines into Serial panel
 uint8_t lcdFullLogCount();
 bool lcdFullLogNewest(uint8_t fromNewest, char* buf, size_t bufLen);
 uint8_t lcdSerialCount();
 bool lcdSerialNewest(uint8_t fromNewest, char* buf, size_t bufLen);
 uint32_t lcdLogGen(); // bumps when LOG or Serial ring changes
-
+// Command-failure Discord replies (not usage/unknown). Last N for !sys + Serial via MmLog.
+enum { CMD_ERR_RING_N = 10 };
+void noteCmdErrorReply(const char* msg);
+uint8_t cmdErrorReplyCount();
+bool cmdErrorReplyNewest(uint8_t fromNewest, char* buf, size_t bufLen);
 // ====== USER TRACKING ======
 struct TrackedUser {
-  String userId, userName;
+  char userId[24];   // Discord snowflake
+  char userName[32]; // display / username (LCD truncates further)
   uint8_t status;  // 0 Off, 1 Idle, 2 On, 3 DND
   uint32_t useCount24h;
   bool active;
@@ -86,7 +99,7 @@ void formatUptimeStr(char* buf, size_t bufLen);
 
 // ====== DISCORD GATEWAY ======
 extern WebSocketsClient gatewayWS;
-extern SpiRamJsonDocument* gwDoc;
+extern JsonDocument* gwDoc;
 extern bool gatewayConnected;
 extern bool identified;
 extern int heartbeatIntervalMs;
@@ -133,7 +146,7 @@ uint8_t httpsGetOpen(const char* host, const String& path, unsigned long headerT
 uint8_t httpGetOpen(WiFiClient& client, const char* host, const String& path,
                     unsigned long headerTimeoutMs, bool& outChunked, int& outContentLength);
 void setHttpOpenError(String& outReport, uint8_t err, const char* label);
-bool httpsAwaitHeaders(unsigned long deadlineMs, bool pump, String& outStatus,
+bool httpsAwaitHeaders(Client& client, unsigned long deadlineMs, bool pump, String& outStatus,
                        bool& chunked, int& contentLength,
                        float* outRetryAfterSec = nullptr);
 bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
@@ -144,6 +157,8 @@ String guildIdFromChannel(const String& channelId);
 bool appendMembersFromGuild(const String& guildId, uint8_t maxToAdd);
 bool fetchGuildMembersAtStartup();
 bool sendDiscordMessage(const String& channelId, const String& content, bool suppressEmbeds = false);
+// Same as sendDiscordMessage, but records into the cmd-error ring (operator diagnostics).
+bool sendDiscordCmdError(const String& channelId, const String& content, bool suppressEmbeds = false);
 String getSystemInfo();
 void boardMemTotals(uint32_t& memFree, uint32_t& memTotal);   // internal SRAM
 void boardPsramTotals(uint32_t& psFree, uint32_t& psTotal);    // 0/0 if no PSRAM
@@ -151,23 +166,29 @@ void uptimeDhms(unsigned long& days, unsigned long& hours, unsigned long& minute
 
 // ====== DISPLAY (Arduino_GFX: ESP32QSPI + AXS15231B + Canvas) ======
 extern Arduino_Canvas* gfx;
-extern float dashTempC;
-extern float dashTempF;
 extern int lastServoDeg;
-extern String transientLine1;
-extern String transientLine2;
-extern String transientLine3;
-extern unsigned long transientUntilMs;
+enum { UI_TRANSIENT_COLS = 40, UI_EVENT_COLS = 37 };
+extern char transientLine1[UI_TRANSIENT_COLS];
+extern char transientLine2[UI_TRANSIENT_COLS];
+extern char transientLine3[UI_TRANSIENT_COLS];
+extern char lastEventLine[UI_EVENT_COLS]; // sticky Event; copy under uiOverlay helpers
+extern std::atomic<bool> alertDm;         // sticky until owner !clear
+extern std::atomic<bool> alertMention;    // sticky until owner !clear
+extern bool lcdThemeLight;             // LCD palette only (web theme is independent)
+extern bool lcdLayoutLog;              // false=metrics|users; true=LOG|Serial overlay
+extern std::atomic<uint32_t> mmLogDropCore0; // Core0 log ring overflow (def in web_ui.cpp)
 extern unsigned long lastDashMillis;
 extern std::atomic<unsigned long> lastDisplayActivityMillis;
 extern unsigned long lastDashDrawMs;   // last full drawDashboard (incl flush)
 extern unsigned long lastDashFlushMs;  // last gfx->flush() only
 extern std::atomic<bool> displayAsleep; // Core 0 sleep + Core 1 wake via noteDisplayActivity
-extern String lastEventLine;           // persistent left-panel "Event" (no footer strip)
-extern bool alertDm;                   // sticky until owner !clear (no auto-expiry)
-extern bool alertMention;              // sticky until owner !clear (no auto-expiry)
-extern bool lcdThemeLight;             // LCD palette only (web theme is independent)
-extern bool lcdLayoutLog;              // false=metrics|users; true=LOG|Serial overlay
+// Temp sample: Core 0 stores, others snapshot under mux (C/F + timestamp together).
+void dashTempStore(float c, float f);
+bool dashTempSnapshot(float& c, float& f, bool& hadSample, bool& fresh); // fresh = hadSample && age<30s
+void uiOverlayCopyEvent(char* buf, size_t bufLen);
+void uiOverlayCopyTransient(char* l1, size_t l1Len, char* l2, size_t l2Len, char* l3, size_t l3Len,
+                            unsigned long* untilMs);
+bool uiOverlayExpireIfDue(unsigned long now); // clear until under mux; true if expired
 bool setupDisplay();
 void noteDisplayActivity(); // LCD backlight idle timer / wake
 void noteLastEvent(const String& line); // sticky Event line (+ wakes display)
@@ -211,7 +232,7 @@ void clearAlertFlags();
 
 // ====== USERS / PRESENCE ======
 extern TrackedUser trackedUsers[MAX_TRACKED_USERS];
-extern String cachedGuildIds[MAX_CACHED_GUILDS];
+extern char cachedGuildIds[MAX_CACHED_GUILDS][24];
 extern uint8_t cachedGuildCount;
 extern unsigned long usesWindowStartMillis;
 const char* statusToWord(uint8_t s);
@@ -220,8 +241,10 @@ void recordUserUse(const String& userId, const String& userName);
 void applyPresencesArray(JsonArray presences);
 void handlePresenceUpdate(JsonObject d);
 String discordDisplayName(JsonVariantConst user);
+int findUserIndex(const char* userId);
 int findUserIndex(const String& userId);
 int findFreeTrackedSlot();
+void fillTrackedSlot(uint8_t i, const char* userId, const char* userName);
 void fillTrackedSlot(uint8_t i, const String& userId, const String& userName);
 void rememberGuildId(const String& gid);
 
@@ -238,6 +261,8 @@ bool getApod(String& outReport);
 bool getIssPosition(String& outReport);
 bool askDeepSeek(const String& question, String& outReport);
 void runAskFromLoop();
+bool formatCoreDumpReport(String& outReport);
+bool clearCoreDumpImage(String& outReport);
 void handleCommand(const String& content, const String& authorId, const String& authorName,
                    const String& channelId, bool isDM);
 

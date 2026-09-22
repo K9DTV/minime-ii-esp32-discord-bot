@@ -6,11 +6,21 @@
 
 static TaskHandle_t uiTaskHandle = nullptr;
 static SemaphoreHandle_t cmdMux = nullptr;
+static bool drainCmdsBusy = false;
 
 static DiscordCmdJob cmdQ[DISCORD_CMD_QUEUE_DEPTH];
 static uint8_t cmdHead = 0;
 static uint8_t cmdTail = 0;
 static uint8_t cmdCount = 0;
+
+// Clears drainCmdsBusy on every return path (not on panic — noted in CODE_REVIEW_NOTES).
+struct DrainBusyGuard {
+  bool& flag;
+  explicit DrainBusyGuard(bool& f) : flag(f) { flag = true; }
+  ~DrainBusyGuard() { flag = false; }
+  DrainBusyGuard(const DrainBusyGuard&) = delete;
+  DrainBusyGuard& operator=(const DrainBusyGuard&) = delete;
+};
 
 static void copyTrunc(char* dst, size_t dstLen, const String& src) {
   if (!dst || dstLen == 0) return;
@@ -42,9 +52,13 @@ bool enqueueDiscordCmd(const String& content, const String& authorId,
 
 void drainDiscordCmds() {
   if (!cmdMux) return;
-  // At most 2 jobs per loop so Gateway/OTA stay responsive under a command burst.
+  if (drainCmdsBusy) return;
+  DrainBusyGuard guard(drainCmdsBusy);
+  // At most 2 jobs per call. DeepSeek uses a dedicated TLS client, so httpsInUse stays
+  // false during !ask and Discord/other HTTPS cmds can run. While shared httpsClient is
+  // held, skip drain here (caller also gates) — avoids mid-fetch "busy" Discord spam.
   for (uint8_t n = 0; n < 2; n++) {
-    if (httpsInUse) break; // leave jobs queued until REST/DeepSeek free
+    if (httpsInUse) break;
     DiscordCmdJob job;
     bool have = false;
     if (xSemaphoreTake(cmdMux, pdMS_TO_TICKS(5)) == pdTRUE) {
@@ -57,7 +71,6 @@ void drainDiscordCmds() {
       xSemaphoreGive(cmdMux);
     }
     if (!have) break;
-    // HTTPS-heavy work runs here on Core 1, never inside gatewayWS.loop.
     handleCommand(String(job.content), String(job.authorId), String(job.authorName),
                   String(job.channelId), job.isDM);
   }
@@ -76,7 +89,6 @@ static void uiTask(void* /*arg*/) {
 void startUiCore() {
   if (uiTaskHandle) return;
   cmdMux = xSemaphoreCreateMutex();
-  // Priority 1: below Wi-Fi; stack sized for Canvas draw + touch.
   BaseType_t ok = xTaskCreatePinnedToCore(uiTask, "ui", 12288, nullptr, 1, &uiTaskHandle, 0);
   if (ok != pdPASS) {
     uiTaskHandle = nullptr;

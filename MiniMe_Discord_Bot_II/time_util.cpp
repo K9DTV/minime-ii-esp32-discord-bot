@@ -39,10 +39,19 @@ bool isPacificDaylightTime(unsigned long utcEpoch) {
 }
 
 void updateLocalTime() {
+  // NTPClient::update() is cheap inside its 60 s interval. DST offset recompute is not —
+  // avoid setTimeOffset(0)/re-derive on every 1 Hz captureSnap / web poll.
+  static unsigned long lastOffsetMs = 0;
+  unsigned long now = millis();
+  if (lastOffsetMs != 0 && (now - lastOffsetMs) < 60000UL) {
+    timeClient.update();
+    return;
+  }
   timeClient.setTimeOffset(0);
   timeClient.update();
   unsigned long utc = timeClient.getEpochTime();
   timeClient.setTimeOffset(isPacificDaylightTime(utc) ? PDT_OFFSET_SEC : PST_OFFSET_SEC);
+  lastOffsetMs = now;
 }
 
 void formatLocalDateStr(char* buf, size_t bufLen) {

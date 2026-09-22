@@ -8,11 +8,15 @@
   cores.h / cores.cpp              -- Core 0 uiTask; DashSnap publish; Discord cmd queue
   time_util.cpp                    -- NTP, Pacific DST, date/uptime format helpers
   users.cpp                        -- tracked users, guild cache, presence
-  display.cpp                      -- LCD dashboard (Arduino_GFX AXS15231B), sleep
+  display.cpp                      -- LCD setup/sleep/theme/bars; updateDisplay
+  display_overlay.cpp              -- transient/Event/temp mux helpers
+  dash_snap.cpp                    -- DashSnap capture/publish seqlock
+  display_draw.cpp                 -- palette, panels, drawDashboard
+  display_internal.h               -- private LCD types shared by the four files above
   touch.cpp                        -- AXS15231B I2C touch wake
   hardware.cpp                     -- servo, NeoPixel, DS18B20, GPIO
   discord_rest.cpp                 -- HTTPS REST (CA bundle), sendDiscordMessage, members
-  discord_gateway.cpp              -- websocket, heartbeat, identify, events
+  discord_gateway.cpp              -- websocket, heartbeat, identify, events (filter init at connect)
   serial_log.cpp                   -- MmLog -> web UI only (no USB Serial / UART0)
   ota.cpp                          -- Wi-Fi ArduinoOTA firmware update
   web_ui.cpp                       -- LAN page + status JSON (ArduinoJson)
@@ -21,8 +25,11 @@
   k9dtv_logo_bright_svg.h          -- light K9DTV logo for /logo-bright.svg
   k9dtv_logo_rgb565.h              -- LCD bitmap logos dark+bright RGB565
   menu_chip_svg.h                  -- dark/light IC chips for theme toggle
-  commands.cpp                     -- handleCommand tokenizer, APIs, DeepSeek, scheduled
-  MiniMe_Discord_Bot_II.ino        -- setup / loop + Wi-Fi / gateway connect
+  commands.cpp                     -- tokenizer + handleCommand dispatch
+  command_fetch.cpp                -- weather/news/arxiv/APOD/ISS/DeepSeek fetches
+  wifi_connect.cpp                 -- connectWiFi()
+  coredump_cmd.cpp                 -- owner !coredump flash panic summary
+  MiniMe_Discord_Bot_II.ino        -- setup / loop only (must be the only .ino in the sketch folder)
 
  Dual-core: Arduino loop on Core 1 (Gateway/HTTPS/OTA/web); uiTask on Core 0 (LCD+touch).
  LCD sleep turns backlight off after 5 min idle; ESP32 and Wi-Fi stay up.
@@ -30,54 +37,40 @@
  Discord Idle (5 min quiet) drops CPU to 160 MHz; activity / OTA back to 240.
 
  Board: ESP32S3 Dev Module, Flash 16MB, OPI PSRAM, USB CDC On Boot Enabled.
- Libs: GFX Library for Arduino (AXS15231B), ArduinoJson 6, WebSockets, etc.
+ Libs: GFX Library for Arduino (AXS15231B), ArduinoJson 7, WebSockets, etc.
  Partition: sketch partitions.csv = 2x ~7.9MB OTA apps.
 */
 
 #include "minime.h"
 #include "cores.h"
-#include "esp_wifi.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <new>
 
-// Strong override of core weak default (8 KB). ARDUINO_LOOP_STACK_SIZE is also set in
-// minime.h before Arduino.h for ESP32 core 3.x CONFIG path. Must match core linkage (C++).
-static_assert(ARDUINO_LOOP_STACK_SIZE == 16384, "keep minime.h macro and strong override in sync");
-size_t getArduinoLoopTaskStackSize() {
-  return (size_t)ARDUINO_LOOP_STACK_SIZE;
-}
-
-void connectWiFi() {
-  WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false); // modem sleep breaks ArduinoOTA (port 3232)
-  esp_wifi_set_ps(WIFI_PS_NONE); // IDF: no Wi-Fi power save (fewer WS blips)
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  showTransient("WiFi", "Connecting...");
-  unsigned long start = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - start < 30000UL) {
-    delay(500);
-  }
-  if (WiFi.status() != WL_CONNECTED) {
-    showTransient("WiFi", "Timeout");
-    // fall through; ensureWifiForGateway() retries in loop()
-    return;
-  }
-  // Re-assert after associate (some stacks re-enable sleep on connect).
-  WiFi.setSleep(false);
-  esp_wifi_set_ps(WIFI_PS_NONE);
-  showTransient("WiFi", "Connected");
-}
+// Loop stack: ARDUINO_LOOP_STACK_SIZE in minime.h (before Arduino.h) is the 3.x hook.
+// Do not also define getArduinoLoopTaskStackSize() here — core 3.3+ already provides it
+// from that macro (redefinition error).
+static_assert(ARDUINO_LOOP_STACK_SIZE == 16384, "keep minime.h ARDUINO_LOOP_STACK_SIZE at 16 KB");
 
 void setup() {
   mmSerialBegin();
-  gwDoc = new (std::nothrow) SpiRamJsonDocument(GW_DOC_PSRAM);
-  if (!gwDoc || gwDoc->capacity() == 0) {
+  gwDoc = newSpiRamJsonDoc();
+  if (!gwDoc) {
     MmLog.println(F("Fatal: gwDoc alloc failed (PSRAM?)"));
-    // delay() feeds TWDT; board stays here until power cycle (no OTA/web/Gateway).
     while (true) {
       delay(1000);
     }
+  }
+  // AJ7 starts at capacity 0; prove the PSRAM allocator can hand out a block.
+  {
+    void* probe = mmSpiRamJsonAlloc().allocate(256);
+    if (!probe) {
+      MmLog.println(F("Fatal: gwDoc PSRAM probe failed"));
+      while (true) {
+        delay(1000);
+      }
+    }
+    mmSpiRamJsonAlloc().deallocate(probe);
   }
   initTrackedUsers();
   if (!setupDisplay()) {
@@ -101,7 +94,7 @@ void setup() {
   timeClient.begin();
   showTransient("Discord", "Loading users...");
   if (fetchGuildMembersAtStartup()) {
-    String n0 = trackedUsers[0].userName.length() ? trackedUsers[0].userName : "ok";
+    String n0 = trackedUsers[0].userName[0] ? String(trackedUsers[0].userName) : "ok";
     showTransient("Users loaded", n0);
   } else {
     showTransient("Users", "Fetch failed");
@@ -142,6 +135,7 @@ void loop() {
   }
   pumpOta();
   pumpWebUi();
+  drainCore0Logs();
   // While flashing, do not run Discord / UI publish (starves OTA → timeouts / odd replies like '864')
   if (otaIsBusy()) {
     return;

@@ -1,11 +1,8 @@
 #include "minime.h"
-#include <new>
 
 bool askNeedPost = false;
 String askPendingQuestion;
 String askPendingChannelId;
-
-static SpiRamJsonDocument* deepSeekDoc = nullptr;
 
 String collapseWhitespace(String s) {
   s.replace("\n", " ");
@@ -23,368 +20,25 @@ String truncateText(const String& s, int maxLen) {
   return s.substring(0, maxLen - 3) + "...";
 }
 
-// Body read with Gateway HB pumps (HTTP or HTTPS Client& — both run on Core 1).
-// empty body => false (readHttpBodyAfterHeaders); these APIs never return empty on success.
-static bool readOpenBodyPumped(Client& client, bool chunked, int contentLength,
-                               String& outBody, unsigned long timeoutMs) {
-  return readHttpBodyAfterHeaders(client, chunked, contentLength, outBody, millis() + timeoutMs);
-}
-
-bool getWeather(const String& zip, String& outReport) {
-  WiFiClient client;
-  String url = "/data/2.5/weather?zip=" + zip + ",US&units=imperial&appid=" + WEATHER_API_KEY;
-  bool chunked = false;
-  int contentLength = -1;
-  uint8_t openErr = httpGetOpen(client, "api.openweathermap.org", url, 5000, chunked, contentLength);
-  if (openErr) {
-    setHttpOpenError(outReport, openErr, "Weather service");
-    return false;
-  }
-  String body;
-  if (!readOpenBodyPumped(client, chunked, contentLength, body, 5000UL)) {
-    client.stop();
-    outReport = "Weather empty response.";
-    return false;
-  }
-  client.stop();
-  StaticJsonDocument<2048> doc;
-  DeserializationError err = deserializeJson(doc, body);
-  if (err) {
-    outReport = "Weather JSON parse error.";
-    return false;
-  }
-  String city = doc["name"] | "Unknown";
-  float tempF = doc["main"]["temp"] | 0.0f;
-  float tempC = (tempF - 32.0f) * 5.0f / 9.0f;
-  int humidity = doc["main"]["humidity"] | 0;
-  String cond = doc["weather"][0]["description"] | "Unknown";
-  outReport = "☁️ **Weather Report (" + city + " - " + zip + "):**\n" +
-              "• **Condition:** " + cond + "\n" +
-              "• **Temperature:** " + String(tempF, 1) + "°F (" + String(tempC, 1) + "°C)\n" +
-              "• **Humidity:** " + String(humidity) + "%";
-  return true;
-}
-
-bool getScienceNews(String& outReport) {
-  bool chunked = false;
-  int contentLength = -1;
-  uint8_t openErr = httpsGetOpen("api.spaceflightnewsapi.net", "/v4/articles/?limit=3", 8000,
-                                 chunked, contentLength);
-  if (openErr) {
-    setHttpOpenError(outReport, openErr, "Science news");
-    return false;
-  }
-  String body;
-  if (!readOpenBodyPumped(httpsClient, chunked, contentLength, body, 8000UL)) {
-    httpsRelease();
-    outReport = "Science news empty response.";
-    return false;
-  }
-  httpsRelease();
-  // SNAPI v4: { "count", "next", "results": [ { title, news_site, url, ... } ] }
-  StaticJsonDocument<384> filter;
-  filter["results"][0]["title"] = true;
-  filter["results"][0]["news_site"] = true;
-  filter["results"][0]["url"] = true;
-  StaticJsonDocument<4096> doc;
-  DeserializationError err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
-  if (err) {
-    outReport = "Science news JSON parse error.";
-    return false;
-  }
-  JsonArray results = doc["results"].as<JsonArray>();
-  if (results.isNull() || results.size() == 0) {
-    outReport = "No science headlines right now.";
-    return false;
-  }
-  outReport = "🛰️ **Space & high-tech headlines:**\n";
-  int n = 0;
-  for (JsonObject item : results) {
-    if (n >= 3) break;
-    String title = collapseWhitespace(item["title"] | "Untitled");
-    String site = item["news_site"] | "Source";
-    String url = item["url"] | "";
-    outReport += String(n + 1) + ". **" + truncateText(title, 140) + "** (" + site + ")";
-    if (url.length()) outReport += "\n" + url;
-    outReport += "\n";
-    n++;
-  }
-  return n > 0;
-}
-
-bool getPhysicsPapers(String& outReport) {
-  const char* path =
-    "/api/query?search_query=cat:physics.*&start=0&max_results=3&sortBy=submittedDate&sortOrder=descending";
-  bool chunked = false;
-  int contentLength = -1;
-  uint8_t openErr = httpsGetOpen("export.arxiv.org", path, 8000, chunked, contentLength,
-                                 "MiniMeBot/1.0 (ESP32 Discord bot)", "Accept-Encoding: identity\r\n");
-  if (openErr) {
-    setHttpOpenError(outReport, openErr, "arXiv");
-    return false;
-  }
-  String xml;
-  if (!readOpenBodyPumped(httpsClient, chunked, contentLength, xml, 8000UL)) {
-    httpsRelease();
-    outReport = "arXiv response empty.";
-    return false;
-  }
-  httpsRelease();
-  // Soft 24 KB parse cap (readHttpBodyAfterHeaders hard-caps at 48 KB).
-  if (xml.length() > 24000) xml = xml.substring(0, 24000);
-  if (xml.length() < 50) {
-    outReport = "arXiv response empty.";
-    return false;
-  }
-  outReport = "⚛️ **Latest arXiv physics papers:**\n";
-  int from = 0;
-  int n = 0;
-  while (n < 3) {
-    int entry = xml.indexOf("<entry>", from);
-    if (entry < 0) break;
-    int entryEnd = xml.indexOf("</entry>", entry);
-    if (entryEnd < 0) break;
-    String block = xml.substring(entry, entryEnd);
-    int t0 = block.indexOf("<title>");
-    int t1 = block.indexOf("</title>");
-    String title = "Untitled";
-    if (t0 >= 0 && t1 > t0) {
-      title = collapseWhitespace(block.substring(t0 + 7, t1));
-    }
-    int i0 = block.indexOf("<id>");
-    int i1 = block.indexOf("</id>");
-    String id = "";
-    if (i0 >= 0 && i1 > i0) {
-      id = collapseWhitespace(block.substring(i0 + 4, i1));
-    }
-    outReport += String(n + 1) + ". **" + truncateText(title, 140) + "**";
-    if (id.length()) outReport += "\n" + id;
-    outReport += "\n";
-    n++;
-    from = entryEnd + 8;
-  }
-  if (n == 0) {
-    outReport = "No physics papers found.";
-    return false;
-  }
-  return true;
-}
-
-bool getApod(String& outReport) {
-  String path = String("/planetary/apod?api_key=") + NASA_API_KEY;
-  bool chunked = false;
-  int contentLength = -1;
-  uint8_t openErr = httpsGetOpen("api.nasa.gov", path, 8000, chunked, contentLength);
-  if (openErr) {
-    setHttpOpenError(outReport, openErr, "NASA APOD");
-    return false;
-  }
-  String body;
-  if (!readOpenBodyPumped(httpsClient, chunked, contentLength, body, 8000UL)) {
-    httpsRelease();
-    outReport = "NASA APOD empty response.";
-    return false;
-  }
-  httpsRelease();
-  StaticJsonDocument<128> filter;
-  filter["title"] = true;
-  filter["explanation"] = true;
-  filter["date"] = true;
-  filter["url"] = true;
-  StaticJsonDocument<4096> doc;
-  DeserializationError err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
-  if (err) {
-    outReport = "NASA APOD JSON parse error.";
-    return false;
-  }
-  String title = doc["title"] | "Astronomy Picture of the Day";
-  String date = doc["date"] | "";
-  String expl = collapseWhitespace(doc["explanation"] | "");
-  String url = doc["url"] | "";
-  outReport = "🌌 **NASA APOD";
-  if (date.length()) outReport += " (" + date + ")";
-  outReport += ":**\n• **" + title + "**\n" + truncateText(expl, 350);
-  if (url.length()) outReport += "\n" + url;
-  return true;
-}
-
-bool getIssPosition(String& outReport) {
-  WiFiClient client;
-  bool chunked = false;
-  int contentLength = -1;
-  uint8_t openErr = httpGetOpen(client, "api.open-notify.org", "/iss-now.json", 5000,
-                                chunked, contentLength);
-  if (openErr) {
-    setHttpOpenError(outReport, openErr, "ISS tracker");
-    return false;
-  }
-  String body;
-  if (!readOpenBodyPumped(client, chunked, contentLength, body, 5000UL)) {
-    client.stop();
-    outReport = "ISS tracker empty response.";
-    return false;
-  }
-  client.stop();
-  StaticJsonDocument<512> doc;
-  DeserializationError err = deserializeJson(doc, body);
-  if (err) {
-    outReport = "ISS tracker JSON parse error.";
-    return false;
-  }
-  String lat = doc["iss_position"]["latitude"] | "?";
-  String lon = doc["iss_position"]["longitude"] | "?";
-  outReport = "🌍 **ISS now:**\n"
-              "• **Latitude:** " + lat + "\n"
-              "• **Longitude:** " + lon;
-  return true;
-}
-
-bool askDeepSeek(const String& question, String& outReport) {
-  if (strlen(DEEPSEEK_API_KEY) == 0 ||
-      strcmp(DEEPSEEK_API_KEY, "DEEPSEEK_API_KEY") == 0) {
-    outReport = "DeepSeek API key not set. Add DEEPSEEK_API_KEY in secrets.h.";
-    return false;
-  }
-  String q = question;
-  q.trim();
-  if (q.length() == 0) {
-    outReport = "Usage: !ask <question>";
-    return false;
-  }
-  if (q.length() > 500) {
-    q = q.substring(0, 500);
-  }
-  StaticJsonDocument<1536> req;
-  req["model"] = "deepseek-chat";
-  req["max_tokens"] = DEEPSEEK_MAX_TOKENS;
-  req["temperature"] = 0.7;
-  req["stream"] = false;
-  JsonArray messages = req.createNestedArray("messages");
-  JsonObject sys = messages.createNestedObject();
-  sys["role"] = "system";
-  sys["content"] = "You are MiniMe on an ESP32 Discord bot. Answer clearly for science, tech, and physics. Keep the full answer under 2000 characters so it fits one Discord message.";
-  JsonObject user = messages.createNestedObject();
-  user["role"] = "user";
-  user["content"] = q;
-  String body;
-  serializeJson(req, body);
-  if (!httpsAcquire("api.deepseek.com", 25000)) {
-    outReport = httpsInUse
-      ? "DeepSeek is already answering. Try again in a moment."
-      : "DeepSeek connection failed.";
-    return false;
-  }
-  String request =
-    "POST /chat/completions HTTP/1.1\r\n"
-    "Host: api.deepseek.com\r\n"
-    "Authorization: Bearer " + String(DEEPSEEK_API_KEY) + "\r\n"
-    "Content-Type: application/json\r\n"
-    "Accept: application/json\r\n"
-    "Accept-Encoding: identity\r\n"
-    "User-Agent: " MINIME_USER_AGENT "\r\n"
-    "Content-Length: " + String(body.length()) + "\r\n"
-    "Connection: close\r\n\r\n" +
-    body;
-  httpsClient.print(request);
-  unsigned long deadline = millis() + 45000UL;
-  String statusLine;
-  bool chunked = false;
-  int contentLength = -1;
-  if (!httpsAwaitHeaders(deadline, true, statusLine, chunked, contentLength)) {
-    httpsRelease();
-    outReport = "DeepSeek timeout waiting for headers.";
-    return false;
-  }
-  String respBody;
-  if (!readHttpBodyAfterHeaders(httpsClient, chunked, contentLength, respBody, deadline)) {
-    httpsRelease();
-    outReport = "DeepSeek empty response. " + statusLine;
-    return false;
-  }
-  httpsRelease();
-  int jsonStart = respBody.indexOf('{');
-  if (jsonStart < 0) {
-    outReport = "DeepSeek: no JSON body. " + truncateText(statusLine, 80);
-    return false;
-  }
-  StaticJsonDocument<128> filter;
-  filter["choices"][0]["message"]["content"] = true;
-  filter["error"]["message"] = true;
-
-  // AJ6/7 filter zero-copy: strings in deepSeekDoc point into respBody until we copy answer below.
-  // Do not hoist deepSeekDoc past respBody's lifetime without copying fields out.
-  if (!deepSeekDoc) {
-    deepSeekDoc = new (std::nothrow) SpiRamJsonDocument(DEEPSEEK_JSON_DOC);
-  }
-  if (!deepSeekDoc || deepSeekDoc->capacity() == 0) {
-    outReport = "DeepSeek: out of memory (JSON doc).";
-    return false;
-  }
-  deepSeekDoc->clear();
-  // Parse from offset — no respBody.substring() second 48 KB copy.
-  DeserializationError err = deserializeJson(
-      *deepSeekDoc, respBody.c_str() + jsonStart, DeserializationOption::Filter(filter));
-  if (err) {
-    outReport = "DeepSeek JSON parse error (" + String(err.c_str()) + ").";
-    return false;
-  }
-  if (deepSeekDoc->containsKey("error")) {
-    String emsg = (*deepSeekDoc)["error"]["message"] | "API error";
-    outReport = "DeepSeek error: " + truncateText(emsg, 200);
-    return false;
-  }
-  // Copy out before respBody (and filter views) leave scope.
-  String answer = collapseWhitespace((*deepSeekDoc)["choices"][0]["message"]["content"] | "");
-  if (answer.length() == 0) {
-    outReport = "DeepSeek returned an empty answer. " + truncateText(statusLine, 60);
-    return false;
-  }
-  const char* prefix = "🧠 **DeepSeek:**\n";
-  int room = DISCORD_CONTENT_MAX - (int)strlen(prefix);
-  if (room < 100) room = 100;
-  outReport = String(prefix) + truncateText(answer, room);
-  return true;
-}
-
-void runAskFromLoop() {
-  if (!askNeedPost) return;
-  askNeedPost = false;
-  String channelId = askPendingChannelId;
-  String report;
-  bool ok = askDeepSeek(askPendingQuestion, report);
-  askPendingQuestion = "";
-  askPendingChannelId = "";
-  if (!sendDiscordMessage(channelId, report)) {
-    String fallback = ok
-      ? "DeepSeek answered, but Discord rejected the post (try a shorter question)."
-      : truncateText(report, DISCORD_CONTENT_MAX);
-    if (!sendDiscordMessage(channelId, fallback)) {
-      showTransient("DeepSeek", "Post fail");
-      return;
-    }
-  }
-  if (ok) {
-    showTransient("DeepSeek", "Sent");
-  } else {
-    showTransient("DeepSeek", "Error");
-  }
-}
-
 typedef bool (*FetchReportFn)(String&);
 
-void sendFetchResult(const String& channelId, const char* label, bool ok, const String& report,
-                     const String& okLine2 = "Sent", const String& okLine3 = "") {
-  const bool posted = sendDiscordMessage(channelId, report);
+static void sendFetchResult(const String& channelId, const char* label, bool ok, const String& report,
+                            const String& okLine2 = "Sent", const String& okLine3 = "") {
   if (!ok) {
+    sendDiscordCmdError(channelId, report);
     showTransient(label, "Error");
     return;
   }
+  const bool posted = sendDiscordMessage(channelId, report);
   if (posted) showTransient(label, okLine2, okLine3);
-  else showTransient(label, "Post fail");
+  else {
+    noteCmdErrorReply((String("Post fail: ") + label).c_str());
+    showTransient(label, "Post fail");
+  }
 }
 
-void runFetchCommand(const String& channelId, const char* label, const char* fetching,
-                     FetchReportFn fetch) {
+static void runFetchCommand(const String& channelId, const char* label, const char* fetching,
+                            FetchReportFn fetch) {
   String report;
   showTransient(label, fetching);
   sendFetchResult(channelId, label, fetch(report), report);
@@ -394,7 +48,10 @@ void runFetchCommand(const String& channelId, const char* label, const char* fet
 // Usage-error replies (Usage: !weather …) are fire-and-forget: no LCD, no post-bool check — cheap chat nacks only.
 static void showIfPosted(const char* label, const String& okLine2, bool posted) {
   if (posted) showTransient(label, okLine2);
-  else showTransient(label, "Post fail");
+  else {
+    noteCmdErrorReply((String("Post fail: ") + label).c_str());
+    showTransient(label, "Post fail");
+  }
 }
 
 // Commands whose args are the rest of the line (multi-word). Others take one token.
@@ -484,6 +141,7 @@ void handleCommand(const String& content, const String& authorId, const String& 
       "• `!weather <zip>` — Fetches the weather report for a US ZIP code.\n\n"
       "**👑 Owner-Only Commands:**\n"
       "• `!ota` — Wi-Fi firmware update info (IP / hostname).\n"
+      "• `!coredump` — Last panic from flash coredump (`!coredump clear` erases).\n"
       "• `!servo <0-90>` — Moves the servo motor to a specific angle.\n"
       "• `!clear` — Clears DM / mention alert flags on the LCD.";
     showIfPosted("Help", "Command Sent", sendDiscordMessage(channelId, helpMsg));
@@ -536,16 +194,19 @@ void handleCommand(const String& content, const String& authorId, const String& 
   }
   if (cmdWord == "!temp") {
     recordUserUse(authorId, authorName);
-    // Use Core 0's last non-blocking sample — do not block Gateway on DS18B20.
-    if (dashTempC > -998.0f) {
-      float c = dashTempC;
-      float f = dashTempF;
+    float c = 0, f = 0;
+    bool had = false, fresh = false;
+    dashTempSnapshot(c, f, had, fresh);
+    if (fresh) {
       String msg = "Current Temp: " + String(c, 1) + "°C / " + String(f, 1) + "°F";
       showIfPosted("Temp", String(f, 1) + "F/" + String(c, 1) + "C",
                    sendDiscordMessage(channelId, msg));
+    } else if (had) {
+      showIfPosted("Temp", "Stale",
+                   sendDiscordCmdError(channelId, "Temperature reading is stale (>30s). Sensor may be disconnected."));
     } else {
       showIfPosted("Temp", "Sensor error",
-                   sendDiscordMessage(channelId, "Temperature sensor error."));
+                   sendDiscordCmdError(channelId, "Temperature sensor error."));
     }
     return;
   }
@@ -565,6 +226,29 @@ void handleCommand(const String& content, const String& authorId, const String& 
     showIfPosted("OTA", WiFi.localIP().toString(), sendDiscordMessage(channelId, otaStatusText()));
     return;
   }
+  if (cmdWord == "!coredump") {
+    if (!isOwner(authorId)) {
+      if (!isDM) {
+        sendDiscordMessage(channelId, "You are not allowed to use this command.");
+      }
+      return;
+    }
+    recordUserUse(authorId, authorName);
+    String report;
+    if (args.equalsIgnoreCase("clear") || args.equalsIgnoreCase("erase")) {
+      bool ok = clearCoreDumpImage(report);
+      showIfPosted("Coredump", ok ? "Cleared" : "Error",
+                   ok ? sendDiscordMessage(channelId, report, true)
+                      : sendDiscordCmdError(channelId, report, true));
+      return;
+    }
+    showTransient("Coredump", "Reading...");
+    bool ok = formatCoreDumpReport(report);
+    showIfPosted("Coredump", ok ? "Sent" : "Empty",
+                 ok ? sendDiscordMessage(channelId, report, true)
+                    : sendDiscordCmdError(channelId, report, true));
+    return;
+  }
   if (cmdWord == "!time") {
     recordUserUse(authorId, authorName);
     updateLocalTime();
@@ -581,7 +265,7 @@ void handleCommand(const String& content, const String& authorId, const String& 
       return;
     }
     if (askNeedPost) {
-      sendDiscordMessage(channelId, "DeepSeek is already answering. Try again in a moment.");
+      sendDiscordCmdError(channelId, "DeepSeek is already answering. Try again in a moment.");
       return;
     }
     String question = args;
@@ -604,6 +288,7 @@ void handleCommand(const String& content, const String& authorId, const String& 
     showTransient(line15, line16, "", 6000); // local LCD is the feature
     // If Discord ack fails, overwrite with Post fail (local text already shown briefly).
     if (!sendDiscordMessage(channelId, "Display updated.")) {
+      noteCmdErrorReply("Post fail: Display");
       showTransient("Display", "Post fail");
     }
     return;

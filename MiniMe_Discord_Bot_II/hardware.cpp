@@ -52,6 +52,13 @@ bool pollTemperatureNonBlocking(float& tempC, float& tempF) {
   waiting = false;
   float c = sensors.getTempCByIndex(0);
   if (c == DEVICE_DISCONNECTED_C) {
+    // Route via MmLog -> Core0 bridge (Serial panel shows [C0] …). Rate-limit spam.
+    static unsigned long lastDiscLogMs = 0;
+    unsigned long now = millis();
+    if (lastDiscLogMs == 0 || (now - lastDiscLogMs) >= 60000UL) {
+      lastDiscLogMs = now;
+      MmLog.println(F("DS18B20 disconnected"));
+    }
     return false;
   }
   tempC = c;
@@ -70,11 +77,13 @@ bool isLedByteToken(const String& s) {
 }
 
 void setLedRgb(uint8_t r, uint8_t g, uint8_t b) {
+  // Reserved: Guition module has no user RGB; !led is not shipped.
   pixels.setPixelColor(0, pixels.Color(r, g, b));
   pixels.show();
 }
 
 bool parseRgbTriplet(const String& args, uint8_t& r, uint8_t& g, uint8_t& b) {
+  // Reserved for a future !led; unused by shipped commands.
   String a = args;
   a.trim();
   int sp1 = a.indexOf(' ');
@@ -98,6 +107,6 @@ bool isOwner(const String& authorId) {
 }
 
 void clearAlertFlags() {
-  alertDm = false;
-  alertMention = false;
+  alertDm.store(false);
+  alertMention.store(false);
 }

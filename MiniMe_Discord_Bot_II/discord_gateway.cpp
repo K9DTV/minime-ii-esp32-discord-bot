@@ -3,7 +3,7 @@
 #include "esp_wifi.h"
 
 WebSocketsClient gatewayWS;
-SpiRamJsonDocument* gwDoc = nullptr;
+JsonDocument* gwDoc = nullptr;
 bool gatewayConnected     = false;
 bool identified           = false;
 bool gotHello             = false;
@@ -36,9 +36,40 @@ static unsigned long gwLastDisconnectMillis = 0;
 static bool gwFastIdentifyPending = false; // DISCONNECTED must not climb back to 5s after OP7/OP9
 static bool hbAckPending = false;
 static unsigned long hbSentMillis = 0;
-// Nested pumpGateway (HTTPS wait from inside gatewayWS.loop callback): skip loop(), HB only.
+// Nested pumpGateway (re-entry while gatewayWS.loop runs): skip — do not re-enter loop().
 static bool gwPumping = false;
 static bool gwDeferPresenceOnline = false;
+
+// ArduinoJson filter for all Gateway TEXT frames. Built once in connectGateway — not on first message.
+static JsonDocument gwFilter;
+static bool gwFilterReady = false;
+
+static void initGwJsonFilter() {
+  if (gwFilterReady) return;
+  gwFilter.clear();
+  gwFilter["op"] = true;
+  gwFilter["s"] = true;
+  gwFilter["t"] = true;
+  gwFilter["d"]["heartbeat_interval"] = true;
+  gwFilter["d"]["session_id"] = true;
+  gwFilter["d"]["status"] = true; // PRESENCE_UPDATE top-level status (not only d.presences[])
+  gwFilter["d"]["user"]["id"] = true;
+  gwFilter["d"]["user"]["username"] = true;
+  gwFilter["d"]["user"]["global_name"] = true;
+  gwFilter["d"]["content"] = true;
+  gwFilter["d"]["channel_id"] = true;
+  gwFilter["d"]["guild_id"] = true;
+  gwFilter["d"]["author"]["id"] = true;
+  gwFilter["d"]["author"]["username"] = true;
+  gwFilter["d"]["author"]["global_name"] = true;
+  gwFilter["d"]["author"]["bot"] = true;
+  gwFilter["d"]["mentions"][0]["id"] = true;
+  gwFilter["d"]["presences"][0]["user"]["id"] = true;
+  gwFilter["d"]["presences"][0]["status"] = true;
+  gwFilter["d"]["guilds"][0]["presences"][0]["user"]["id"] = true;
+  gwFilter["d"]["guilds"][0]["presences"][0]["status"] = true;
+  gwFilterReady = true;
+}
 
 static void gwLogAppend(const char* ev) {
   if (!ev || !ev[0]) return;
@@ -181,6 +212,8 @@ static void gwSetReconnectBackoff(bool reset) {
 }
 
 static void ensureWifiForGateway() {
+  // Never tear Wi-Fi under nested pump (TLS body/header wait) or while HTTPS holds the socket.
+  if (gwPumping || httpsInUse) return;
   if (WiFi.status() == WL_CONNECTED) return;
   unsigned long now = millis();
   if (now - gwLastWifiKickMillis < 10000UL) return;
@@ -215,6 +248,7 @@ static void bindGatewayHost(const char* host) {
 void connectGateway() {
   // One beginSslWithBundle for the life of the bot. After drops, only setReconnectInterval +
   // disconnect(); do not beginSslWithBundle again (fights the library reconnect timer).
+  initGwJsonFilter();
   MmLog.print("[GW] intents=");
   MmLog.println(INTENTS_MINIME);
   bindGatewayHost("gateway.discord.gg");
@@ -230,7 +264,7 @@ void requestTrackedUserPresences() {
   if (cachedGuildCount == 0) return;
   bool any = false;
   for (uint8_t i = 0; i < MAX_TRACKED_USERS; i++) {
-    if (trackedUsers[i].active && trackedUsers[i].userId.length()) {
+    if (trackedUsers[i].active && trackedUsers[i].userId[0]) {
       any = true;
       break;
     }
@@ -238,16 +272,16 @@ void requestTrackedUserPresences() {
   if (!any) return;
 
   for (uint8_t g = 0; g < cachedGuildCount; g++) {
-    if (cachedGuildIds[g].length() < 16) continue;
-    StaticJsonDocument<768> doc;
+    if (strlen(cachedGuildIds[g]) < 16) continue;
+    JsonDocument doc;
     doc["op"] = 8;
-    JsonObject d = doc.createNestedObject("d");
+    JsonObject d = doc["d"].to<JsonObject>();
     d["guild_id"] = cachedGuildIds[g];
     d["limit"] = 0;
     d["presences"] = true;
-    JsonArray ids = d.createNestedArray("user_ids");
+    JsonArray ids = d["user_ids"].to<JsonArray>();
     for (uint8_t i = 0; i < MAX_TRACKED_USERS; i++) {
-      if (trackedUsers[i].active && trackedUsers[i].userId.length()) {
+      if (trackedUsers[i].active && trackedUsers[i].userId[0]) {
         ids.add(trackedUsers[i].userId);
       }
     }
@@ -257,11 +291,11 @@ void requestTrackedUserPresences() {
 
 void sendBotPresence(const char* status, bool afk) {
   if (!gatewayConnected || !identified) return;
-  StaticJsonDocument<256> doc;
+  JsonDocument doc;
   doc["op"] = 3;
-  JsonObject d = doc.createNestedObject("d");
+  JsonObject d = doc["d"].to<JsonObject>();
   d["since"] = nullptr;
-  d.createNestedArray("activities");
+  d["activities"].to<JsonArray>();
   d["status"] = status;
   d["afk"] = afk;
   gwSendJson(doc);
@@ -288,30 +322,34 @@ void noteBotActivity() {
 }
 
 void updateBotPresenceIdle() {
-  if (!gatewayConnected || !identified) return;
   if (lastBotActivityMillis == 0) {
     lastBotActivityMillis = millis();
     return;
   }
-  if (botDiscordStatus == 1) return;
   if (millis() - lastBotActivityMillis < BOT_PRESENCE_IDLE_MS) return;
+  // Drop CPU even if Gateway never identified (commands/OTA may have bumped to 240).
+  if (!gatewayConnected || !identified) {
+    applyCpuForBotOnline(false);
+    return;
+  }
+  if (botDiscordStatus == 1) return;
   botDiscordStatus = 1;
   sendBotPresence("idle", true);
   applyCpuForBotOnline(false);
 }
 
 void sendIdentify() {
-  StaticJsonDocument<768> doc;
+  JsonDocument doc;
   doc["op"] = 2;
-  JsonObject d = doc.createNestedObject("d");
+  JsonObject d = doc["d"].to<JsonObject>();
   d["token"] = BOT_TOKEN;
-  d.createNestedObject("properties"); // Discord accepts empty properties
+  d["properties"].to<JsonObject>(); // Discord accepts empty properties
   d["compress"] = false;
   d["large_threshold"] = 250;
   d["intents"] = INTENTS_MINIME;
-  JsonObject presence = d.createNestedObject("presence");
+  JsonObject presence = d["presence"].to<JsonObject>();
   presence["since"] = nullptr;
-  presence.createNestedArray("activities");
+  presence["activities"].to<JsonArray>();
   presence["status"] = "online";
   presence["afk"] = false;
   gwSendJson(doc);
@@ -322,7 +360,7 @@ void sendIdentify() {
 }
 
 void sendHeartbeat() {
-  StaticJsonDocument<256> doc;
+  JsonDocument doc;
   doc["op"] = 1;
   if (lastSeq == 0) {
     doc["d"] = nullptr;
@@ -334,9 +372,8 @@ void sendHeartbeat() {
   hbSentMillis = millis();
 }
 
-// Heartbeat / wifi kick only. Safe during nested pump (HTTPS from WS event).
-// Note: ensureWifiForGateway() may WiFi.disconnect/begin while nested under a TLS read —
-// intentional recovery; avoid calling heavier reconnect/bind paths from here.
+// Heartbeat / wifi kick. Called from the outer pumpGateway only (not nested).
+// Wi-Fi reconnect is skipped while gwPumping/httpsInUse (see ensureWifiForGateway).
 static void pumpGatewayKeepAlive() {
   if (!gatewayConnected && WiFi.status() != WL_CONNECTED) {
     ensureWifiForGateway();
@@ -364,12 +401,10 @@ static void pumpGatewayKeepAlive() {
 }
 
 void pumpGateway() {
-  // Nested: httpsAwaitHeaders(pump)/readHttpBody from handleCommand inside gatewayWS.loop.
-  // Re-entering loop() would nest event dispatch; keep HB alive only.
-  if (gwPumping) {
-    pumpGatewayKeepAlive();
-    return;
-  }
+  // Re-entry guard: gatewayWS.loop must not nest. After dual-core, commands/HTTPS run from
+  // loop() via drainDiscordCmds (not inside the WS callback), so nested pumps are rare;
+  // if they happen, skip entirely (0.7.40 pruned the old nested HB-only path).
+  if (gwPumping) return;
 
   gwPumping = true;
   gatewayWS.loop();
@@ -475,33 +510,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       break;
     }
     case WStype_TEXT: {
-      static StaticJsonDocument<384> gwFilter;
-      static bool gwFilterInit = false;
-      if (!gwFilterInit) {
-        gwFilter["op"] = true;
-        gwFilter["s"] = true;
-        gwFilter["t"] = true;
-        gwFilter["d"]["heartbeat_interval"] = true;
-        gwFilter["d"]["session_id"] = true;
-        gwFilter["d"]["status"] = true;
-        gwFilter["d"]["user"]["id"] = true;
-        gwFilter["d"]["user"]["username"] = true;
-        gwFilter["d"]["user"]["global_name"] = true;
-        gwFilter["d"]["content"] = true;
-        gwFilter["d"]["channel_id"] = true;
-        gwFilter["d"]["guild_id"] = true;
-        gwFilter["d"]["author"]["id"] = true;
-        gwFilter["d"]["author"]["username"] = true;
-        gwFilter["d"]["author"]["global_name"] = true;
-        gwFilter["d"]["author"]["bot"] = true;
-        gwFilter["d"]["mentions"][0]["id"] = true;
-        gwFilter["d"]["presences"][0]["user"]["id"] = true;
-        gwFilter["d"]["presences"][0]["status"] = true;
-        gwFilter["d"]["guilds"][0]["presences"][0]["user"]["id"] = true;
-        gwFilter["d"]["guilds"][0]["presences"][0]["status"] = true;
-        gwFilterInit = true;
-      }
-
+      if (!gwFilterReady) initGwJsonFilter(); // belt: connectGateway should already have done this
       if (!gwDoc) return;
       gwDoc->clear();
       DeserializationError err = deserializeJson(*gwDoc, payload, length, DeserializationOption::Filter(gwFilter));
@@ -512,7 +521,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
         return;
       }
       int op = (*gwDoc)["op"] | -1;
-      if (gwDoc->containsKey("s") && !(*gwDoc)["s"].isNull()) {
+      if (!(*gwDoc)["s"].isNull()) {
         lastSeq = (*gwDoc)["s"].as<int>();
       }
 
@@ -545,7 +554,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       // Invalid Session: fresh IDENTIFY
       if (op == 9) {
         bool resumable = false;
-        StaticJsonDocument<96> small;
+        JsonDocument small;
         if (!deserializeJson(small, payload, length)) {
           resumable = small["d"] | false;
         }
@@ -615,7 +624,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
           // Owner alerts (LCD flags; !clear clears). No GPIO set1/set2.
           if (isDM) {
             // Sticky LCD flags until owner !clear (no auto-expiry).
-            alertDm = true;
+            alertDm.store(true);
             noteLastEvent("DM");
           } else {
             bool ownerMentioned = false;
@@ -638,7 +647,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
             }
             if (ownerMentioned) {
               // Sticky LCD flags until owner !clear (no auto-expiry).
-              alertMention = true;
+              alertMention.store(true);
               noteLastEvent("Mention");
             }
           }

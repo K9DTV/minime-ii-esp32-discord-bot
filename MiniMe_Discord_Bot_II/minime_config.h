@@ -2,17 +2,19 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.22"
+#define MINIME_VERSION "0.7.40"
 #define MINIME_USER_AGENT "MiniMeBot/1.0"
 
 // Discord content max is 2000. !ask max_tokens / JSON buffer sized to fit one message.
 const int DISCORD_CONTENT_MAX = 2000;
 const int DEEPSEEK_MAX_TOKENS = 900;
-const size_t DEEPSEEK_JSON_DOC = 24576; // larger so !ask answers parse without scrape fallback
-// Discord REST 429: honor Retry-After, keep Gateway alive while waiting.
-#define DISCORD_429_MAX_ATTEMPTS 3
+const size_t DEEPSEEK_JSON_DOC = 24576; // soft size hint for !ask (AJ7 grows; was AJ6 pool)
+// Discord REST: retry budget for 429 and header timeouts; keep Gateway alive while waiting.
+#define DISCORD_REST_MAX_ATTEMPTS 3
+#define DISCORD_429_MAX_ATTEMPTS DISCORD_REST_MAX_ATTEMPTS // alias (older name)
 #define DISCORD_429_WAIT_MIN_MS 500UL
 #define DISCORD_429_WAIT_MAX_MS 60000UL
+#define DISCORD_HEADER_RETRY_WAIT_MS 500UL
 
 // ====== GPIO CONFIG (Guition JC3248W535EN / AXS15231B) ======
 // Display QSPI (Arduino_ESP32QSPI + Arduino_AXS15231B): CS 45, SCK 47, D0 21, D1 48, D2 40, D3 39
@@ -48,8 +50,8 @@ const unsigned long BOT_PRESENCE_IDLE_MS = 300000UL; // 5 minutes quiet -> Idle
 const unsigned long GW_HB_ACK_GRACE_MS = 15000UL;
 const uint32_t CPU_MHZ_ACTIVE = 240; // Online / OTA / commands
 const uint32_t CPU_MHZ_IDLE = 160;   // Discord Idle presence (not 80 — that correlated with resets)
-// Watchdog: rely on Arduino-ESP32 default TWDT; delay()/yield() in loop and HTTPS waits feed it.
-// No esp_task_wdt_add/reset in this firmware.
+// Watchdog: Arduino-ESP32 default TWDT + delay()/yield() (explicit add/reset still deferred).
+// !ask HOL: dedicated DeepSeek TLS + drain during waits only if !httpsInUse (0.7.38).
 
 // Gateway Identify intents (single source; used by sendIdentify + boot log).
 constexpr uint32_t INTENT_GUILDS          = 1u << 0;

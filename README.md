@@ -13,12 +13,12 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 **Not prime time yet.** The LCD and LAN web UI are a **starting point** and will go through **a lot of changes**. Expect layouts, chrome, and polish to keep moving. You are invited to flash it, poke Discord/`!help`, and play with the glass and the browser -- just know this is early Guition work, not a finished product UI.
 
-**Status:** Guition module firmware - **v0.7.22** (see `VERSION` / `CHANGELOG.md`) - **WIP UI**. Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware - **v0.7.40** (see `VERSION` / `CHANGELOG.md`) - **WIP UI**. Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
 1. Library Manager -> **GFX Library for Arduino** (moononournation) -> Install (build must include `Arduino_AXS15231B` / QSPI)
-2. Also: ArduinoJson 6, WebSockets, OneWire, DallasTemperature, Adafruit NeoPixel, NTPClient
+2. Also: ArduinoJson 7, WebSockets, OneWire, DallasTemperature, Adafruit NeoPixel, NTPClient
 
 No **JC3248W535EN-Touch-LCD**, **JPEGDecoder**, or **U8g2**.
 
@@ -75,6 +75,7 @@ Same list Discord shows for `!help`:
 **Owner-only** (`OWNER_ID_STR`):
 
 - `!ota` -- Wi-Fi ArduinoOTA info (IP / hostname / port 3232)
+- `!coredump` -- last panic from flash coredump (`!coredump clear` erases)
 - `!servo <0-90>` -- servo angle (updates the `Srv` bar; optional external servo on GPIO 17)
 - `!clear` -- clear DM / mention alert flags on the LCD
 
@@ -134,7 +135,7 @@ Shared UI state is a published **DashSnap** (seqlock; Core 1 writes, Core 0 pain
 
 ## LCD dashboard
 
-**Panel:** Guition JC3248W535EN AXS15231B, native **320x480**, firmware canvas **480x320** landscape (`Arduino_Canvas`). Layout in `display.cpp` (`drawDashboard` + `DashSnap` dirty tracking).
+**Panel:** Guition JC3248W535EN AXS15231B, native **320x480**, firmware canvas **480x320** landscape (`Arduino_Canvas`). Layout in `display_draw.cpp` / `dash_snap.cpp` (`drawDashboard` + `DashSnap` dirty tracking).
 
 The LAN page is meant to **match** this layout (Display = metrics|users, Log = LOG|Serial). Glass and browser Light/Dark stay independent.
 
@@ -351,7 +352,7 @@ Capacitive touch on the AXS15231B wakes the LCD after backlight-off and hits the
 GitHub Actions compiles this sketch on push (see the **Compile** badge). That is a clean build only; it does not upload.
 
 1. Install [Arduino IDE](https://www.arduino.cc/en/software) and the **esp32** board package (Espressif).
-2. Open **only** `MiniMe_Discord_Bot_II/MiniMe_Discord_Bot_II.ino` from a folder that contains that single `.ino` plus the `.cpp` / `.h` files and `partitions.csv`.
+2. Open **only** `MiniMe_Discord_Bot_II/MiniMe_Discord_Bot_II.ino` from a folder that contains that **single** `.ino` plus the `.cpp` / `.h` files and `partitions.csv`. Arduino merges every `.ino` in the folder into one translation unit — a leftover `Discord_Bot_MiniMe_II.ino` (or any second `.ino`) causes `redefinition of 'void connectWiFi()'` / `setup` / stack helpers. Delete extras; folder name should match the one `.ino` basename.
 3. Provide `secrets.h` (from `secrets.example.h`) with Wi-Fi, token, keys, and IDs.
 4. Set **Tools** as in the table below for this **Guition N16R8** module.
 5. Libraries: GFX Library for Arduino, WebSockets, ArduinoJson, OneWire, DallasTemperature, Adafruit NeoPixel, NTPClient.
@@ -377,7 +378,7 @@ GitHub Actions compiles this sketch on push (see the **Compile** badge). That is
 ### RAM / flash notes
 
 - **RAM:** internal SRAM + **8MB OPI PSRAM**. **PSRAM -> OPI PSRAM** must be on.
-- Large Discord Gateway JSON (`GW_DOC_PSRAM`, **256KB**) and LAN `statusDoc` use `SpiRamJsonDocument` (PSRAM via `heap_caps_*`). Default `DynamicJsonDocument` is internal SRAM only.
+- Large Discord Gateway JSON (`GW_DOC_PSRAM` soft size) and LAN `statusDoc` use `JsonDocument` with `SpiRamAllocator` (PSRAM via `heap_caps_*`). Default `JsonDocument` is internal SRAM only.
 - Do **not** enable `heap_caps_malloc_extmem_enable` for small allocations (Wi-Fi / TLS in PSRAM can crash).
 - **Flash:** **16MB**. `partitions.csv` is dual OTA + small coredump -- **no filesystem**. First flash USB; later Wi-Fi OTA (`!ota`).
 

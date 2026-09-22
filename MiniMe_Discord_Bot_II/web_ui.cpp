@@ -33,7 +33,59 @@ static uint32_t webLogGenCounter = 0;
 
 static char webSerialLines[WEB_SERIAL_N][WEB_LOG_COLS + 1];
 static uint8_t webSerialHead = 0;
+std::atomic<uint32_t> mmLogDropCore0{0};
+
 static uint8_t webSerialCount = 0;
+
+// Core 0 -> Core 1 log bridge: webLogFeed cannot touch Serial rings from Core 0 (races handleStatus).
+// Lines land in this ring; drainCore0Logs() on Core 1 prints via MmLog.
+enum { C0_LOG_N = 8 };
+static char c0Pending[C0_LOG_N][WEB_LOG_COLS + 1];
+static uint8_t c0LogHead = 0;
+static uint8_t c0LogCount = 0;
+static portMUX_TYPE c0LogMux = portMUX_INITIALIZER_UNLOCKED;
+static char c0Acc[WEB_LOG_COLS + 1];
+static uint8_t c0AccLen = 0;
+
+static void c0EnqueueLine(const char* text) {
+  if (!text || !text[0]) return;
+  portENTER_CRITICAL(&c0LogMux);
+  if (c0LogCount >= C0_LOG_N) {
+    portEXIT_CRITICAL(&c0LogMux);
+    mmLogDropCore0.fetch_add(1);
+    return;
+  }
+  uint8_t slot = (uint8_t)((c0LogHead + c0LogCount) % C0_LOG_N);
+  strncpy(c0Pending[slot], text, WEB_LOG_COLS);
+  c0Pending[slot][WEB_LOG_COLS] = '\0';
+  c0LogCount++;
+  portEXIT_CRITICAL(&c0LogMux);
+}
+
+void drainCore0Logs() {
+  if (xPortGetCoreID() != 1) return;
+  for (;;) {
+    char line[WEB_LOG_COLS + 1];
+    bool have = false;
+    portENTER_CRITICAL(&c0LogMux);
+    if (c0LogCount > 0) {
+      strncpy(line, c0Pending[c0LogHead], WEB_LOG_COLS);
+      line[WEB_LOG_COLS] = '\0';
+      c0LogHead = (uint8_t)((c0LogHead + 1) % C0_LOG_N);
+      c0LogCount--;
+      have = true;
+    }
+    portEXIT_CRITICAL(&c0LogMux);
+    if (!have) break;
+    MmLog.print(F("[C0] "));
+    MmLog.println(line);
+  }
+}
+
+// Last N Discord replies posted because a command failed (busy / fetch / sensor / post fail).
+static char cmdErrLines[CMD_ERR_RING_N][WEB_LOG_COLS + 1];
+static uint8_t cmdErrHead = 0;
+static uint8_t cmdErrCount = 0;
 
 static char webLogAcc[WEB_LOG_COLS + 1];
 static uint8_t webLogAccLen = 0;
@@ -113,12 +165,51 @@ uint32_t lcdLogGen() {
   return webLogGenCounter;
 }
 
+void noteCmdErrorReply(const char* msg) {
+  if (!msg || !msg[0]) return;
+  // Core 1 only (same rule as webLogFeed); callers are command/REST paths on Core 1.
+  if (xPortGetCoreID() != 1) return;
+
+  char line[WEB_LOG_COLS + 1];
+  size_t n = 0;
+  for (size_t i = 0; msg[i] && n + 1 < sizeof(line); i++) {
+    char c = msg[i];
+    if (c == '\r') continue;
+    if (c == '\n' || c == '\t') c = ' ';
+    // Skip markdown noise for LCD/Serial one-liners.
+    if (c == '*' || c == '`' || c == '_') continue;
+    if (c == ' ' && (n == 0 || line[n - 1] == ' ')) continue;
+    line[n++] = c;
+  }
+  while (n > 0 && line[n - 1] == ' ') n--;
+  line[n] = '\0';
+  if (n == 0) return;
+
+  ringPush(cmdErrLines, CMD_ERR_RING_N, cmdErrHead, cmdErrCount, line);
+  // Serial panel (Log layout right): same one-liner operators can see without !sys.
+  MmLog.print("[CMDERR] ");
+  MmLog.println(line);
+}
+
+uint8_t cmdErrorReplyCount() {
+  return cmdErrCount;
+}
+
+bool cmdErrorReplyNewest(uint8_t fromNewest, char* buf, size_t bufLen) {
+  if (!buf || bufLen == 0 || fromNewest >= cmdErrCount) return false;
+  uint8_t idx = (uint8_t)((cmdErrHead + CMD_ERR_RING_N - 1 - fromNewest) % CMD_ERR_RING_N);
+  strncpy(buf, cmdErrLines[idx], bufLen - 1);
+  buf[bufLen - 1] = '\0';
+  return true;
+}
+
 static bool lineIsFullStart(const char* s) {
-  return s && strcmp(s, "[GW] === FULL LOG ===") == 0;
+  // Require gateway prefix so !display / !ask text cannot flip LOG routing.
+  return s && strstr(s, "[GW] === FULL LOG ===") != nullptr;
 }
 
 static bool lineIsFullEnd(const char* s) {
-  return s && strcmp(s, "[GW] === END LOG ===") == 0;
+  return s && strstr(s, "[GW] === END LOG ===") != nullptr;
 }
 
 static void webLogCommitLine() {
@@ -147,9 +238,29 @@ static void webLogCommitLine() {
 }
 
 void webLogFeed(const uint8_t* buffer, size_t size) {
-  // Rings have no mutex vs handleStatus. Drop writes from Core 0 (uiTask must not MmLog).
-  if (xPortGetCoreID() != 1) return;
   if (!buffer || size == 0) return;
+  // Rings have no mutex vs handleStatus. Core 0 enqueues lines for Core 1 drain.
+  if (xPortGetCoreID() != 1) {
+    for (size_t i = 0; i < size; i++) {
+      char c = (char)buffer[i];
+      if (c == '\r') continue;
+      if (c == '\n') {
+        c0Acc[c0AccLen] = '\0';
+        if (c0AccLen) c0EnqueueLine(c0Acc);
+        c0AccLen = 0;
+        continue;
+      }
+      if (c0AccLen < WEB_LOG_COLS) {
+        c0Acc[c0AccLen++] = c;
+      } else {
+        c0Acc[WEB_LOG_COLS] = '\0';
+        c0EnqueueLine(c0Acc);
+        c0AccLen = 0;
+        c0Acc[c0AccLen++] = c;
+      }
+    }
+    return;
+  }
   for (size_t i = 0; i < size; i++) {
     char c = (char)buffer[i];
     if (c == '\r') continue;
@@ -189,19 +300,21 @@ static void dashFields(char* timeStr, size_t timeLen,
   srvPct = dashBarPct(dashSrvBarW(lastServoDeg), DASH_SRV_BAR_MAX);
 
   if (msg1 && msg1Len) {
-    strncpy(msg1, lastEventLine.c_str(), msg1Len - 1);
-    msg1[msg1Len - 1] = '\0';
+    uiOverlayCopyEvent(msg1, msg1Len);
   }
   if (msg2 && msg2Len) {
     msg2[0] = '\0';
-    if (millis() < transientUntilMs) {
+    char t1[UI_TRANSIENT_COLS], t2[UI_TRANSIENT_COLS], t3[UI_TRANSIENT_COLS];
+    unsigned long until = 0;
+    uiOverlayCopyTransient(t1, sizeof(t1), t2, sizeof(t2), t3, sizeof(t3), &until);
+    if (millis() < until) {
       size_t n = 0;
-      const String* parts[3] = {&transientLine1, &transientLine2, &transientLine3};
+      const char* parts[3] = {t1, t2, t3};
       for (uint8_t p = 0; p < 3; p++) {
-        if (!parts[p]->length()) continue;
+        if (!parts[p][0]) continue;
         if (n && n + 1 < msg2Len) msg2[n++] = ' ';
-        for (size_t i = 0; i < parts[p]->length() && n + 1 < msg2Len; i++) {
-          msg2[n++] = (*parts[p])[i];
+        for (size_t i = 0; parts[p][i] && n + 1 < msg2Len; i++) {
+          msg2[n++] = parts[p][i];
         }
         msg2[n] = '\0';
       }
@@ -324,8 +437,9 @@ static int roundTempHalfAway(float v) {
 }
 
 // Allocated once in setupWebUi() (after PSRAM is up), then reused with clear().
-static SpiRamJsonDocument* statusDoc = nullptr;
-static const size_t STATUS_DOC_BYTES = 32768;
+static JsonDocument* statusDoc = nullptr;
+static const size_t STATUS_DOC_BYTES = 49152; // soft cap; measureJson checked before send
+
 
 static void handleRoot() {
   sendNoCacheHeaders();
@@ -343,16 +457,17 @@ static void handleStatus() {
     return;
   }
 
-  // Stack buffers must stay live until serializeJson finishes (AJ6 stores const char* by ptr).
-  char timeStr[12], dateStr[24], upStr[28], msg1[40], msg2[128], ipBuf[16];
+  // Stack buffers must stay live until serializeJson finishes (AJ7 may store const char* by ptr).
+  char timeStr[12], dateStr[24], upStr[28], msg1[40], msg2[128], ipBuf[16], eventBuf[UI_EVENT_COLS];
   int sigPct = 0, heapPct = 0, srvPct = 0;
   long rssi = 0;
   uint32_t memFree = 0, memTotal = 0;
   dashFields(timeStr, sizeof(timeStr), dateStr, sizeof(dateStr), upStr, sizeof(upStr),
              sigPct, heapPct, srvPct, rssi, memFree, memTotal,
              msg1, sizeof(msg1), msg2, sizeof(msg2));
+  uiOverlayCopyEvent(eventBuf, sizeof(eventBuf));
 
-  SpiRamJsonDocument& doc = *statusDoc;
+  JsonDocument& doc = *statusDoc;
   doc.clear();
   doc["gw"] = gatewayConnected;
   doc["identified"] = identified;
@@ -360,10 +475,13 @@ static void handleStatus() {
   doc["time"] = timeStr;
   doc["date"] = dateStr;
   doc["uptime"] = upStr;
-  bool tempOk = (dashTempC > -998.0f);
+  float tc = 0, tf = 0;
+  bool hadSample = false, tempOk = false;
+  dashTempSnapshot(tc, tf, hadSample, tempOk);
   doc["tempOk"] = tempOk;
-  doc["tempF"] = tempOk ? roundTempHalfAway(dashTempF) : 0;
-  doc["tempC"] = tempOk ? roundTempHalfAway(dashTempC) : 0;
+  doc["tempF"] = tempOk ? roundTempHalfAway(tf) : 0;
+  doc["tempC"] = tempOk ? roundTempHalfAway(tc) : 0;
+  doc["tempStale"] = hadSample && !tempOk;
   doc["rssi"] = (int)rssi;
   doc["sigPct"] = sigPct;
   doc["heapFree"] = memFree;
@@ -398,36 +516,42 @@ static void handleStatus() {
   doc["dashFlushMs"] = (unsigned long)lastDashFlushMs;
   doc["dashDrawMs"] = (unsigned long)lastDashDrawMs;
   doc["dashRefreshMs"] = DASH_REFRESH_MS;
-  doc["dm"] = alertDm;
-  doc["mention"] = alertMention;
+  doc["dm"] = alertDm.load();
+  doc["mention"] = alertMention.load();
   doc["httpsBusy"] = httpsInUse;
-  doc["lastEvent"] = lastEventLine.c_str();
+  doc["lastEvent"] = eventBuf;
+  doc["mmLogDropCore0"] = mmLogDropCore0.load();
   doc["msg1"] = msg1;
   doc["msg2"] = msg2;
 
-  JsonArray users = doc.createNestedArray("users");
+  JsonArray users = doc["users"].to<JsonArray>();
   uint8_t nActive = 0;
   for (uint8_t row = 0; row < MAX_TRACKED_USERS; row++) {
-    JsonObject u = users.createNestedObject();
+    JsonObject u = users.add<JsonObject>();
     const char* name = "---";
     if (trackedUsers[row].active) {
       nActive++;
-      if (trackedUsers[row].userName.length()) name = trackedUsers[row].userName.c_str();
-      else name = trackedUsers[row].userId.c_str();
+      if (trackedUsers[row].userName[0]) name = trackedUsers[row].userName;
+      else name = trackedUsers[row].userId;
     }
     u["name"] = name;
     u["status"] = statusToWord(trackedUsers[row].active ? trackedUsers[row].status : 0);
-    // Number avoids a per-row temp char[] dangling-pointer under AJ6 zero-copy.
+    // Number avoids a per-row temp char[] dangling-pointer under AJ zero-copy.
     u["bot"] = (unsigned long)(trackedUsers[row].active ? trackedUsers[row].useCount24h : 0);
   }
   doc["usersActive"] = nActive;
   doc["usersMax"] = MAX_TRACKED_USERS;
 
-  JsonArray fulllog = doc.createNestedArray("fulllog");
+  JsonArray fulllog = doc["fulllog"].to<JsonArray>();
   appendRingToJsonArray(fulllog, webFullLines, webFullHead, webFullCount);
-  JsonArray serialArr = doc.createNestedArray("serial");
+  JsonArray serialArr = doc["serial"].to<JsonArray>();
   appendRingToJsonArray(serialArr, webSerialLines, webSerialHead, webSerialCount);
 
+  size_t need = measureJson(doc);
+  if (need == 0 || need >= STATUS_DOC_BYTES) {
+    webServer.send(500, "application/json", "{\"err\":\"statusJsonOverflow\"}");
+    return;
+  }
   webServer.setContentLength(CONTENT_LENGTH_UNKNOWN);
   webServer.send(200, "application/json", "");
   ChunkPrint out(webServer);
@@ -463,15 +587,25 @@ void setupWebUi() {
   webSerialCount = 0;
   webLogAccLen = 0;
   if (!statusDoc) {
-    statusDoc = new (std::nothrow) SpiRamJsonDocument(STATUS_DOC_BYTES);
+    statusDoc = newSpiRamJsonDoc();
   }
-  if (!statusDoc || statusDoc->capacity() == 0) {
+  if (!statusDoc) {
     MmLog.println(F("Fatal: statusDoc alloc failed (PSRAM?)"));
     showTransient("Fatal", "No statusDoc");
-    // Same policy as gwDoc: delay() feeds TWDT; halt until power cycle.
     while (true) {
       delay(1000);
     }
+  }
+  {
+    void* probe = mmSpiRamJsonAlloc().allocate(256);
+    if (!probe) {
+      MmLog.println(F("Fatal: statusDoc PSRAM probe failed"));
+      showTransient("Fatal", "No statusDoc");
+      while (true) {
+        delay(1000);
+      }
+    }
+    mmSpiRamJsonAlloc().deallocate(probe);
   }
   webServer.on("/", HTTP_GET, handleRoot);
   webServer.on("/logo.svg", HTTP_GET, handleLogo);
