@@ -75,15 +75,26 @@ def main() -> int:
             if tok in text:
                 fail(f"{path.name}: still contains ArduinoJson 6 type {tok}")
 
-    wf = ROOT / ".github" / "workflows" / "compile.yml"
-    if not wf.is_file():
+    wf_sanity = ROOT / ".github" / "workflows" / "sanity.yml"
+    wf_compile = ROOT / ".github" / "workflows" / "compile.yml"
+    wf_python = ROOT / ".github" / "workflows" / "python.yml"
+    wf_html = ROOT / ".github" / "workflows" / "html.yml"
+    if not wf_sanity.is_file():
+        fail("sanity.yml missing")
+    else:
+        st = wf_sanity.read_text(encoding="utf-8")
+        if "ci_sanity.py" not in st:
+            fail("sanity.yml must run tools/ci_sanity.py")
+    if not wf_compile.is_file():
         fail("compile.yml missing")
     else:
-        wf_txt = wf.read_text(encoding="utf-8")
+        wf_txt = wf_compile.read_text(encoding="utf-8")
         if "ArduinoJson@7" not in wf_txt:
-            fail("CI workflow must pin ArduinoJson 7.x")
-        if "ci_sanity.py" not in wf_txt:
-            fail("CI workflow must run tools/ci_sanity.py")
+            fail("compile.yml must pin ArduinoJson 7.x")
+    if not wf_python.is_file() or "pytest" not in wf_python.read_text(encoding="utf-8"):
+        fail("python.yml missing or must run pytest")
+    if not wf_html.is_file() or "ci_html.py" not in wf_html.read_text(encoding="utf-8"):
+        fail("html.yml missing or must run ci_html.py")
 
     if fails:
         print("ci_sanity FAILED:")

@@ -1,0 +1,21 @@
+# LAN web CSS/JS/SVG embedded in firmware headers.
+# Badge: HTML
+
+name: HTML
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  html:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Host HTML/asset checks
+        run: python3 tools/ci_html.py

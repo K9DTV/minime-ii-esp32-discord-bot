@@ -43,6 +43,8 @@ Behavior:
 
 | Layer | Where | Proves |
 |---|---|---|
-| Host sanity | `tools/ci_sanity.py` on every push | VERSION sync, one `.ino`, no AJ6 types, secrets not tracked |
-| Compile | GitHub Actions `compile` job | Sketch builds for the Guition FQBN |
+| Host sanity | workflow **Sanity** / `ci_sanity.py` | VERSION sync, one `.ino`, no AJ6 types, secrets not tracked |
+| Python | workflow **Python** / pytest | Pillow logo helper + sanity via tests |
+| HTML | workflow **HTML** / `ci_html.py` | LAN CSS/JS brace + required IDs; SVG headers |
+| Compile | workflow **Compile** | Sketch builds for the Guition FQBN |
 | HIL soak | This doc + `lan-monitor.ps1` | Live Discord/Wi‑Fi/LCD behavior |

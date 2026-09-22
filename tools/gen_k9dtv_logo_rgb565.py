@@ -6,7 +6,7 @@ Light: K9DTV/site/assets/k9dtv-logo-bright.svg   -> K9DTV_LOGO_BRIGHT_RGB565
 Both share K9DTV_LOGO_W / K9DTV_LOGO_H (light padded/cropped to match dark).
 
 Regenerate:
-  pip install -r MinimeII/tools/requirements.txt
+  pip install -r MinimeII/tools/requirements.txt -r MinimeII/tools/requirements-logo.txt
   playwright install chromium
   python MinimeII/tools/gen_k9dtv_logo_rgb565.py
 """

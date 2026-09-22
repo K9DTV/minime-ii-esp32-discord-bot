@@ -12,3 +12,6 @@ docs/lan-monitor.log
 # lan-monitor.ps1 is tracked (HIL soak); only the log is local
 tools/_logo_render.html
 tools/_k9dtv_logo_*.png
+
+__pycache__/
+*.pyc

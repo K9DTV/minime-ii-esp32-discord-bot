@@ -1,0 +1,5 @@
+# Local logo rasterize only (not required for CI Python badge).
+#   pip install -r tools/requirements.txt -r tools/requirements-logo.txt
+#   playwright install chromium
+#   python tools/gen_k9dtv_logo_rgb565.py
+playwright>=1.40

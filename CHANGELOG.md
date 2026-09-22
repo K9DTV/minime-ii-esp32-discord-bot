@@ -1,6 +1,10 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.41** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.42** (see `VERSION` and README).
+
+## 0.7.42
+
+- CI badges split further: **Python** (pytest + Pillow; playwright in `requirements-logo.txt`) and **HTML** (`tools/ci_html.py` for LAN CSS/JS/SVG headers). Sanity + Compile unchanged. Confirm flash via `Display · v0.7.42`.
 
 ## 0.7.41
 

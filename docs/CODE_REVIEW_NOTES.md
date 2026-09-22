@@ -1,6 +1,6 @@
 # MiniMe II — code review notes (pro pass)
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.41**.
+What we **fixed** vs what we **left** and why. Current: **v0.7.42**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -47,7 +47,7 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.41**.
 | Discord REST header timeout retry | **0.7.37** — same attempt budget as 429; short backoff + Gateway pump |
 | Core 0 MmLog bridge | **0.7.39** — enqueue → `drainCore0Logs` on Core 1; drops = ring overflow only |
 | Nested `gwPumping` HB-only | **0.7.40** — pruned; re-entry no-op (flag kept for defer / Wi-Fi) |
-| CI beyond compile | **0.7.41** — host `ci_sanity.py` + compile; HIL soak = local `docs/HIL_SOAK.md` |
+| CI beyond compile | **0.7.41+** — Sanity + Compile; **0.7.42** Python (pytest) + HTML (LAN assets) badges |
 
 ## Known tradeoffs (not deferred bugs)
 
