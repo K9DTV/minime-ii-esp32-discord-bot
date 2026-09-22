@@ -252,7 +252,6 @@ bool askDeepSeek(const String& question, String& outReport) {
   serializeJson(req, body);
 
   // Dedicated TLS — leaves httpsInUse free so Discord REST / !weather can drain during wait.
-  // No TWDT changes in this release (HOL-only; TWDT still deferred).
   static WiFiClientSecure deepSeekTls;
   deepSeekTls.stop();
 #if defined(ESP_ARDUINO_VERSION) && (ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 3, 12))
@@ -264,7 +263,7 @@ bool askDeepSeek(const String& question, String& outReport) {
                               (size_t)(rootca_crt_bundle_end - rootca_crt_bundle_start));
 #endif
   deepSeekTls.setTimeout(25000);
-  deepSeekTls.setHandshakeTimeout(25);
+  deepSeekTls.setHandshakeTimeout(15);
   if (!deepSeekTls.connect("api.deepseek.com", 443)) {
     deepSeekTls.stop();
     outReport = "DeepSeek connection failed.";
@@ -282,7 +281,7 @@ bool askDeepSeek(const String& question, String& outReport) {
     "Connection: close\r\n\r\n" +
     body;
   deepSeekTls.print(request);
-  unsigned long deadline = millis() + 45000UL;
+  unsigned long deadline = millis() + 30000UL;
   String statusLine;
   bool chunked = false;
   int contentLength = -1;

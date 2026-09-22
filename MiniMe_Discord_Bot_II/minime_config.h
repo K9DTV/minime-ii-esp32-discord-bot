@@ -2,7 +2,7 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.42"
+#define MINIME_VERSION "0.7.43"
 #define MINIME_USER_AGENT "MiniMeBot/1.0"
 
 // Discord content max is 2000. !ask max_tokens / JSON buffer sized to fit one message.
@@ -50,7 +50,10 @@ const unsigned long BOT_PRESENCE_IDLE_MS = 300000UL; // 5 minutes quiet -> Idle
 const unsigned long GW_HB_ACK_GRACE_MS = 15000UL;
 const uint32_t CPU_MHZ_ACTIVE = 240; // Online / OTA / commands
 const uint32_t CPU_MHZ_IDLE = 160;   // Discord Idle presence (not 80 — that correlated with resets)
-// Watchdog: Arduino-ESP32 default TWDT + delay()/yield() (explicit add/reset still deferred).
+// Task WDT: Arduino feeds between loop() calls only. Timeout must fit the longest
+// single loop iteration (!ask ~15s handshake + 30s body; Discord 429 wait up to 60s).
+// Soft Discord guard remains GW HB ack; TWDT is a stuck-loop backstop (not primary).
+const uint32_t TWDT_TIMEOUT_MS = 90000UL;
 // !ask HOL: dedicated DeepSeek TLS + drain during waits only if !httpsInUse (0.7.38).
 
 // Gateway Identify intents (single source; used by sendIdentify + boot log).

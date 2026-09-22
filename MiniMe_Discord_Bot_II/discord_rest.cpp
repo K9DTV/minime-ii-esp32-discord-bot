@@ -7,7 +7,6 @@ WiFiClientSecure httpsClient;
 bool httpsInUse = false;
 
 // Gateway HB always; drain cmds only when shared HTTPS is free (DeepSeek has its own TLS).
-// No TWDT here — that stays deferred after 0.7.30/0.7.34 panics.
 static void pumpNetWait() {
   pumpGateway();
   if (!httpsInUse) drainDiscordCmds();
@@ -81,6 +80,7 @@ bool sendDiscordCmdError(const String& channelId, const String& content, bool su
 }
 
 bool sendDiscordMessage(const String& channelId, const String& content, bool suppressEmbeds) {
+  unsigned long startedAt = millis();
   String post = content;
   if (post.length() > DISCORD_CONTENT_MAX) post = post.substring(0, DISCORD_CONTENT_MAX - 3) + "...";
   JsonDocument doc;
@@ -102,6 +102,7 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
     body;
 
   for (uint8_t attempt = 0; attempt < DISCORD_REST_MAX_ATTEMPTS; attempt++) {
+    if ((millis() - startedAt) > 60000UL) return false;
     if (!httpsAcquire("discord.com")) return false;
     httpsClient.print(request);
     unsigned long deadline = millis() + 8000UL;
@@ -112,6 +113,7 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
     // pump=true: HB stays alive while waiting for Discord headers / during retry backoff.
     if (!httpsAwaitHeaders(httpsClient, deadline, true, statusLine, chunked, contentLength, &retryAfterSec)) {
       httpsRelease();
+      if ((millis() - startedAt) > 60000UL) return false;
       MmLog.print(F("[REST] Discord header timeout attempt "));
       MmLog.print((unsigned)(attempt + 1));
       MmLog.print(F("/"));
@@ -119,6 +121,7 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
       if (attempt + 1 >= DISCORD_REST_MAX_ATTEMPTS) return false;
       unsigned long waitUntil = millis() + DISCORD_HEADER_RETRY_WAIT_MS;
       while ((long)(millis() - waitUntil) < 0) {
+        if ((millis() - startedAt) > 60000UL) return false;
         pumpNetWait();
         delay(10);
       }
@@ -148,6 +151,7 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
         }
       }
       httpsRelease();
+      if ((millis() - startedAt) > 60000UL) return false;
 
       unsigned long waitMs = DISCORD_429_WAIT_MIN_MS;
       if (retryAfterSec > 0.f) {
@@ -155,6 +159,12 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
       }
       if (waitMs < DISCORD_429_WAIT_MIN_MS) waitMs = DISCORD_429_WAIT_MIN_MS;
       if (waitMs > DISCORD_429_WAIT_MAX_MS) waitMs = DISCORD_429_WAIT_MAX_MS;
+      {
+        unsigned long elapsed = millis() - startedAt;
+        unsigned long remain = (elapsed < 60000UL) ? (60000UL - elapsed) : 0UL;
+        if (remain == 0UL) return false;
+        if (waitMs > remain) waitMs = remain;
+      }
 
       MmLog.print(F("[REST] Discord 429 attempt "));
       MmLog.print((unsigned)(attempt + 1));
@@ -165,6 +175,7 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
 
       unsigned long waitUntil = millis() + waitMs;
       while ((long)(millis() - waitUntil) < 0) {
+        if ((millis() - startedAt) > 60000UL) return false;
         pumpNetWait();
         delay(10);
       }

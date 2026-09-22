@@ -1,6 +1,11 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.42** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.43** (see `VERSION` and README).
+
+## 0.7.43
+
+- TWDT try (different from 0.7.30/0.7.34): after setup, `esp_task_wdt_reconfigure` to **90 s** + `enableLoopWDT` on Core 1 `loopTask` only. No `uiTask` subscribe, no mid-HTTPS `esp_task_wdt_reset`. Soft Discord guard remains HB ack; TWDT is stuck-loop backstop. Confirm flash via `Display · v0.7.43`. If panic: lines above `ELF file SHA256` or `!coredump`.
+- `!ask`: handshake 15 s / body deadline 30 s. `sendDiscordMessage`: 60 s wall budget (release + fail) so 429 stacking cannot outrun the 90 s TWDT.
 
 ## 0.7.42
 

@@ -43,6 +43,7 @@
 
 #include "minime.h"
 #include "cores.h"
+#include <esp_task_wdt.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <new>
@@ -118,6 +119,25 @@ void setup() {
   else showTransient("Ready", "GW waiting...");
   publishDashSnap();
   startUiCore(); // Core 0 owns LCD + touch from here
+  // TWDT after long setup waits: reconfigure timeout + enable loopTask only.
+  // Do not subscribe uiTask (0.7.30/0.7.34 panic path). No mid-HTTPS reset sprinkle.
+  {
+    esp_task_wdt_config_t twdt = {
+      .timeout_ms = TWDT_TIMEOUT_MS,
+      .idle_core_mask = (1U << 0), // Core 0 idle only; Core 1 loopTask is busy
+      .trigger_panic = true,
+    };
+    esp_err_t err = esp_task_wdt_reconfigure(&twdt);
+    if (err != ESP_OK) {
+      MmLog.print(F("[SYS] TWDT reconfigure failed err="));
+      MmLog.println((int)err);
+    } else {
+      enableLoopWDT();
+      MmLog.print(F("[SYS] TWDT loop "));
+      MmLog.print(TWDT_TIMEOUT_MS / 1000UL);
+      MmLog.println(F("s (stuck-loop backstop)"));
+    }
+  }
 }
 
 void loop() {

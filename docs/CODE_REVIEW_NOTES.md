@@ -1,6 +1,6 @@
 # MiniMe II — code review notes (pro pass)
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.42**.
+What we **fixed** vs what we **left** and why. Current: **v0.7.43**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -38,8 +38,8 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.42**.
 | `PRESENCE_UPDATE` `d.status` | Already in filter (`gwFilter["d"]["status"]`); comment clarified 0.7.25 |
 | God-file split | **0.7.26** — `command_fetch.cpp`; LCD overlay/snap/draw modules; `gwFilter` init at connect |
 | Owner `!coredump` | **0.7.29** — flash partition summary / clear (`coredump_cmd.cpp`) |
-| Explicit TWDT | **0.7.30 / 0.7.34** then **unrolled 0.7.33 / 0.7.35** — still deferred (not in 0.7.38) |
-| `!ask` HOL | **0.7.38** — DeepSeek dedicated TLS; drain during waits only if `!httpsInUse` (no TWDT) |
+| Explicit TWDT | **0.7.43** — timeout-only: 90 s reconfigure + `enableLoopWDT` (loopTask); not the 0.7.30/0.7.34 add/reset sprinkle. Board soak pending |
+| `!ask` HOL | **0.7.38** — DeepSeek dedicated TLS; drain during waits only if `!httpsInUse` |
 | LCD version | **0.7.30** — left panel `Ver` row = `MINIME_VERSION` (kept) |
 | Cmd-error ring | **0.7.31** — last 10 failure replies; `!sys` + Serial `[CMDERR]` (kept) |
 | ArduinoJson 7 | **0.7.36** — migrate from AJ6; PSRAM via `Allocator` |
@@ -52,18 +52,14 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.42**.
 ## Known tradeoffs (not deferred bugs)
 
 - **0.7.38 HOL:** mid-shared-fetch busy spam avoided by `!httpsInUse` gate; `!ask` unblocks Discord/`!weather`. Panic inside `handleCommand` can leave `drainCmdsBusy` stuck until reboot (RAII clears normal returns).
-- **TWDT still deferred:** 0.7.30/0.7.34 panics; do not bundle with HOL again without a dump.
+- **0.7.43 TWDT:** loopTask watched at 90 s (covers `!ask` connect+body and Discord 429 max wait). uiTask not subscribed. Confirm on board before treating as done.
 
 ## Still deferred (why)
 
-### 1 — Explicit TWDT register/reset
-
-Unrolled 0.7.33/0.7.35. Not re-tried in 0.7.38 (HOL isolated). Retry only with dump evidence.
-
-### 2 — Remaining `String` on cold HTTPS/command reply paths
+### 1 — Remaining `String` on cold HTTPS/command reply paths
 
 Bodies / Discord posts / `!ask` still use `String`. Tracked users + guild IDs done in 0.7.36. More only if heap pressure shows on those paths.
 
-### 3 — Architectural (not this release)
+### 2 — Architectural (not this release)
 
 LCD vs web layouts are independent (no `/api/ui` sync).

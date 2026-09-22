@@ -56,15 +56,25 @@ def main() -> int:
     if "secrets.h" not in gitignore:
         fail(".gitignore must ignore secrets.h")
 
-    # secrets.h may exist locally; must never be committed.
+    # Real secrets may exist locally; must never be committed anywhere in the tree.
+    # secrets.example.h is the only allowed tracked secrets*.h template.
     try:
-        tracked = subprocess.check_output(
-            ["git", "ls-files", "--", "MiniMe_Discord_Bot_II/secrets.h"],
+        listed = subprocess.check_output(
+            ["git", "ls-files", "-z"],
             cwd=ROOT,
-            text=True,
-        ).strip()
-        if tracked:
-            fail(f"secrets.h is tracked by git: {tracked}")
+        )
+        tracked_paths = [p.decode("utf-8", errors="replace") for p in listed.split(b"\0") if p]
+        bad_secrets: list[str] = []
+        for rel in tracked_paths:
+            name = Path(rel).name
+            if name == "secrets.example.h":
+                continue
+            if name == "secrets.h" or (
+                name.startswith("secrets.") and name.endswith(".h")
+            ) or (name.startswith("secrets") and name.endswith(".bak")):
+                bad_secrets.append(rel)
+        if bad_secrets:
+            fail("secrets file(s) tracked by git (must not commit): " + ", ".join(bad_secrets))
     except (OSError, subprocess.CalledProcessError):
         pass
 
