@@ -5,9 +5,15 @@
 **Project page:** https://k9dtv.com/project-minime.html  
 **Sister project:** [MiniMe I (SSD1327 OLED)](https://github.com/K9DTV/minime-esp32-discord-bot) — not this repo.
 
-MiniMe II is firmware for the **Guition JC3248W535EN** (ESP32-S3-N16R8 + **AXS15231B** 320×480 QSPI color LCD with in-cell touch). Same Discord bot stack as MiniMe I, with the status board on the LCD via **GFX Library for Arduino** (`Arduino_ESP32QSPI` + `Arduino_AXS15231B` + `Arduino_Canvas`, landscape 480×320). No SSD1327 / U8g2 and no capacitive GPIO wake pad.
+MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-S3-N16R8 + **AXS15231B** color LCD with in-cell touch). This is **not** a breadboard build and **not** MiniMe I’s OLED board.
 
-**Status:** hardware port · **v0.7.7** (see `VERSION` / `CHANGELOG.md`). Not the OLED MiniMe I repo. Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Display:** panel native **320×480** (portrait); firmware paints **480×320** landscape via **GFX Library for Arduino** (`Arduino_ESP32QSPI` + `Arduino_AXS15231B` + `Arduino_Canvas`). No SSD1327 / U8g2 and no capacitive GPIO wake pad.
+
+**LCD ↔ LAN web:** the glass dashboard and `http://<board-ip>/` are designed as a **close match** — same Display (metrics|users) / Log (LOG|Serial) pairing and the same status fields. Light/Dark on the glass and in the browser are **independent** (each has its own chip).
+
+**Not prime time yet.** The LCD and LAN web UI are a **starting point** and will go through **a lot of changes**. Expect layouts, chrome, and polish to keep moving. You are invited to flash it, poke Discord/`!help`, and play with the glass and the browser — just know this is early Guition work, not a finished product UI.
+
+**Status:** Guition module firmware · **v0.7.7** (see `VERSION` / `CHANGELOG.md`) · **WIP UI**. Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
@@ -32,14 +38,7 @@ the IDE is using a **second, broken** GFX install. Arduino reports something lik
 **If those same errors continue with `GFX_Library_for_Arduino`:**  
 GFX version and ESP32 core mismatch. Update GFX to latest, or pin the esp32 core (e.g. **3.3.5** / **3.2.1**). Check `...\GFX_Library_for_Arduino\library.properties` `version=` if it still fails.
 
-After Wi-Fi connects, MiniMe serves a LAN web dashboard at `http://<board-ip>/` (Display, SysInfo, LOG, Serial). Theme matches k9dtv.com (light/dark, local assets). Board IC chips: **Light/Dark** (left) and **Display/Log** (right) — LCD-only; web theme/layout are independent.
-
-<p align="center">
-  <img src="docs/ESP32S3-Web-UI.png#gh-dark-mode-only" alt="MiniMe LAN web UI (dark)" width="640">
-  <img src="docs/ESP32S3-Web-UI-Bright.png#gh-light-mode-only" alt="MiniMe LAN web UI (light)" width="640">
-</p>
-
-*LAN web UI: light/dark + Display/Log layout chips. Screenshot follows your GitHub theme.*
+After Wi-Fi connects, open `http://<board-ip>/` for the LAN dashboard (same Display/Log idea as the LCD). Drop current Guition web screenshots into `docs/` when you have them — older `ESP32S3-Web-UI*.png` files are **MiniMe I / OLED-era** and do **not** match this UI.
 
 License: see `LICENSE` (MIT for original MiniMe files only).
 
@@ -48,9 +47,10 @@ AI helped with firmware edits, multi-file layout, and GitHub updates. I owned th
 
 ## Ongoing project
 
-- **PCB and desk case** — move off the breadboard onto a custom board and enclosure
+- **LCD + LAN web UI** — heavy redesign ahead; what you see now is a baseline to iterate on
+- **Desk case / enclosure** for the Guition module (this is already the module board, not a breadboard prototype)
 
-Done recently: LCD Display/Log swap, dual theme/layout chips, DM/@mention alert flags, dirty redraw, Wi-Fi ArduinoOTA (`!ota`), LAN light/dark + layout chips.
+Done recently: dual-core LCD vs Gateway, Display/Log + Light/Dark chips, DM/@mention flags, dirty redraw, Wi-Fi ArduinoOTA (`!ota`), LAN dashboard matched to the LCD layout.
 
 ---
 
@@ -75,9 +75,10 @@ Same list Discord shows for `!help`:
 
 **Owner-only** (`OWNER_ID_STR`):
 
-- `!led on/off` / `!led <r> <g> <b>` — RGB NeoPixel (0-255 per channel); GPIO 16; `on` = 255 255 255
-- `!servo <0-90>` — servo angle (updates the `Srv` bar)
+- `!servo <0-90>` — servo angle (updates the `Srv` bar; optional external servo on GPIO 17)
 - `!clear` — clear DM / mention alert flags on the LCD
+
+This Guition module has **no LED1 / LED2** and **no on-board RGB**. (Firmware may still compile optional `!led` for a NeoPixel if you wire one yourself; it is not part of this board.)
 
 ### Channel / DM commands
 
@@ -107,8 +108,8 @@ Everything below runs on one **ESP32-S3**. Discord stays in the cloud; MiniMe ta
 
 - **Gateway** — live link for chat commands, presence, Online/Idle, heartbeats (must not stall during long HTTPS). Heartbeats start after Hello (jittered first send); a missing OP11 ACK past the Discord interval plus **15 s** grace forces disconnect (`HB_ACK_TIMEOUT`). **Identify-only** after drops (no session resume); one `beginSSL` at boot, then library reconnect only.
 - **REST** — bot posts replies and loads member names; also pulls science/weather/AI over HTTPS/HTTP. Outbound TLS uses the ESP32 **CA cert bundle** (no `setInsecure`). One shared `WiFiClientSecure`; `httpsInUse` prevents overlapping HTTPS from `stop()`ing each other. Gateway WebSocket TLS is separate (WebSockets library).
-- **LCD** — status board; idle blanks backlight only (Wi-Fi and Gateway stay up). Metrics + users (or LOG + Serial in Log layout). Redraw every **1 s** with dirty tracking. LAN API exposes the same fills as percents.
-- **LAN web UI** — browser status at `http://<board-ip>/`; light/dark and Display/Log chips; polls `/api/status` every **2 s** (CSS/JS in `web_assets.h`). **MmLog** feeds web LOG/Serial only (no USB Serial / UART0 log dump).
+- **LCD** — **480×320** landscape status board on the Guition panel (native **320×480**); idle blanks backlight only (Wi-Fi and Gateway stay up). Metrics + users (or LOG + Serial in Log layout). Redraw every **1 s** with dirty tracking. LAN API exposes the same fills as percents.
+- **LAN web UI** — browser twin of the LCD layout at `http://<board-ip>/` (close match; independent Light/Dark); polls `/api/status` every **2 s** (CSS/JS in `web_assets.h`). **MmLog** feeds web LOG/Serial only (no USB Serial / UART0 log dump).
 - **Touch** — wakes the LCD and hits the IC chips (theme / layout). Does not change Discord Online/Idle.
 
 ### Dual-core (ESP32-S3)
@@ -133,7 +134,9 @@ Shared UI state is a published **DashSnap** (seqlock; Core 1 writes, Core 0 pain
 
 ## LCD dashboard
 
-**480×320** landscape canvas (`Arduino_Canvas` over AXS15231B). Layout is drawn in `display.cpp` (`drawDashboard` + helpers + `DashSnap` dirty tracking). Working layout reference: `MinimeII/restore/lcd-layout-ok/`.
+**Panel:** Guition JC3248W535EN AXS15231B, native **320×480**, firmware canvas **480×320** landscape (`Arduino_Canvas`). Layout in `display.cpp` (`drawDashboard` + `DashSnap` dirty tracking). Working layout reference: `restore/lcd-layout-ok/`.
+
+The LAN page is meant to **match** this layout (Display = metrics|users, Log = LOG|Serial). Glass and browser Light/Dark stay independent.
 
 <details>
 <summary><strong>LCD panels, chips, !display, and backlight sleep</strong></summary>
@@ -187,7 +190,7 @@ Secrets live in **`MiniMe_Discord_Bot_II/secrets.h`** (gitignored; keep real sec
 #define NASA_API_KEY         "NASA_API_KEY"
 #define DEEPSEEK_API_KEY     "DEEPSEEK_API_KEY"
 #define BOT_GUILD_ID         "GUILD_ID"  // startup member fetch
-#define OWNER_ID_STR         "OWNER_ID_STR"         // LED / servo / !clear + mention alert
+#define OWNER_ID_STR         "OWNER_ID_STR"         // servo / !clear + mention alert
 #define TARGET_CHANNEL_ID    "TARGET_CHANNEL_ID"    // commands
 #define TARGET_CHANNEL_ID1   "TARGET_CHANNEL_ID1"   // second command channel
 #define OTA_HOSTNAME         "minime2"
@@ -204,7 +207,7 @@ Use `#define` (not `const char*`) so every `.cpp` can include `secrets.h` withou
 | `NASA_API_KEY` | NASA APOD for `!apod` |
 | `DEEPSEEK_API_KEY` | DeepSeek for `!ask` |
 | `BOT_GUILD_ID` | One guild to load members from at boot |
-| `OWNER_ID_STR` | Who can run LED / servo / `!clear`; mention alert target |
+| `OWNER_ID_STR` | Who can run servo / `!clear`; mention alert target |
 | `TARGET_CHANNEL_ID` | Commands (no automatic boot posts) |
 | `TARGET_CHANNEL_ID1` | Second channel where commands are allowed |
 | `OTA_HOSTNAME` / `OTA_PASSWORD` | ArduinoOTA network port |
@@ -295,27 +298,21 @@ The bot must be able to **see and send** in those channels.
 
 ## Hardware (default pins)
 
-Board: **Guition JC3248W535EN** (ESP32-S3-N16R8, AXS15231B LCD + in-cell touch).
+Board: **Guition JC3248W535EN** module (ESP32-S3-N16R8 + AXS15231B LCD + in-cell touch). Not a breadboard; not MiniMe I.
 
-Display: **480×320** landscape via Arduino_GFX (`Arduino_ESP32QSPI` + `Arduino_AXS15231B` + Canvas).
+**Display:** native **320×480**; firmware **480×320** landscape (`Arduino_ESP32QSPI` + `Arduino_AXS15231B` + Canvas).
 
 | Device | GPIO |
 |---|---|
 | LCD backlight | 1 |
 | LCD QSPI CS / SCK / D0–D3 | 45 / 47 / 21 / 48 / 40 / 39 |
 | Touch I2C SDA / SCL / INT | 4 / 8 / 3 |
-| RGB NeoPixel (1x, GRB; `!led`) | 16 |
-| Servo | 17 |
-| DS18B20 data | 10 |
+| Servo (optional external) | 17 |
+| DS18B20 data (optional external) | 10 |
 
-Change pins in `minime_config.h` if your wiring differs. **No** `!set1` / `!set2` GPIO outs and **no** USB VBUS ADC (GPIO 1 is backlight).
+Change pins in `minime_config.h` if your wiring differs. **No LED1 / LED2**, **no on-module RGB**, **no** `!set1` / `!set2`, **no** USB VBUS ADC (GPIO 1 is backlight).
 
-### RGB NeoPixel (GPIO 16)
-
-- `!led on/off` — white / off
-- `!led <r> <g> <b>` — each channel **0-255**
-
-### DS18B20 (GPIO 10)
+### DS18B20 (GPIO 10, if fitted)
 
 TO-92, powered from **3.3 V**. Internal pull-up enabled; a **4.7 kΩ** DQ→3.3 V resistor is still recommended.
 
@@ -342,7 +339,7 @@ Capacitive touch on the AXS15231B wakes the LCD after backlight-off and hits the
 
 ### What touch does *not* do
 
-- Does not send Discord messages, set Discord Online/Idle, move the servo, or drive NeoPixel by itself.
+- Does not send Discord messages, set Discord Online/Idle, or move the servo by itself.
 - The ESP32, Wi-Fi, and Gateway **never sleep** — only the backlight turns off.
 
 </details>
@@ -356,7 +353,7 @@ GitHub Actions compiles this sketch on push (see the **Compile** badge). That is
 1. Install [Arduino IDE](https://www.arduino.cc/en/software) and the **esp32** board package (Espressif).
 2. Open **only** `MiniMe_Discord_Bot_II/MiniMe_Discord_Bot_II.ino` from a folder that contains that single `.ino` plus the `.cpp` / `.h` files and `partitions.csv`.
 3. Provide `secrets.h` (from `secrets.example.h`) with Wi-Fi, token, keys, and IDs.
-4. Set **Tools** as in the table below for this **N16R8** module (same flash/PSRAM class as WeAct N16R8; board here is Guition).
+4. Set **Tools** as in the table below for this **Guition N16R8** module.
 5. Libraries: GFX Library for Arduino, WebSockets, ArduinoJson, OneWire, DallasTemperature, Adafruit NeoPixel, NTPClient.
 6. Upload. Confirm with Discord `!help` and the LAN page header (`Display · v0.7.7`). Tap the glass to wake after backlight off.
 
