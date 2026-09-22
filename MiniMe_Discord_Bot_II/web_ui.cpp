@@ -265,7 +265,7 @@ static void printBrand(Print& out) {
   out.print(F("<img class=\"menu-chip-icon\" id=\"layout-chip-img\" src=\"/chip.svg\" width=\"64\" height=\"64\" alt=\"\" aria-hidden=\"true\">"));
   out.print(F("<span class=\"menu-chip-label\" aria-hidden=\"true\">"));
   out.print(F("<span class=\"theme-toggle-text\" id=\"layout-chip-text\">Display</span></span></button>"));
-  out.print(F("</div><p class=\"sub\">MiniMe A Discord Server APP</p></div>"));
+  out.print(F("</div><p class=\"sub\">MiniMe-II A Discord Bot</p></div>"));
 }
 
 static void sendNoCacheHeaders() {
@@ -283,7 +283,7 @@ static void streamRootHtml(Print& out) {
   out.print(F("<script>"));
   out.print(FPSTR(WEB_UI_BOOT_JS));
   out.print(F("</script>"));
-  out.print(F("<title>MiniMe</title><style>"));
+  out.print(F("<title>MiniMe-II</title><style>"));
   out.print(FPSTR(WEB_UI_CSS));
   out.print(F("</style></head><body><main>"));
   printBrand(out);
@@ -374,6 +374,9 @@ static void handleStatus() {
     boardPsramTotals(psFree, psTotal);
     doc["psramFree"] = psFree;
     doc["psramTotal"] = psTotal;
+    doc["psramPct"] = (psTotal > 0)
+      ? dashBarPct(dashHeapBarW(psFree, psTotal), DASH_SIG_HEAP_BAR_MAX)
+      : 0;
   }
   doc["cpuMhz"] = (unsigned)getCpuFrequencyMhz();
   doc["servo"] = lastServoDeg;

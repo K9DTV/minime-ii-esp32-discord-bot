@@ -229,6 +229,26 @@ static void drawDashBarAt(int16_t x, int16_t y, const char* label, int fillFull,
   if (fillW > 0) gfx->fillRect(barX + 1, y, fillW, 8, p.barFl);
 }
 
+// Same 3-column idea as web mline(): label | value | bar (one row per meter).
+static void drawMetricMline(int16_t x, int16_t y, int16_t right, const char* label,
+                            const char* value, int fillFull, const DashPalette& p) {
+  if (!gfx) return;
+  prtCol(p.muted, label, x, y, 1);
+  const int16_t valX = x + 40;
+  prtCol(p.text, value ? value : "", valX, y, 1);
+  int16_t barX = valX + textW(value ? value : "", 1) + 4;
+  if (barX < x + 100) barX = x + 100;
+  int16_t barW = (int16_t)(right - barX - 2);
+  if (barW < 24) barW = 24;
+  if (barW > LCD_BAR_MAX) barW = LCD_BAR_MAX;
+  int fillW = (fillFull * barW) / DASH_SIG_HEAP_BAR_MAX;
+  if (fillW < 0) fillW = 0;
+  if (fillW > barW) fillW = barW;
+  gfx->fillRect(barX, y - 1, barW + 2, 10, p.barTr);
+  gfx->drawRect(barX, y - 1, barW + 2, 10, p.line);
+  if (fillW > 0) gfx->fillRect(barX + 1, y, fillW, 8, p.barFl);
+}
+
 static void drawSysRow(int16_t x, int16_t y, const char* k, const char* v, const DashPalette& p) {
   prtCol(p.muted, k, x, y, 1);
   prtCol(p.text, v ? v : "", x + 56, y, 1);
@@ -456,8 +476,10 @@ static void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
     return;
   }
 
-  // Display mode: left metrics (as set up)
-  prtCol(p.text, "MiniMe", cx, y, 1);
+  // Exact same order as web_assets.h #metrics (left window):
+  // MiniMe-II|GW|time, Bot|date, Sig, PSRAM, SRAM, Srv, Up/T, Id/Users,
+  // DM/Mention, HTTPS, Event, IP, OTA, CPU, Write, Period, LCD.
+  prtCol(p.text, "MiniMe-II", cx, y, 1);
   const char* gwLabel = (s.gw < 0) ? "GW:Bad" : (s.gw > 0 ? "GW:Good" : "GW:Wait");
   uint16_t gwCol = (s.gw > 0) ? p.ok : (s.gw == 0 ? p.cyan : p.bad);
   prtCenter(gwCol, gwLabel, mid, y, 1);
@@ -475,23 +497,28 @@ static void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   {
     char rb[12];
     snprintf(rb, sizeof(rb), "%ld", s.rssi);
-    prtCol(p.muted, "Sig", cx, y, 1);
-    const int16_t numX = cx + textW("Sig", 1) + 4;
-    prtCol(p.text, rb, numX, y, 1);
-    const int16_t barX = numX + textW(rb, 1) + 6;
-    int fillW = (dashSigBarW(s.rssi) * LCD_BAR_MAX) / DASH_SIG_HEAP_BAR_MAX;
-    if (fillW < 0) fillW = 0;
-    if (fillW > LCD_BAR_MAX) fillW = LCD_BAR_MAX;
-    const int16_t barMax = (int16_t)(right - barX - 2);
-    int useMax = LCD_BAR_MAX;
-    if (barMax < useMax) useMax = barMax;
-    if (useMax < 20) useMax = 20;
-    if (fillW > useMax) fillW = useMax;
-    gfx->fillRect(barX, y - 1, useMax + 2, 10, p.barTr);
-    gfx->drawRect(barX, y - 1, useMax + 2, 10, p.line);
-    if (fillW > 0) gfx->fillRect(barX + 1, y, fillW, 8, p.barFl);
+    drawMetricMline(cx, y, right, "Sig", rb, dashSigBarW(s.rssi), p);
   }
   y += 10;
+
+  if (s.psTotal > 0) {
+    char pb[28];
+    snprintf(pb, sizeof(pb), "%lu/%lu", (unsigned long)s.psFree, (unsigned long)s.psTotal);
+    drawMetricMline(cx, y, right, "PSRAM", pb, dashHeapBarW(s.psFree, s.psTotal), p);
+    y += 10;
+  }
+  {
+    char hb[28];
+    snprintf(hb, sizeof(hb), "%lu/%lu", (unsigned long)s.memFree, (unsigned long)s.memTotal);
+    drawMetricMline(cx, y, right, "SRAM", hb, dashHeapBarW(s.memFree, s.memTotal), p);
+  }
+  y += 10;
+  {
+    char sb[12];
+    snprintf(sb, sizeof(sb), "%d", s.servoDeg);
+    drawMetricMline(cx, y, right, "Srv", sb, dashSrvBarW(s.servoDeg), p);
+  }
+  y += 12;
 
   {
     char line[40];
@@ -505,24 +532,6 @@ static void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
     prtCol(p.cyan, line, cx, y, 1);
   }
   y += 11;
-
-  drawDashBarAt(cx, y, "SRAM", dashHeapBarW(s.memFree, s.memTotal), p);
-  y += 10;
-  {
-    char hb[28];
-    snprintf(hb, sizeof(hb), "%lu/%lu", (unsigned long)s.memFree, (unsigned long)s.memTotal);
-    prtCol(p.muted, hb, cx + 36, y, 1);
-  }
-  y += 10;
-  if (s.psTotal > 0) {
-    char pb[36];
-    snprintf(pb, sizeof(pb), "PSRAM %lu/%lu",
-             (unsigned long)s.psFree, (unsigned long)s.psTotal);
-    prtCol(p.muted, pb, cx, y, 1);
-    y += 10;
-  }
-  drawDashBarAt(cx, y, "Srv", dashSrvBarW(s.servoDeg), p);
-  y += 12;
 
   {
     char idBuf[28];
@@ -562,12 +571,14 @@ static void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
            (unsigned long)lastDashFlushMs, (unsigned long)lastDashDrawMs);
   char periodBuf[16];
   snprintf(periodBuf, sizeof(periodBuf), "%lu ms", (unsigned long)DASH_REFRESH_MS);
+  const char* lcdState = displayAsleep.load() ? "asleep" : "awake";
 
   drawSysRow(cx, y, "IP", s.ip, p); y += 10;
   drawSysRow(cx, y, "OTA", otaHost, p); y += 10;
   drawSysRow(cx, y, "CPU", cpuBuf, p); y += 10;
   drawSysRow(cx, y, "Write", wrBuf, p); y += 10;
-  drawSysRow(cx, y, "Period", periodBuf, p);
+  drawSysRow(cx, y, "Period", periodBuf, p); y += 10;
+  drawSysRow(cx, y, "LCD", lcdState, p);
 }
 
 static void drawRightPanel(const DashSnap& s, const DashPalette& p) {

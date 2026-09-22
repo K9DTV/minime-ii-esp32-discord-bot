@@ -2,7 +2,7 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.19"
+#define MINIME_VERSION "0.7.22"
 #define MINIME_USER_AGENT "MiniMeBot/1.0"
 
 // Discord content max is 2000. !ask max_tokens / JSON buffer sized to fit one message.

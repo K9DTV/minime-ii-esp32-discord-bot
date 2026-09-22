@@ -142,13 +142,13 @@ var httpsC=j.httpsBusy?'bad':'muted';
 var msg='';if(j.msg1||j.msg2){msg='<div class="msg">'+esc(j.msg1||'')+(j.msg2?(' '+esc(j.msg2)):'')+'</div>';}
 var metrics=document.getElementById('metrics');
 if(metrics)metrics.innerHTML=
-'<div class="hdr"><strong>MiniMe</strong><span class="c">'+gw+'</span><span class="r">'+esc(j.time)+'</span></div>'+
+'<div class="hdr"><strong>MiniMe-II</strong><span class="c">'+gw+'</span><span class="r">'+esc(j.time)+'</span></div>'+
 '<div class="metric"><span class="k">Bot</span> '+esc(bot)+' <span class="muted" style="float:right">'+esc(j.date)+'</span></div>'+
 mline('Sig',esc(j.rssi)+' dBm',j.sigPct)+
-'<div class="metric" style="color:var(--cyan)">Up '+esc(j.uptime)+'  T '+temp+'</div>'+
+(j.psramTotal?mline('PSRAM',esc(j.psramFree)+'/'+esc(j.psramTotal),j.psramPct):'')+
 mline('SRAM',esc(j.heapFree)+'/'+esc(j.heapTotal),j.heapPct)+
-(j.psramTotal?('<div class="metric"><span class="k">PSRAM</span> '+esc(j.psramFree)+'/'+esc(j.psramTotal)+'</div>'):'')+
 mline('Srv',esc(j.servo)+'\u00b0',j.srvPct)+
+'<div class="metric" style="color:var(--cyan)">Up '+esc(j.uptime)+'  T '+temp+'</div>'+
 '<div class="metric"><span class="'+idC+'">Id:'+(j.identified?'yes':'no')+'</span> &nbsp; Users:'+esc(j.usersActive)+'/'+esc(j.usersMax)+'</div>'+
 '<div class="metric"><span class="'+al+'">DM:'+(dmOn?'ON':'off')+'  Mention:'+(menOn?'ON':'off')+'</span></div>'+
 '<div class="metric"><span class="'+httpsC+'">HTTPS:'+(j.httpsBusy?'busy':'idle')+'</span></div>'+

@@ -1,6 +1,18 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.19** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.22** (see `VERSION` and README).
+
+## 0.7.22
+
+- LCD left window: same row order as web metrics, and each meter is one row (label | value | bar) like web `mline` — Sig, PSRAM, SRAM, Srv, then Up/T …. Confirm flash via `Display · v0.7.22`.
+
+## 0.7.21
+
+- Web subtitle: **MiniMe-II A Discord Bot** (was "MiniMe A Discord Server APP"). LCD left panel matches web order + `MiniMe-II` header + LCD awake/asleep sys row. Confirm flash via `Display · v0.7.21`.
+
+## 0.7.20
+
+- LCD/web meters under Sig: **PSRAM** bar, **SRAM** bar, then **Srv** (Up/temp below). PSRAM uses same free/total linear fill as SRAM. Confirm flash via `Display · v0.7.20`.
 
 ## 0.7.19
 
