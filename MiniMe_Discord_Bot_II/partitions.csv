@@ -1,4 +1,4 @@
-# MiniMe — WeAct ESP32-S3-N16R8 (16MB flash), dual OTA, no filesystem
+# MiniMe II — Guition JC3248W535EN (ESP32-S3-N16R8, 16MB flash), dual OTA, no filesystem
 # Name,   Type, SubType, Offset,  Size, Flags
 nvs,      data, nvs,     0x9000,  0x5000,
 otadata,  data, ota,     0xe000,  0x2000,

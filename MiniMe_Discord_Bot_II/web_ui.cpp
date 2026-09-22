@@ -15,7 +15,9 @@ static bool webUiReady = false;
 static const unsigned WEB_FULL_N = 200;           // ring size; oldest dropped when full
 static const unsigned WEB_SERIAL_N = 12;  // fits Serial panel; oldest dropped
 static const uint8_t WEB_LOG_COLS = 96;
-static const size_t WEB_FULL_MAX_BYTES = 20480UL; // clear LOG if over this
+static const size_t WEB_FULL_MAX_BYTES = 20480UL; // logical text bytes (not RAM); slots are fixed 97B each
+// RAM: webFullLines[200][97] ~19.4KB + webSerialLines[12][97] ~1.2KB in internal SRAM on purpose
+// (PSRAM ring indexing is slower; tradeoff is intentional).
 static_assert(WEB_FULL_N >= 1 && WEB_FULL_N <= 255, "WEB_FULL_N must fit uint8_t head/count");
 static_assert(WEB_SERIAL_N >= 1 && WEB_SERIAL_N <= 255, "WEB_SERIAL_N must fit uint8_t head/count");
 
@@ -24,6 +26,7 @@ static uint8_t webFullHead = 0;
 static uint8_t webFullCount = 0;
 static size_t webFullBytes = 0;
 static bool webInFullLog = false;
+static uint32_t webLogGenCounter = 0;
 
 static char webSerialLines[WEB_SERIAL_N][WEB_LOG_COLS + 1];
 static uint8_t webSerialHead = 0;
@@ -47,25 +50,64 @@ static void webFullClear() {
   for (uint8_t i = 0; i < WEB_FULL_N; i++) webFullLines[i][0] = '\0';
 }
 
+static void webFullDropOldest() {
+  if (webFullCount == 0) return;
+  size_t drop = 0;
+  while (drop < WEB_LOG_COLS && webFullLines[webFullHead][drop]) drop++;
+  if (webFullBytes >= drop) webFullBytes -= drop;
+  else webFullBytes = 0;
+  webFullLines[webFullHead][0] = '\0';
+  webFullHead = (uint8_t)((webFullHead + 1) % WEB_FULL_N);
+  webFullCount--;
+}
+
 static void webFullPush(const char* text) {
   if (!text) return;
   size_t add = 0;
   while (add < WEB_LOG_COLS && text[add]) add++;
 
-  // Ring full: drop oldest at head and subtract its stored length.
-  if (webFullCount >= WEB_FULL_N) {
-    size_t drop = 0;
-    while (drop < WEB_LOG_COLS && webFullLines[webFullHead][drop]) drop++;
-    if (webFullBytes >= drop) webFullBytes -= drop;
-    else webFullBytes = 0;
-  }
+  // Slot full: drop oldest before overwrite push.
+  while (webFullCount >= WEB_FULL_N) webFullDropOldest();
 
-  // Over 20KB after eviction accounting: wipe LOG, then keep the new line.
+  // Logical text budget (~20KB): drop oldest until the new line fits (not a full wipe).
+  while (webFullBytes + add > WEB_FULL_MAX_BYTES && webFullCount > 0) {
+    webFullDropOldest();
+  }
+  // Single line longer than budget: clear then push one line.
   if (webFullBytes + add > WEB_FULL_MAX_BYTES) {
     webFullClear();
   }
   ringPush(webFullLines, WEB_FULL_N, webFullHead, webFullCount, text);
   webFullBytes += add;
+  webLogGenCounter++;
+}
+
+uint8_t lcdFullLogCount() {
+  return webFullCount;
+}
+
+bool lcdFullLogNewest(uint8_t fromNewest, char* buf, size_t bufLen) {
+  if (!buf || bufLen == 0 || fromNewest >= webFullCount) return false;
+  uint8_t idx = (uint8_t)((webFullHead + WEB_FULL_N - 1 - fromNewest) % WEB_FULL_N);
+  strncpy(buf, webFullLines[idx], bufLen - 1);
+  buf[bufLen - 1] = '\0';
+  return true;
+}
+
+uint8_t lcdSerialCount() {
+  return webSerialCount;
+}
+
+bool lcdSerialNewest(uint8_t fromNewest, char* buf, size_t bufLen) {
+  if (!buf || bufLen == 0 || fromNewest >= webSerialCount) return false;
+  uint8_t idx = (uint8_t)((webSerialHead + WEB_SERIAL_N - 1 - fromNewest) % WEB_SERIAL_N);
+  strncpy(buf, webSerialLines[idx], bufLen - 1);
+  buf[bufLen - 1] = '\0';
+  return true;
+}
+
+uint32_t lcdLogGen() {
+  return webLogGenCounter;
 }
 
 static bool lineIsFullStart(const char* s) {
@@ -93,6 +135,7 @@ static void webLogCommitLine() {
     webFullPush(webLogAcc);
   } else {
     ringPush(webSerialLines, WEB_SERIAL_N, webSerialHead, webSerialCount, webLogAcc);
+    webLogGenCounter++;
   }
   webLogAccLen = 0;
 }
@@ -130,7 +173,7 @@ static void dashFields(String& timeStr, String& dateStr, String& upStr,
   formatUptimeStr(upBuf, sizeof(upBuf));
   upStr = upBuf;
 
-  // Percents from OLED bar fills (dashSigBarW / dashHeapBarW / dashSrvBarW).
+  // Percents from LCD bar fills (dashSigBarW / dashHeapBarW / dashSrvBarW).
   rssi = WiFi.RSSI();
   sigPct = dashBarPct(dashSigBarW(rssi), DASH_SIG_HEAP_BAR_MAX);
 
@@ -140,11 +183,15 @@ static void dashFields(String& timeStr, String& dateStr, String& upStr,
   heapPct = dashBarPct(dashHeapBarW(memFree, memTotal), DASH_SIG_HEAP_BAR_MAX);
   srvPct = dashBarPct(dashSrvBarW(lastServoDeg), DASH_SRV_BAR_MAX);
 
-  msg1 = "";
+  msg1 = lastEventLine;
   msg2 = "";
   if (millis() < transientUntilMs) {
-    msg1 = transientLine1;
-    msg2 = transientLine2;
+    // Brief flash detail still available to web while Event line stays sticky.
+    if (transientLine1.length()) msg2 = transientLine1;
+    if (transientLine2.length()) {
+      if (msg2.length()) msg2 += " ";
+      msg2 += transientLine2;
+    }
     if (transientLine3.length()) {
       if (msg2.length()) msg2 += " ";
       msg2 += transientLine3;
@@ -194,10 +241,10 @@ static String buildRootHtml() {
   appendBrand(html);
 
   html += F("<div class=\"layout\">");
-  html += F("<section class=\"box\" id=\"box-display\"><h2>Display · v0.5.3</h2>");
-  html += F("<div id=\"dash\" class=\"dash muted\">Loading...</div></section>");
-  html += F("<section class=\"box\" id=\"box-sysinfo\"><h2>SysInfo</h2>");
-  html += F("<div id=\"sysinfo\" class=\"grid muted\">Loading...</div></section>");
+  html += F("<section class=\"box\" id=\"box-metrics\"><h2>Display · v0.7.7</h2>");
+  html += F("<div id=\"metrics\" class=\"dash muted\">Loading...</div></section>");
+  html += F("<section class=\"box\" id=\"box-users\"><h2>Users</h2>");
+  html += F("<div id=\"users\" class=\"users muted\">Loading...</div></section>");
   html += F("<section class=\"box\" id=\"box-logfile\"><h2>LOG</h2>");
   html += F("<div id=\"logfile\" class=\"serial\"><div class=\"empty\">Waiting...</div></div></section>");
   html += F("<section class=\"box\" id=\"box-serial\"><h2>Serial</h2>");
@@ -242,6 +289,7 @@ static String buildStatusJson() {
   DynamicJsonDocument& doc = *statusDoc;
   doc.clear();
   doc["gw"] = gatewayConnected;
+  doc["identified"] = identified;
   doc["botOnline"] = (botDiscordStatus == 2);
   doc["time"] = timeStr;
   doc["date"] = dateStr;
@@ -260,20 +308,24 @@ static String buildStatusJson() {
   doc["srvPct"] = srvPct;
   doc["ip"] = WiFi.localIP().toString();
   doc["ota"] = String(OTA_HOSTNAME) + ".local";
-  {
-    char vb[16];
-    snprintf(vb, sizeof(vb), "%.3f V", (float)readUsbVbusMilliVolts() / 1000.0f);
-    doc["vbus"] = vb;
-  }
-  doc["oled"] = displayAsleep ? "asleep" : "awake";
+  doc["lcd"] = displayAsleep ? "asleep" : "awake";
+  doc["dashFlushMs"] = (unsigned long)lastDashFlushMs;
+  doc["dashDrawMs"] = (unsigned long)lastDashDrawMs;
+  doc["dashRefreshMs"] = DASH_REFRESH_MS;
+  doc["dm"] = alertDm;
+  doc["mention"] = alertMention;
+  doc["httpsBusy"] = httpsInUse;
+  doc["lastEvent"] = lastEventLine;
   doc["msg1"] = msg1;
   doc["msg2"] = msg2;
 
   JsonArray users = doc.createNestedArray("users");
+  uint8_t nActive = 0;
   for (uint8_t row = 0; row < MAX_TRACKED_USERS; row++) {
     JsonObject u = users.createNestedObject();
     const char* name = "---";
     if (trackedUsers[row].active) {
+      nActive++;
       if (trackedUsers[row].userName.length()) name = trackedUsers[row].userName.c_str();
       else name = trackedUsers[row].userId.c_str();
     }
@@ -284,6 +336,8 @@ static String buildStatusJson() {
              (unsigned long)(trackedUsers[row].active ? trackedUsers[row].useCount24h : 0));
     u["bot"] = botBuf;
   }
+  doc["usersActive"] = nActive;
+  doc["usersMax"] = MAX_TRACKED_USERS;
 
   JsonArray fulllog = doc.createNestedArray("fulllog");
   appendRingToJsonArray(fulllog, webFullLines, webFullHead, webFullCount);
@@ -337,6 +391,14 @@ void setupWebUi() {
     // Same pattern as gwDoc: allocate after boot so large JSON can use PSRAM.
     statusDoc = new DynamicJsonDocument(STATUS_DOC_BYTES);
   }
+  if (!statusDoc) {
+    MmLog.println(F("Fatal: statusDoc alloc failed (PSRAM?)"));
+    showTransient("Fatal", "No statusDoc");
+    // Same policy as gwDoc: delay() feeds TWDT; halt until power cycle.
+    while (true) {
+      delay(1000);
+    }
+  }
   webServer.on("/", HTTP_GET, handleRoot);
   webServer.on("/logo.svg", HTTP_GET, handleLogo);
   webServer.on("/logo-bright.svg", HTTP_GET, handleLogoBright);
@@ -349,14 +411,9 @@ void setupWebUi() {
   MmLog.print(WiFi.localIP().toString());
   MmLog.print(":");
   MmLog.println(WEB_UI_PORT);
-  MmLog.flushAll();
 }
 
 void pumpWebUi() {
   if (!webUiReady) return;
   webServer.handleClient();
-}
-
-bool webUiKeepsCpuActive() {
-  return webUiReady;
 }

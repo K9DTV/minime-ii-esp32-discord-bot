@@ -3,4 +3,7 @@
 .cursor
 *.bin
 secrets.h
+secrets.*.h
+!**/secrets.example.h
+secrets*.bak
 config_local.h

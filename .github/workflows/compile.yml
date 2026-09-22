@@ -1,5 +1,5 @@
-# Compile MiniMe for WeAct ESP32-S3-N16R8 (OPI PSRAM, 16MB flash).
-# Does not upload or run on hardware -- board photo / Discord still prove that.
+# Compile MiniMe II for Guition JC3248W535EN (ESP32-S3, AXS15231B, OPI PSRAM, 16MB flash).
+# Does not upload or run on hardware.
 
 name: Compile
 
@@ -26,21 +26,20 @@ jobs:
           arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
           arduino-cli core update-index
           arduino-cli core install esp32:esp32
-          # ArduinoJson 6.x: sketch uses DynamicJsonDocument (not ArduinoJson 7 API)
           arduino-cli lib install "ArduinoJson@6.21.5"
           arduino-cli lib install "WebSockets"
-          arduino-cli lib install "U8g2"
           arduino-cli lib install "OneWire"
           arduino-cli lib install "DallasTemperature"
           arduino-cli lib install "Adafruit NeoPixel"
           arduino-cli lib install "NTPClient"
+          arduino-cli lib install "GFX Library for Arduino"
+          # Direct Arduino_AXS15231B path -- no JC3248W535EN-Touch-LCD wrapper.
 
       - name: Prepare secrets placeholder
-        run: cp MiniMe_Discord_Bot/secrets.example.h MiniMe_Discord_Bot/secrets.h
+        run: cp MiniMe_Discord_Bot_II/secrets.example.h MiniMe_Discord_Bot_II/secrets.h
 
       - name: Compile sketch
         run: |
-          # Use sketch partitions.csv (dual OTA ~7.9MB apps). Default 1.25MB APP fails when sketch grows.
           arduino-cli compile \
             --fqbn "esp32:esp32:esp32s3:FlashSize=16M,PartitionScheme=custom,PSRAM=opi,CDCOnBoot=cdc" \
-            MiniMe_Discord_Bot
+            MiniMe_Discord_Bot_II

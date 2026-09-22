@@ -25,32 +25,33 @@ main{max-width:56rem;margin:0 auto;padding:1rem}
 .brand a.logo-link{display:inline-block;line-height:0}
 .brand .logo{width:min(100%,18rem);height:auto;display:block;margin:0 auto}
 .top .sub{margin:0;font-size:.78rem;letter-spacing:.06em;color:var(--muted);text-transform:none;text-align:center}
-.layout{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"display syslog" "logfile serial";gap:.75rem;align-items:stretch}
-html[data-layout="log"] .layout{grid-template-areas:"display syslog"}
-html[data-layout="log"] #box-logfile,html[data-layout="log"] #box-serial{display:none}
+/* Match LCD: Display = metrics|users; Log = LOG|Serial (web has more room, same pairing). */
+.layout{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"metrics users";gap:.75rem;align-items:stretch;min-height:22rem}
+html[data-layout="log"] .layout{grid-template-areas:"logfile serial"}
+html[data-layout="log"] #box-metrics,html[data-layout="log"] #box-users{display:none}
+html:not([data-layout="log"]) #box-logfile,html:not([data-layout="log"]) #box-serial{display:none}
+html[data-layout="log"] #box-logfile,html[data-layout="log"] #box-serial{min-height:18em;max-height:none}
 .box{border:1px solid var(--line);border-radius:.45rem;background:var(--panel);margin:0;overflow:hidden;display:flex;flex-direction:column;min-height:0}
 .box h2{margin:0;padding:.45rem .7rem;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);background:var(--box-head)}
-#box-sysinfo{grid-area:syslog}#box-display{grid-area:display}#box-logfile{grid-area:logfile}#box-serial{grid-area:serial}
-#box-logfile,#box-serial{min-height:10em;max-height:18em}
-.dash{padding:.6rem .7rem;flex:1;min-width:0;overflow:hidden}
+#box-metrics{grid-area:metrics}#box-users{grid-area:users}#box-logfile{grid-area:logfile}#box-serial{grid-area:serial}
+.dash{padding:.6rem .7rem;flex:1;min-width:0;overflow:auto}
 .hdr{display:grid;grid-template-columns:1fr auto 1fr;gap:.35rem;margin:0 0 .45rem;padding-bottom:.35rem;border-bottom:1px solid var(--line)}
 .hdr .c{text-align:center}.hdr .r{text-align:right}
-.kv{display:grid;grid-template-columns:3.4rem 1fr;gap:.15rem .45rem;margin:0 0 .22rem}
-.kv .k{color:var(--label);font-size:.8rem}
 .mline{display:grid;grid-template-columns:3.2rem 7ch minmax(0,1fr);column-gap:.35rem;align-items:center;margin:0 0 .22rem;width:100%;max-width:100%}
 .mline .k{color:var(--label);font-size:.8rem}
 .mline .n{color:var(--muted);font-size:.82rem;white-space:nowrap;overflow:hidden}
 .bar{display:block;width:100%;max-width:100%;height:.55rem;border:1px solid var(--line);background:var(--bar-track);overflow:hidden;min-width:0;box-sizing:border-box}
 .bar>i{display:block;height:100%;background:var(--cyan);max-width:100%}
-.users{margin:.55rem 0 0;padding-top:.45rem;border-top:1px solid var(--line)}
-.urole{display:grid;grid-template-columns:1fr 3.2rem 3.2rem;gap:.3rem;font-size:.72rem;color:var(--muted);margin:0 0 .2rem;letter-spacing:.04em;text-transform:uppercase}
-.urow{display:grid;grid-template-columns:1fr 3.2rem 3.2rem;gap:.3rem;padding:.14rem 0;border-bottom:1px solid var(--row-line)}
+.metric{margin:0 0 .28rem;font-size:.85rem}
+.metric .k{color:var(--label)}
+.sysrows{margin:.55rem 0 0;padding-top:.45rem;border-top:1px solid var(--line);display:grid;grid-template-columns:4.2rem 1fr;gap:.14rem .5rem}
+.sysrows .k{color:var(--label);font-size:.78rem}.sysrows .v{word-break:break-word;font-size:.78rem}
+.users{padding:.55rem .65rem;flex:1;min-height:0;overflow:auto}
+.urole{display:grid;grid-template-columns:1fr 4rem 3.2rem;gap:.3rem;font-size:.72rem;color:var(--muted);margin:0 0 .2rem;letter-spacing:.04em;text-transform:uppercase}
+.urow{display:grid;grid-template-columns:1fr 4rem 3.2rem;gap:.3rem;padding:.14rem 0;border-bottom:1px solid var(--row-line)}
 .urow:last-child{border-bottom:none}
-.urow .st,.urow .bt{color:var(--muted);text-align:right}
+.urow .st{color:var(--cyan)}.urow .bt{color:var(--muted);text-align:right}
 .msg{margin:.45rem 0 0;padding:.35rem .45rem;border:1px solid var(--msg-border);color:var(--cyan);font-size:.85rem}
-.grid{display:grid;grid-template-columns:6.2rem 1fr;gap:.25rem .5rem;padding:.55rem .65rem;flex:1}
-#box-sysinfo .grid{gap:.14rem .5rem;padding:.35rem .65rem}
-.grid .k{color:var(--label);font-size:.78rem}.grid .v{word-break:break-word;font-size:.78rem}
 .muted{color:var(--muted)}.ok{color:var(--ok)}.bad{color:var(--bad)}
 .err{color:var(--bad);padding:.4rem .7rem;font-size:.85rem;grid-column:1/-1}
 .serial{padding:.3rem .55rem .45rem;font-size:.78rem;flex:1;min-height:0;overflow:auto}
@@ -59,13 +60,13 @@ html[data-layout="log"] #box-logfile,html[data-layout="log"] #box-serial{display
 .serial.noscroll div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;word-break:normal;flex:0 0 auto}
 .serial div:last-child{border-bottom:none}.serial .empty{color:var(--muted)}
 @media (max-width:720px){
-.layout{grid-template-columns:1fr;grid-template-areas:"display" "syslog" "logfile" "serial"}
-html[data-layout="log"] .layout{grid-template-areas:"display" "syslog"}
+.layout{grid-template-columns:1fr;grid-template-areas:"metrics" "users";min-height:0}
+html[data-layout="log"] .layout{grid-template-areas:"logfile" "serial"}
 .top-row{flex-wrap:wrap;justify-content:center}
 }
 )CSS";
 
-// Head: apply saved theme/layout before paint (no POLL_MS).
+// Head: web theme + layout local only (LCD chips are independent).
 static const char WEB_UI_BOOT_JS[] PROGMEM = R"JS(
 (function(){try{var k='k9-theme';var t=localStorage.getItem(k);
 if(t==='light')document.documentElement.setAttribute('data-theme','light');
@@ -77,7 +78,6 @@ if(L==='log')document.documentElement.setAttribute('data-layout','log');
 else document.documentElement.removeAttribute('data-layout');}catch(e){}})();
 )JS";
 
-// Body app JS. Expects global POLL_MS (set by firmware before this script).
 static const char WEB_UI_JS[] PROGMEM = R"JS(
 var THEME_KEY='k9-theme';var LAYOUT_KEY='mm-layout';
 function themeNow(){return document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';}
@@ -114,42 +114,53 @@ btn.setAttribute('aria-label',log?'Switch to display view':'Switch to log view')
 applyTheme(themeNow(),false);
 applyLayout(layoutNow(),false);
 var tb=document.getElementById('theme-toggle');
-if(tb)tb.addEventListener('click',function(){applyTheme(themeNow()==='light'?'dark':'light',true);tb.blur();});
+if(tb)tb.addEventListener('click',function(){
+applyTheme(themeNow()==='light'?'dark':'light',true);
+tb.blur();
+});
 var lb=document.getElementById('layout-toggle');
-if(lb)lb.addEventListener('click',function(){applyLayout(layoutNow()==='log'?'display':'log',true);lb.blur();});
+if(lb)lb.addEventListener('click',function(){
+applyLayout(layoutNow()==='log'?'display':'log',true);
+lb.blur();
+});
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));}
 function bar(pct){pct=Math.max(0,Math.min(100,+pct||0));return '<span class="bar"><i style="width:'+pct+'%"></i></span>';}
 function mline(lab,n,pct){return '<div class="mline"><span class="k">'+lab+'</span><span class="n">'+n+'</span>'+bar(pct)+'</div>';}
-function row(k,v){return '<span class="k">'+esc(k)+'</span><span class="v">'+v+'</span>';}
+function srow(k,v){return '<span class="k">'+esc(k)+'</span><span class="v">'+v+'</span>';}
 function linesHtml(lines){
 var a=(lines||[]).filter(function(l){return !!l;});
 if(!a.length)return '<div class="empty">Waiting...</div>';
 return a.map(function(l){return '<div>'+esc(l)+'</div>';}).join('');}
 function render(j){
 var gw=j.gw?'<span class="ok">GW:Good</span>':'<span class="bad">GW:Bad</span>';
-var bot=j.botOnline?'<span class="ok">Online</span>':'<span class="muted">Idle</span>';
-var temp=j.tempOk?(esc(j.tempF)+'F / '+esc(j.tempC)+'C'):'--Error--';
+var bot=j.botOnline?'Online':'Idle';
+var temp=j.tempOk?(esc(j.tempF)+'F/'+esc(j.tempC)+'C'):'--Error--';
+var idC=j.identified?'ok':'bad';
+var dmOn=!!j.dm;var menOn=!!j.mention;
+var al=(dmOn||menOn)?'bad':'muted';
+var httpsC=j.httpsBusy?'bad':'muted';
 var msg='';if(j.msg1||j.msg2){msg='<div class="msg">'+esc(j.msg1||'')+(j.msg2?(' '+esc(j.msg2)):'')+'</div>';}
-var users='<div class="users"><div class="urole"><span>User</span><span class="st">Status</span><span class="bt">Bot</span></div>';
-(j.users||[]).forEach(function(u){users+='<div class="urow"><span>'+esc(u.name)+'</span><span class="st">'+esc(u.status)+'</span><span class="bt">'+esc(u.bot)+'</span></div>';});
-users+='</div>';
-document.getElementById('dash').innerHTML=
+var metrics=document.getElementById('metrics');
+if(metrics)metrics.innerHTML=
 '<div class="hdr"><strong>MiniMe</strong><span class="c">'+gw+'</span><span class="r">'+esc(j.time)+'</span></div>'+
-'<div class="kv"><span class="k">Bot</span><span class="v">'+bot+' <span class="muted">'+esc(j.date)+'</span></span></div>'+
-'<div class="kv"><span class="k">Up</span><span class="v">'+esc(j.uptime)+'</span></div>'+
-'<div class="kv"><span class="k">Temp</span><span class="v">'+temp+'</span></div>'+
-mline('Sig',esc(j.rssi)+' dBm',j.sigPct)+mline('Heap',esc(j.heapFree),j.heapPct)+mline('Srv',esc(j.servo)+'\u00b0',j.srvPct)+users+msg;
-var gwL=j.gw?'Connected':'Disconnected';
-var botL=j.botOnline?'Online':'Idle';
-var tempL=j.tempOk?(esc(j.tempF)+' F / '+esc(j.tempC)+' C'):'--Error--';
-var tr='';if(j.msg1||j.msg2)tr=esc(j.msg1||'')+(j.msg2?(' '+esc(j.msg2)):'');
-document.getElementById('sysinfo').className='grid';
-document.getElementById('sysinfo').innerHTML=
-row('IP',esc(j.ip))+row('OTA',esc(j.ota))+row('RSSI',esc(j.rssi)+' dBm')+
-row('CPU',esc(j.cpuMhz)+' MHz')+row('Heap',esc(j.heapFree)+' / '+esc(j.heapTotal))+row('Uptime',esc(j.uptime))+
-row('Time',esc(j.time)+'  '+esc(j.date))+row('Gateway',esc(gwL))+row('Bot',esc(botL))+
-row('Servo',esc(j.servo)+' deg')+row('Temp',tempL)+row('USB VBUS',esc(j.vbus))+
-row('OLED',esc(j.oled))+(tr?row('Transient',tr):'');
+'<div class="metric"><span class="k">Bot</span> '+esc(bot)+' <span class="muted" style="float:right">'+esc(j.date)+'</span></div>'+
+mline('Sig',esc(j.rssi)+' dBm',j.sigPct)+
+'<div class="metric" style="color:var(--cyan)">Up '+esc(j.uptime)+'  T '+temp+'</div>'+
+mline('Heap',esc(j.heapFree)+'/'+esc(j.heapTotal),j.heapPct)+
+mline('Srv',esc(j.servo)+'\u00b0',j.srvPct)+
+'<div class="metric"><span class="'+idC+'">Id:'+(j.identified?'yes':'no')+'</span> &nbsp; Users:'+esc(j.usersActive)+'/'+esc(j.usersMax)+'</div>'+
+'<div class="metric"><span class="'+al+'">DM:'+(dmOn?'ON':'off')+'  Mention:'+(menOn?'ON':'off')+'</span></div>'+
+'<div class="metric"><span class="'+httpsC+'">HTTPS:'+(j.httpsBusy?'busy':'idle')+'</span></div>'+
+'<div class="metric"><span class="k">Event:</span> '+esc(j.lastEvent||'-')+'</div>'+
+'<div class="sysrows">'+
+srow('IP',esc(j.ip))+srow('OTA',esc(j.ota))+srow('CPU',esc(j.cpuMhz)+' MHz')+
+srow('Write',esc(j.dashFlushMs)+' / '+esc(j.dashDrawMs)+' ms')+
+srow('Period',esc(j.dashRefreshMs)+' ms')+srow('LCD',esc(j.lcd))+
+'</div>'+msg;
+var users='<div class="urole"><span>User</span><span class="st">Status</span><span class="bt">Bot</span></div>';
+(j.users||[]).forEach(function(u){users+='<div class="urow"><span>'+esc(u.name)+'</span><span class="st">'+esc(u.status)+'</span><span class="bt">'+esc(u.bot)+'</span></div>';});
+var ub=document.getElementById('users');
+if(ub)ub.innerHTML=users;
 var fl=(j.fulllog||[]).filter(function(l){return !!l;});
 var ser=(j.serial||[]).filter(function(l){return !!l;});
 document.getElementById('logfile').innerHTML=linesHtml(fl);

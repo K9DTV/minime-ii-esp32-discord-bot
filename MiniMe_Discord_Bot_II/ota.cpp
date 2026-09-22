@@ -19,7 +19,7 @@ void setupMiniMeOta() {
     setCpuFrequencyMhz(CPU_MHZ_ACTIVE);
     noteBotActivity();
     // Stop Discord websocket so OTA owns Wi-Fi / CPU
-    gatewayWS.setReconnectInterval(3600000UL); // park auto-reconnect during flash
+    gwParkReconnectForOta();
     gatewayWS.disconnect();
     gatewayConnected = false;
     identified = false;
@@ -44,6 +44,8 @@ void setupMiniMeOta() {
   });
   ArduinoOTA.onError([](ota_error_t err) {
     otaInProgress = false;
+    // onStart parked reconnect at 1h; restore so Gateway can recover without reboot.
+    gwRestoreReconnectAfterOta();
     String e = "err ";
     e += String((int)err);
     if (err == OTA_AUTH_ERROR) e = "Auth fail";

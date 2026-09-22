@@ -1,11 +1,126 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.5.3** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.7** (see `VERSION` and README).
+
+## 0.7.7
+
+- `httpsGetOpen` / `httpGetOpen` return `chunked` + `Content-Length` for pumped body reads (no more “until close” guess). Confirm flash via `Display · v0.7.7`.
+
+## 0.7.6
+
+- Weather / science news / APOD / ISS / arXiv: body read via `readHttpBodyAfterHeaders` (Gateway HB pumps); removed arXiv `readString()` stall.
+- `docs/CODE_REVIEW_NOTES.md` refreshed for dual-core + fetch pumps. Confirm flash via `Display · v0.7.6`.
+
+## 0.7.5
+
+- Boot: check `gwDoc` alloc immediately after `new` (before `setupDisplay` / Canvas). Confirm flash via `Display · v0.7.5`.
+
+## 0.7.4
+
+- Boot: `statusDoc` alloc failure halts like `gwDoc` (same Fatal / power-cycle policy). Confirm flash via `Display · v0.7.4`.
+
+## 0.7.3
+
+- `showTransient` honors `durationMs` (`!display` stays **6 s** as documented); web flash includes `transientLine3`.
+- LOG ring: drop oldest until 20 KB budget fits (no full wipe on overflow).
+- Boot: halt with `Fatal` / MmLog if `gwDoc` alloc fails.
+- Docs/comments: sticky DM/Mention until `!clear`; nested Wi-Fi kick note. Confirm flash via `Display · v0.7.3`.
+
+## 0.7.2
+
+- Removed blocking `readTemperature` (shared OneWire footgun vs Core 0 `pollTemperatureNonBlocking`). Temp is Core-0-only poll + cached `dashTempC`/`F`. Confirm flash via `Display · v0.7.2`.
+
+## 0.7.1
+
+- DS18B20: non-blocking poll on Core 0 (`pollTemperatureNonBlocking`); Core 1 `publishDashSnap` / `!temp` no longer block ~750 ms on conversion.
+- DashSnap publish: seqlock + 1 s throttle (no `portENTER_CRITICAL` over ~4KB copy).
+- README: dual-core scope clarified (LCD/QSPI fixed; long HTTPS fetches still on Core 1); backlight idle timer / Idle CPU docs corrected; LCD theme independent of web.
+- `uiTask` create failure logs via MmLog. Confirm flash via `Display · v0.7.1`.
+
+## 0.7.0
+
+- Dual-core: Core 1 = Gateway / HTTPS / OTA / web / command drain; Core 0 `uiTask` = LCD + touch.
+- `DashSnap` published under mutex; Core 0 paints only (no mid-draw `pumpGateway`).
+- `MESSAGE_CREATE` enqueues; `drainDiscordCmds()` runs `handleCommand` from `loop()`.
+- Confirm flash via `Display · v0.7.0`.
+
+## 0.6.10
+
+- Display/Log: web and LCD independent (same as Light/Dark). Removed `/api/ui` layout sync.
+- LCD backlight idle **5 minutes** (`DISPLAY_IDLE_MS`).
+- Discord Idle → CPU **160 MHz**; Online/activity/OTA → **240 MHz**. Confirm flash via `Display · v0.6.10`.
+
+## 0.6.9
+
+- Light/dark: web and LCD are **independent** (web = browser; LCD = glass chip). Layout Display/Log still syncs.
+- LCD light background fixed to true gray `#dde2ea` RGB565 `0xDF1D` (was `0xDEF5`, which looked warm/brown). Confirm flash via `Display · v0.6.9`.
+
+## 0.6.8
+
+- LCD light theme uses bright K9DTV RGB565 logo (`K9DTV_LOGO_BRIGHT_RGB565`); regenerate via `tools/gen_k9dtv_logo_rgb565.py`.
+- Web theme/layout sync with LCD: `/api/ui?theme=&layout=`; status carries `theme` / `layout` (chip on either side updates both).
+- Web layout matches LCD pairing: **Display** = metrics|users; **Log** = LOG|Serial (logo + chips kept). Confirm flash via `Display · v0.6.8`.
+
+## 0.6.7
+
+- All Discord-reply commands: LCD shows value only if `sendDiscordMessage` succeeds (`showIfPosted`); else `Post fail` (matches fetch / !help).
+- Bot:N: `recordUserUse` only inside known-command branches (no separate `isTrackedBotCommand` list). Confirm flash via `Display · v0.6.7`.
+
+## 0.6.6
+
+- HTTPS: `contentLength` maxBody path `stop()`s like chunked; `readHttpLineCapped` false on peer close mid-line.
+- Touch: `Wire.setTimeOut(50)` so I2C stall cannot starve Gateway indefinitely.
+- `sendFetchResult` / `!help`: LCD “Sent” only if Discord post succeeds; else “Post fail”.
+- Bot:N: do not count `!help` / unknown commands.
+- `sendDiscordMessage`: comment — status line only, body discarded.
+- Secrets example: `MINIME_SECRETS_IS_EXAMPLE` + compile `#error` until removed in real `secrets.h`.
+- Docs: watchdog policy, activity stamp while disconnected, `docs/CODE_REVIEW_NOTES.md` updated. Confirm flash via `Display · v0.6.6`.
+
+## 0.6.5
+
+- Prune hobby leftovers: empty `MmLog::flushAll`, `mmSerialCdcOnBoot` wrapper, `webUiKeepsCpuActive`, vestigial `backgroundTasks` (loop calls `runAskFromLoop` directly).
+- HTTP open errors: **1**=busy, **2**=header timeout, **3**=connect/TLS/DNS (was busy+connect collapsed).
+- Clarify `noteBotActivity` / `noteDisplayActivity` / `noteLastEvent` in `minime.h`. Confirm flash via `Display · v0.6.5`.
+
+## 0.6.4
+
+- Gateway: nested `pumpGateway()` no longer re-enters `gatewayWS.loop()` (HB keep-alive only); defer Online presence send until outer pump ends.
+- OTA `onError`: restore reconnect interval (failed flash no longer parks Gateway for 1 hour).
+- HTTPS: capped header/chunk lines (512); chunked body no longer returns mid-chunk without draining/stop.
+- Remove dead `content` null check; drop unused `lastSysInfoMillis` boot hack.
+- Docs: `docs/CODE_REVIEW_NOTES.md` (fixed vs deferred from pro review). Confirm flash via `Display · v0.6.4`.
+
+## 0.6.3
+
+- Left header: MiniMe | centered GW | right-justified time; Bot | right-justified date; Sig with RSSI beside label.
+- Users panel: **9 px** row pitch, **MAX_TRACKED_USERS=24**.
+- Dual IC chips (k9dtv menu-chip): **left** Light/Dark; **right** Display/Log.
+  Display = left metrics + right users; Log = left LOG + right Serial (same windows).
+- Dirty redraw: skip logo/chips and right panel when unchanged; skip flush when nothing changed.
+- Confirm flash via `Display · v0.6.3`.
+
+## 0.6.2
+
+- Left LCD panel: RSSI number, heap free/total, Id, Users n/20, **DM + Mention** on one line, HTTPS busy/idle, sticky **Event** line. No footer strip under the panels.
+- Removed **USB VBUS** and **`!set1` / `!set2`** from firmware and docs. DM/@mention are LCD alert flags; owner `!clear` clears them.
+- Confirm flash via `Display · v0.6.2`.
+
+## 0.6.1
+
+- Display: drop **JC3248W535EN-Touch-LCD**; use **Arduino_GFX** directly (`Arduino_ESP32QSPI` + `Arduino_AXS15231B` + `Arduino_Canvas`, landscape rotation 1).
+- Touch wake: AXS15231B I2C (`0x3B`, SDA 4 / SCL 8 / INT 3) in-sketch; no wrapper IRQ API.
+- LCD refresh **1 s** (measured ~48 ms flush / ~62 ms total). Confirm flash via `Display · v0.6.1`.
+
+## 0.6.0
+
+- Hardware fork **MiniMe II**: Guition **JC3248W535EN** (AXS15231B QSPI LCD + in-cell touch).
+- Display: **JC3248W535EN-Touch-LCD** (Arduino_GFX). Same dashboard fields as MiniMe I; backlight off after idle; touch IRQ wakes panel only.
+- Removed SSD1327 / U8g2 and ESP32 GPIO capacitive touch + VBUS touch compensation. NeoPixel/servo pins remapped off QSPI (16 / 17).
+- Confirm flash via `Display · v0.6.0`.
 
 ## 0.5.3
 
-- Fix compile on Arduino-ESP32 core **3.3.x**: HTTPS uses `WiFiClientSecure::useBuiltinCACertBundle()` (IDF Mozilla bundle already linked in the core). PlatformIO-style `_binary_data_crt_x509_crt_bundle_bin_*` symbols are **not** present in the Arduino CLI package — CI linked neither `_start` nor `_end`. Older cores still call `setCACertBundle(start, end - start)` with `_binary_x509_crt_bundle_*`.
-- Confirm flash via `Display · v0.5.3`.
+- Fix compile on Arduino-ESP32 core **3.3.x**: HTTPS uses `useBuiltinCACertBundle()` only on **3.3.12+** (CI). Older IDE cores call `setCACertBundle(start, end - start)` with `_binary_x509_crt_bundle_*` (not PlatformIO `_binary_data_crt_*`, which CI does not link). Confirm flash via `Display · v0.5.3`.
 
 ## 0.5.2
 

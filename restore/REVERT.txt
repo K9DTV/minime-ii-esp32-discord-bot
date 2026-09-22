@@ -1,0 +1,9 @@
+# REVERT keyword
+
+If James says **revert**, restore the WORKING reference from:
+
+  MinimeII/restore/lcd-layout-ok/
+
+Copy display.cpp and touch.cpp over MiniMe_Discord_Bot_II/.
+
+Confirmed working 2026-09-22 (v0.6.3). Display = metrics|users; Log = LOG|Serial.

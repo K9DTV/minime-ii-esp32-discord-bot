@@ -12,9 +12,6 @@ size_t MmLogClass::write(const uint8_t* buffer, size_t size) {
   return size;
 }
 
-void MmLogClass::flushAll() {
-}
-
 MmLogClass MmLog;
 
 void mmSerialBegin() {
@@ -22,13 +19,4 @@ void mmSerialBegin() {
   // Upload/OTA still work; open http://<board-ip>/ for LOG + Serial panels.
   MmLog.println("[GW] MiniMe log -> web only (USB Serial port killed)");
   MmLog.println("[GW] gateway drop log armed (5s remind / 60s full dump)");
-  MmLog.flushAll();
-}
-
-bool mmSerialCdcOnBoot() {
-#if defined(ARDUINO_USB_CDC_ON_BOOT) && (ARDUINO_USB_CDC_ON_BOOT == 1)
-  return true;
-#else
-  return false;
-#endif
 }
