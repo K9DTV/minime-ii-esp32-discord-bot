@@ -7,3 +7,6 @@ secrets.*.h
 !**/secrets.example.h
 secrets*.bak
 config_local.h
+restore/
+docs/lan-monitor.log
+docs/lan-monitor.ps1
