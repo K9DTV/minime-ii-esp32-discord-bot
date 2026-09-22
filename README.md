@@ -38,7 +38,7 @@ the IDE is using a **second, broken** GFX install. Arduino reports something lik
 **If those same errors continue with `GFX_Library_for_Arduino`:**  
 GFX version and ESP32 core mismatch. Update GFX to latest, or pin the esp32 core (e.g. **3.3.5** / **3.2.1**). Check `...\GFX_Library_for_Arduino\library.properties` `version=` if it still fails.
 
-After Wi-Fi connects, open `http://<board-ip>/` for the LAN dashboard (same Display/Log idea as the LCD). Drop current Guition web screenshots into `docs/` when you have them — older `ESP32S3-Web-UI*.png` files are **MiniMe I / OLED-era** and do **not** match this UI.
+After Wi-Fi connects, open `http://<board-ip>/` for the LAN dashboard (same Display/Log idea as the LCD). Guition web screenshots can go in `docs/` when you have current ones.
 
 License: see `LICENSE` (MIT for original MiniMe files only).
 
