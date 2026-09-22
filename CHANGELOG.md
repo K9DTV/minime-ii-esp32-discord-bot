@@ -1,6 +1,14 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.17** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.19** (see `VERSION` and README).
+
+## 0.7.19
+
+- 429: drop duplicate macros from `discord_rest.cpp` (config header is sole source); ignore non-numeric `Retry-After` (keep `-1` so JSON body parse can run). Confirm flash via `Display · v0.7.19`.
+
+## 0.7.18
+
+- Discord REST 429: `sendDiscordMessage` honors `Retry-After` (header, else JSON `retry_after`), waits with `pumpGateway`, up to 3 attempts (0.5–60 s clamp). Confirm flash via `Display · v0.7.18`.
 
 ## 0.7.17
 

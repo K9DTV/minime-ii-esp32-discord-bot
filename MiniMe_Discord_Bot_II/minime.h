@@ -134,7 +134,8 @@ uint8_t httpGetOpen(WiFiClient& client, const char* host, const String& path,
                     unsigned long headerTimeoutMs, bool& outChunked, int& outContentLength);
 void setHttpOpenError(String& outReport, uint8_t err, const char* label);
 bool httpsAwaitHeaders(unsigned long deadlineMs, bool pump, String& outStatus,
-                       bool& chunked, int& contentLength);
+                       bool& chunked, int& contentLength,
+                       float* outRetryAfterSec = nullptr);
 bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
                               String& outBody, unsigned long deadlineMs);
 bool discordIdLooksValid(const String& id);

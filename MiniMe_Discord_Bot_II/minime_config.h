@@ -2,13 +2,17 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.17"
+#define MINIME_VERSION "0.7.19"
 #define MINIME_USER_AGENT "MiniMeBot/1.0"
 
 // Discord content max is 2000. !ask max_tokens / JSON buffer sized to fit one message.
 const int DISCORD_CONTENT_MAX = 2000;
 const int DEEPSEEK_MAX_TOKENS = 900;
 const size_t DEEPSEEK_JSON_DOC = 24576; // larger so !ask answers parse without scrape fallback
+// Discord REST 429: honor Retry-After, keep Gateway alive while waiting.
+#define DISCORD_429_MAX_ATTEMPTS 3
+#define DISCORD_429_WAIT_MIN_MS 500UL
+#define DISCORD_429_WAIT_MAX_MS 60000UL
 
 // ====== GPIO CONFIG (Guition JC3248W535EN / AXS15231B) ======
 // Display QSPI (Arduino_ESP32QSPI + Arduino_AXS15231B): CS 45, SCK 47, D0 21, D1 48, D2 40, D3 39

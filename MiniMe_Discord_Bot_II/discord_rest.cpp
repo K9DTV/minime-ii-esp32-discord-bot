@@ -52,8 +52,6 @@ String getSystemInfo() {
 bool sendDiscordMessage(const String& channelId, const String& content, bool suppressEmbeds) {
   String post = content;
   if (post.length() > DISCORD_CONTENT_MAX) post = post.substring(0, DISCORD_CONTENT_MAX - 3) + "...";
-  if (!httpsAcquire("discord.com")) return false;
-  String url = "/api/v10/channels/" + channelId + "/messages";
   StaticJsonDocument<4096> doc;
   doc["content"] = post;
   doc["tts"] = false;
@@ -61,29 +59,81 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
 
   String body;
   serializeJson(doc, body);
+  String url = "/api/v10/channels/" + channelId + "/messages";
   String request =
     "POST " + url + " HTTP/1.1\r\n"
     "Host: discord.com\r\n"
     "Authorization: Bot " + String(BOT_TOKEN) + "\r\n"
     "Content-Type: application/json\r\n"
+    "User-Agent: " MINIME_USER_AGENT "\r\n"
     "Content-Length: " + String(body.length()) + "\r\n"
     "Connection: close\r\n\r\n" +
     body;
-  httpsClient.print(request);
-  unsigned long deadline = millis() + 8000UL;
-  String statusLine;
-  bool chunked = false;
-  int contentLength = -1;
-  if (!httpsAwaitHeaders(deadline, false, statusLine, chunked, contentLength)) {
+
+  for (uint8_t attempt = 0; attempt < DISCORD_429_MAX_ATTEMPTS; attempt++) {
+    if (!httpsAcquire("discord.com")) return false;
+    httpsClient.print(request);
+    unsigned long deadline = millis() + 8000UL;
+    String statusLine;
+    bool chunked = false;
+    int contentLength = -1;
+    float retryAfterSec = -1.f;
+    // pump=true: HB stays alive while waiting for Discord headers / during 429 backoff.
+    if (!httpsAwaitHeaders(deadline, true, statusLine, chunked, contentLength, &retryAfterSec)) {
+      httpsRelease();
+      return false;
+    }
+    int code = 0;
+    int sp = statusLine.indexOf(' ');
+    if (sp >= 0) code = statusLine.substring(sp + 1).toInt();
+
+    if (code >= 200 && code < 300) {
+      // Body unused; Connection: close + release discards it.
+      httpsRelease();
+      return true;
+    }
+
+    if (code == 429) {
+      // Prefer Retry-After header; else skim JSON body for "retry_after".
+      if (retryAfterSec < 0.f) {
+        String errBody;
+        unsigned long bodyDeadline = millis() + 3000UL;
+        if (readHttpBodyAfterHeaders(httpsClient, chunked, contentLength, errBody, bodyDeadline)) {
+          int idx = errBody.indexOf("\"retry_after\"");
+          if (idx >= 0) {
+            int colon = errBody.indexOf(':', idx);
+            if (colon >= 0) retryAfterSec = errBody.substring(colon + 1).toFloat();
+          }
+        }
+      }
+      httpsRelease();
+
+      unsigned long waitMs = DISCORD_429_WAIT_MIN_MS;
+      if (retryAfterSec > 0.f) {
+        waitMs = (unsigned long)(retryAfterSec * 1000.f + 0.5f);
+      }
+      if (waitMs < DISCORD_429_WAIT_MIN_MS) waitMs = DISCORD_429_WAIT_MIN_MS;
+      if (waitMs > DISCORD_429_WAIT_MAX_MS) waitMs = DISCORD_429_WAIT_MAX_MS;
+
+      MmLog.print(F("[REST] Discord 429 attempt "));
+      MmLog.print((unsigned)(attempt + 1));
+      MmLog.print(F("/"));
+      MmLog.print((unsigned)DISCORD_429_MAX_ATTEMPTS);
+      MmLog.print(F(" wait_ms="));
+      MmLog.println((unsigned long)waitMs);
+
+      unsigned long waitUntil = millis() + waitMs;
+      while ((long)(millis() - waitUntil) < 0) {
+        pumpGateway();
+        delay(10);
+      }
+      continue;
+    }
+
     httpsRelease();
     return false;
   }
-  // Status line only — message POST body is unused; Connection: close + httpsRelease() discards it.
-  httpsRelease();
-  int code = 0;
-  int sp = statusLine.indexOf(' ');
-  if (sp >= 0) code = statusLine.substring(sp + 1).toInt();
-  return code >= 200 && code < 300;
+  return false;
 }
 
 // Cap header/status lines so a broken peer cannot grow String without bound.
@@ -218,7 +268,8 @@ void setHttpOpenError(String& outReport, uint8_t err, const char* label) {
 }
 
 bool httpsAwaitHeaders(unsigned long deadlineMs, bool pump, String& outStatus,
-                       bool& chunked, int& contentLength) {
+                       bool& chunked, int& contentLength, float* outRetryAfterSec) {
+  if (outRetryAfterSec) *outRetryAfterSec = -1.f;
   while (httpsClient.available() == 0) {
     if (millis() > deadlineMs) {
       httpsClient.stop();
@@ -247,6 +298,11 @@ bool httpsAwaitHeaders(unsigned long deadlineMs, bool pump, String& outStatus,
     }
     if (lower.startsWith("content-length:")) {
       contentLength = lower.substring(lower.indexOf(':') + 1).toInt();
+    }
+    if (outRetryAfterSec && lower.startsWith("retry-after:")) {
+      // Discord sends seconds (int/float). Ignore HTTP-date forms (.toFloat() == 0).
+      float v = lower.substring(lower.indexOf(':') + 1).toFloat();
+      if (v > 0.f) *outRetryAfterSec = v;
     }
   }
   return true;

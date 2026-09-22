@@ -1,6 +1,6 @@
 # MiniMe II — code review notes (pro pass)
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.17**.
+What we **fixed** vs what we **left** and why. Current: **v0.7.19**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -26,33 +26,30 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.17**.
 | Members JSON on stack | **0.7.13** — heap `DynamicJsonDocument*` for guild members |
 | Chunked body truncate ≠ success | **0.7.15** — trailer/size/mid-chunk/`Content-Length` incomplete → `false` |
 | Large JSON in PSRAM | **0.7.17** — `gwDoc` / `statusDoc` / `deepSeekDoc` via shared `SpiRamJsonDocument` |
+| Discord 429 / Retry-After | **0.7.18** — `sendDiscordMessage` waits + retries (header / JSON); Gateway pumped |
 
 ## Still deferred (why)
 
-### 1 — Discord 429 / Retry-After
-
-`sendDiscordMessage` uses status line only. Hobby-acceptable.
-
-### 2 — ArduinoJson 6
+### 1 — ArduinoJson 6
 
 Pinned; v7 later.
 
-### 3 — Explicit TWDT register/reset
+### 2 — Explicit TWDT register/reset
 
 Rely on Arduino-ESP32 default + `delay`/`yield`. Documented.
 
-### 4 — CI compile-only / no HIL
+### 3 — CI compile-only / no HIL
 
 Honest in README.
 
-### 5 — Delete nested `gwPumping` HB-only path
+### 4 — Delete nested `gwPumping` HB-only path
 
 Plan: keep until a week of stable Gateway after dual-core, then prune.
 
-### 6 — Remaining `String` on cold paths
+### 5 — Remaining `String` on cold paths
 
 Command handlers / HTTPS body buffers / tracked user IDs still use `String`. Acceptable until heap pressure shows up on those paths.
 
-### 7 — MmLog / webLogFeed cross-core
+### 6 — MmLog / webLogFeed cross-core
 
 Rings have no mutex. **0.7.16:** `webLogFeed` drops if `xPortGetCoreID() != 1`. Still do not call MmLog from Core 0 for intentional logs.
