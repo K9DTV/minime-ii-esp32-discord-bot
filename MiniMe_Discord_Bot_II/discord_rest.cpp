@@ -37,7 +37,7 @@ String getSystemInfo() {
          "• **IP:** " + WiFi.localIP().toString() + "\n"
          "• **OTA host:** " + String(OTA_HOSTNAME) + ".local\n"
          "• **Gateway Status:** " + String((gatewayConnected && identified) ? "Connected" : "Disconnected") + "\n"
-         "• **Firmware:** https://github.com/dogma2u/minime-esp32-discord-bot";
+         "• **Firmware:** https://github.com/K9DTV/minime-ii-esp32-discord-bot";
 }
 
 bool sendDiscordMessage(const String& channelId, const String& content, bool suppressEmbeds) {
@@ -284,7 +284,7 @@ bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
       }
       if (hitCap) {
         client.stop();
-        return true;
+        return false; // capped body is incomplete — not success
       }
     }
     return outBody.length() > 0;
@@ -295,7 +295,7 @@ bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
         outBody += (char)client.read();
         if (outBody.length() >= maxBody) {
           client.stop();
-          return true;
+          return false; // truncated
         }
         if ((int)outBody.length() >= contentLength) break;
       }
@@ -310,7 +310,7 @@ bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
       outBody += (char)client.read();
       if (outBody.length() >= maxBody) {
         client.stop();
-        return true;
+        return false; // truncated
       }
     }
     if (!client.connected() && !client.available()) break;

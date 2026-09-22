@@ -1,6 +1,17 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.7** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.8** (see `VERSION` and README).
+
+## 0.7.8
+
+- Gateway TLS: `beginSslWithBundle` + ESP32 CA blob (plain `beginSSL` was `setInsecure`).
+- `readHttpBodyAfterHeaders`: truncation / 48 KB cap returns **false** (not success).
+- Presence: unknown users no longer evict tracked slots; `recordUserUse` after owner check on `!led`/`!servo`/`!clear`.
+- `!sysinfo` firmware URL → `K9DTV/minime-ii-esp32-discord-bot`.
+- DashSnap: static buffers + Core 1 loop stack 16 KB; seqlock retry `taskYIELD`.
+- Cross-core: `displayAsleep` / `lastDisplayActivityMillis` / `dashForceFull` are `std::atomic`.
+- `MINIME_VERSION` single source; web header uses it. GW alive 60 s; full-log dump opt-in (`GW_DEBUG_FULL_LOG_DUMP`).
+- Confirm flash via `Display · v0.7.8`.
 
 ## 0.7.7
 

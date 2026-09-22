@@ -1,6 +1,8 @@
 #include "minime.h"
 #include "k9dtv_logo_rgb565.h"
 #include <string.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 Arduino_DataBus* lcdBus = nullptr;
 Arduino_GFX* lcdPanel = nullptr;
@@ -21,10 +23,10 @@ bool lcdThemeLight = false;
 bool lcdLayoutLog = false; // false = left metrics + right users; true = left LOG + right Serial
 
 unsigned long lastDashMillis = 0;
-unsigned long lastDisplayActivityMillis = 0;
+std::atomic<unsigned long> lastDisplayActivityMillis{0};
 unsigned long lastDashDrawMs = 0;
 unsigned long lastDashFlushMs = 0;
-bool displayAsleep = false;
+std::atomic<bool> displayAsleep{false};
 
 enum { LCD_BAR_MAX = 150 };
 enum { LOGO_TOP_PAD = 0, LOGO_BOTTOM_GAP = 4 };
@@ -34,7 +36,7 @@ enum { USER_PITCH = 9 };
 // Hit boxes for IC chips (chip + label); landscape coords.
 static int16_t themeChipHitX = 0, themeChipHitY = 0, themeChipHitW = 0, themeChipHitH = 0;
 static int16_t layoutChipHitX = 0, layoutChipHitY = 0, layoutChipHitW = 0, layoutChipHitH = 0;
-static bool dashForceFull = true; // boot / wake / theme / layout; Core 1 may set, Core 0 clears (benign)
+static std::atomic<bool> dashForceFull{true}; // boot / wake / theme / layout; Core 1 may set, Core 0 clears
 static bool dashBrandValid = false;
 
 struct DashPalette {
@@ -42,23 +44,33 @@ struct DashPalette {
 };
 
 static DashPalette pal() {
+  // Match web_assets.h :root / html[data-theme=light] tokens (RGB888 -> RGB565).
+  // Bar fill = cyan (same as .bar>i { background:var(--cyan) }).
   if (lcdThemeLight) {
-    // Match MiniMe web / k9dtv light tokens (RGB888 -> RGB565; prior 0xDEF5 was warm/brown).
     return {
-      0xDF1D, // #dde2ea space
-      0xF7BF, // #f3f5f8 panel
-      0x8CB4, // #8b95a5 border
-      0x08A5, // #0f172a text
-      0x320A, // #334155 muted
-      0x02EE, // #005f73 cyan
-      0x1285, // #14532d ok
-      0xC201, // #c2410c bad/warn
-      0xFFFF, // bar track
-      0x2D6C  // bar fill ~#2a9d5c
+      0xDF1D, // #dde2ea --k9-space
+      0xF7BF, // #f3f5f8 --k9-panel
+      0x8CB4, // #8b95a5 --k9-border
+      0x08A5, // #0f172a --k9-text
+      0x320A, // #334155 --k9-muted
+      0x02EE, // #005f73 --k9-cyan
+      0x1285, // #14532d --k9-green / --ok
+      0x99A2, // #9a3412 --k9-orange / --bad
+      0xFFFF, // #ffffff --bar-track
+      0x02EE  // bar fill = cyan
     };
   }
   return {
-    0x1082, 0x18C3, 0x2965, 0xDEFB, 0xBDF7, 0x5D7F, 0x274A, 0xFD40, 0x0841, 0x25A6
+    0x1082, // #121212 --k9-space
+    0x18C3, // #1a1a1a --k9-panel
+    0x2965, // #2c2c2c --k9-border
+    0xE71C, // #e0e0e0 --k9-text
+    0xBDF7, // #b8b8b8 --k9-muted
+    0x5D9F, // #5eb3ff --k9-cyan
+    0x2E6E, // #2ecc71 --k9-green / --ok
+    0xFD84, // #ffb020 --k9-orange / --bad
+    0x0841, // #0a0a0a --bar-track
+    0x5D9F  // bar fill = cyan
   };
 }
 
@@ -149,7 +161,7 @@ static void drawMenuChip(int16_t ox, int16_t oy, const DashPalette& p) {
   gfx->drawFastHLine(ox + S(21), cy + S(4), S(3), pin);
 
   if (lcdThemeLight) {
-    gfx->fillCircle(cx, cy, S(1.35f), 0xC200); // #c2410c
+    gfx->fillCircle(cx, cy, S(1.35f), 0x99A2); // #9a3412 --k9-orange light
   }
 }
 
@@ -354,7 +366,7 @@ void publishDashSnap() {
   if (lastPubMs != 0 && (now - lastPubMs) < DASH_REFRESH_MS) return;
   lastPubMs = now;
 
-  DashSnap tmp;
+  static DashSnap tmp; // static: ~4 KB — keep off Core 1 loop stack
   captureSnap(tmp);
   uint32_t s = snapSeq;
   snapSeq = s + 1; // odd = writer in progress
@@ -365,10 +377,14 @@ void publishDashSnap() {
 static void loadPublishedSnap(DashSnap& out) {
   for (;;) {
     uint32_t s1 = snapSeq;
-    if (s1 & 1u) continue; // writer mid-update
+    if (s1 & 1u) {
+      taskYIELD();
+      continue; // writer mid-update
+    }
     out = publishedSnap;
     uint32_t s2 = snapSeq;
     if (s1 == s2 && !(s2 & 1u)) break;
+    taskYIELD();
   }
 }
 
@@ -581,9 +597,9 @@ bool setupDisplay() {
   DashPalette p = pal();
   gfx->fillScreen(p.bg);
   gfx->flush();
-  lastDisplayActivityMillis = millis();
-  displayAsleep = false;
-  dashForceFull = true;
+  lastDisplayActivityMillis.store(millis());
+  displayAsleep.store(false);
+  dashForceFull.store(true);
   dashBrandValid = false;
   drawnSnap.valid = false;
   pinMode(LCD_BL_PIN, OUTPUT);
@@ -592,12 +608,12 @@ bool setupDisplay() {
 }
 
 void noteDisplayActivity() {
-  lastDisplayActivityMillis = millis();
-  if (displayAsleep) {
-    displayAsleep = false;
+  lastDisplayActivityMillis.store(millis());
+  if (displayAsleep.load()) {
+    displayAsleep.store(false);
     digitalWrite(LCD_BL_PIN, HIGH);
     lastDashMillis = 0;
-    dashForceFull = true;
+    dashForceFull.store(true);
     // Paint only from Core 0 uiTask (do not drawDashboard here — Core 1 may call this).
   }
 }
@@ -617,7 +633,7 @@ bool lcdLayoutChipHit(uint16_t x, uint16_t y) {
 void setLcdThemeLight(bool light) {
   if (lcdThemeLight == light) return;
   lcdThemeLight = light;
-  dashForceFull = true;
+  dashForceFull.store(true);
   dashBrandValid = false;
   lastDashMillis = 0;
   noteDisplayActivity();
@@ -627,7 +643,7 @@ void setLcdThemeLight(bool light) {
 void setLcdLayoutLog(bool logMode) {
   if (lcdLayoutLog == logMode) return;
   lcdLayoutLog = logMode;
-  dashForceFull = true;
+  dashForceFull.store(true);
   dashBrandValid = false;
   lastDashMillis = 0;
   noteDisplayActivity();
@@ -671,14 +687,15 @@ int dashBarPct(int fill, int maxFill) {
 }
 
 void updateDisplaySleep() {
-  if (displayAsleep) return;
+  if (displayAsleep.load()) return;
   unsigned long now = millis();
-  if (lastDisplayActivityMillis == 0) {
-    lastDisplayActivityMillis = now;
+  unsigned long lastAct = lastDisplayActivityMillis.load();
+  if (lastAct == 0) {
+    lastDisplayActivityMillis.store(now);
     return;
   }
-  if (now - lastDisplayActivityMillis < DISPLAY_IDLE_MS) return;
-  displayAsleep = true;
+  if (now - lastAct < DISPLAY_IDLE_MS) return;
+  displayAsleep.store(true);
   digitalWrite(LCD_BL_PIN, LOW);
 }
 
@@ -711,7 +728,7 @@ void drawDashboard() {
   if (!gfx) return;
   unsigned long t0 = millis();
 
-  DashSnap nowSnap;
+  static DashSnap nowSnap; // static: ~4 KB — keep off uiTask stack
   loadPublishedSnap(nowSnap);
   // Live chip toggles / Core 0 temp may be ahead of the last Core 1 publish.
   nowSnap.themeLight = lcdThemeLight;
@@ -724,7 +741,7 @@ void drawDashboard() {
   }
   DashPalette p = pal();
 
-  bool needBrand = dashForceFull || !dashBrandValid
+  bool needBrand = dashForceFull.load() || !dashBrandValid
                 || !drawnSnap.valid
                 || drawnSnap.themeLight != nowSnap.themeLight
                 || drawnSnap.layoutLog != nowSnap.layoutLog;
@@ -759,7 +776,7 @@ void drawDashboard() {
   lastDashDrawMs = millis() - t0;
 
   drawnSnap = nowSnap;
-  dashForceFull = false;
+  dashForceFull.store(false);
 }
 
 void updateDisplay() {

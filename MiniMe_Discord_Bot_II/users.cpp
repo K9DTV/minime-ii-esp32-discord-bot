@@ -128,10 +128,8 @@ void handlePresenceUpdate(JsonObject d) {
 
   String name = discordDisplayName(d["user"]);
   int idx = findUserIndex(String(uid));
-  if (idx < 0) {
-    idx = addOrPickUserSlot(String(uid), name);
-    if (idx < 0) return;
-  }
+  // Presence must not add unknown users (would evict tracked slots via addOrPickUserSlot).
+  if (idx < 0) return;
   if (name.length()) trackedUsers[idx].userName = name;
   trackedUsers[idx].status = statusFromDiscord(st);
 }

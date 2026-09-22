@@ -10,3 +10,5 @@ config_local.h
 restore/
 docs/lan-monitor.log
 docs/lan-monitor.ps1
+tools/_logo_render.html
+tools/_k9dtv_logo_*.png

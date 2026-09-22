@@ -14,15 +14,21 @@ String sessionId;
 unsigned long lastBotActivityMillis = 0;
 uint8_t botDiscordStatus = 0;
 
-// Serial drop/reconnect diagnostics (temporary 2x; restore GW_LOG_MAX to 40 later)
-static const uint8_t GW_LOG_MAX = 80;
+// Serial drop/reconnect diagnostics (ring for DROP_START / RECOVERED).
+static const uint8_t GW_LOG_MAX = 40;
+// Set to 1 to dump the ring to MmLog every 60 s (floods web LOG; off by default).
+#ifndef GW_DEBUG_FULL_LOG_DUMP
+#define GW_DEBUG_FULL_LOG_DUMP 0
+#endif
 static String gwLog[GW_LOG_MAX];
 static uint8_t gwLogCount = 0;
 static String gwLogLastAdded;
 static String gwDropStartEvent;
 static bool gwInDropState = false;
 static unsigned long gwLastDropRemindMillis = 0;
+#if GW_DEBUG_FULL_LOG_DUMP
 static unsigned long gwLastFullLogMillis = 0;
+#endif
 static unsigned long gwReconnectIntervalMs = 5000;
 static const unsigned long GW_RECONNECT_BASE_MS = 5000UL;
 static const unsigned long GW_RECONNECT_MAX_MS = 5000UL; // was 60000; keep tries short so drop recovery stays under ~30s when Discord answers
@@ -109,10 +115,10 @@ static void gwArmFastIdentify(const char* reason) {
 
 void gwSerialService() {
   unsigned long now = millis();
-  // Alive pulse so you can confirm the COM port is live even with no drop.
+  // Alive pulse (60 s) so the web Serial ring is not dominated by heartbeats.
   static unsigned long gwLastAliveMillis = 0;
   if (gwLastAliveMillis == 0) gwLastAliveMillis = now;
-  if (now - gwLastAliveMillis >= 15000UL) {
+  if (now - gwLastAliveMillis >= 60000UL) {
     gwLastAliveMillis = now;
     MmLog.print("[GW] alive up_ms=");
     MmLog.print(now);
@@ -133,6 +139,7 @@ void gwSerialService() {
     MmLog.print("[GW] DROP still (started): ");
     MmLog.println(gwDropStartEvent);
   }
+#if GW_DEBUG_FULL_LOG_DUMP
   if (now - gwLastFullLogMillis >= 60000UL) {
     gwLastFullLogMillis = now;
     MmLog.println("[GW] === FULL LOG ===");
@@ -150,6 +157,7 @@ void gwSerialService() {
     }
     MmLog.println("[GW] === END LOG ===");
   }
+#endif
 }
 
 static void gwSetReconnectBackoff(bool reset) {
@@ -177,15 +185,25 @@ static void ensureWifiForGateway() {
 
 static void bindGatewayHost(const char* host) {
   if (!host || !host[0]) host = "gateway.discord.gg";
-  gatewayWS.beginSSL(host, 443, "/?v=10&encoding=json");
+  // beginSSL() with no CA calls setInsecure() inside WebSockets — BOT_TOKEN would ride
+  // unverified TLS. beginSslWithBundle uses the same ESP32 Mozilla CA blob as REST.
+#if defined(ESP_ARDUINO_VERSION) && (ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 4))
+  extern const uint8_t rootca_crt_bundle_start[] asm("_binary_x509_crt_bundle_start");
+  extern const uint8_t rootca_crt_bundle_end[] asm("_binary_x509_crt_bundle_end");
+  gatewayWS.beginSslWithBundle(host, 443, "/?v=10&encoding=json",
+                               rootca_crt_bundle_start,
+                               (size_t)(rootca_crt_bundle_end - rootca_crt_bundle_start));
+#else
+#error "ESP32 Arduino core >= 3.0.4 required for Gateway CA-verified TLS (beginSslWithBundle)"
+#endif
   gatewayWS.onEvent(gatewayEvent);
   gatewayWS.setReconnectInterval(gwReconnectIntervalMs);
   gwLogAppend(String("BIND_HOST ") + host);
 }
 
 void connectGateway() {
-  // One beginSSL for the life of the bot. After drops, only setReconnectInterval +
-  // disconnect(); do not beginSSL again (fights the library reconnect timer).
+  // One beginSslWithBundle for the life of the bot. After drops, only setReconnectInterval +
+  // disconnect(); do not beginSslWithBundle again (fights the library reconnect timer).
   MmLog.print("[GW] intents=");
   MmLog.println(INTENTS_MINIME);
   bindGatewayHost("gateway.discord.gg");
@@ -398,7 +416,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
                 + " psram=" + String(ESP.getFreePsram()));
       noteLastEvent(wifiUp ? "GW drop" : "GW wifi down");
 
-      // Identify-only after drops. Do not beginSSL again — library reconnects to BIND_HOST.
+      // Identify-only after drops. Do not beginSslWithBundle again — library reconnects to BIND_HOST.
       if (gwFastIdentifyPending) {
         gwSetReconnectIntervalMs(GW_RECONNECT_FAST_MS);
       } else if (wifiUp) {
@@ -493,7 +511,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
         return;
       }
 
-      // Reconnect: clear session; library reconnects to same BIND_HOST (no second beginSSL)
+      // Reconnect: clear session; library reconnects to same BIND_HOST (no second beginSslWithBundle)
       if (op == 7) {
         gwNoteDrop("OP7_RECONNECT", "OP7_RECONNECT");
         gwArmFastIdentify("op7");

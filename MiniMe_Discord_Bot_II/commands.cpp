@@ -468,10 +468,9 @@ void handleCommand(const String& content, const String& authorId, const String& 
       "• `!sys` — System diagnostics (uptime, heap, RSSI, IP, OTA host, gateway, firmware URL).\n"
       "• `!temp` — Reads the current indoor temperature sensor.\n"
       "• `!time` — Displays the current bot time.\n"
-      "• `!weather <zip>` — Fetches the weather report for a US ZIP code.\n"
-      "• `!ota` — Wi-Fi firmware update info (IP / hostname).\n\n"
+      "• `!weather <zip>` — Fetches the weather report for a US ZIP code.\n\n"
       "**👑 Owner-Only Commands:**\n"
-      "• `!led on/off` / `!led <r> <g> <b>` — RGB NeoPixel (0–255 per channel).\n"
+      "• `!ota` — Wi-Fi firmware update info (IP / hostname).\n"
       "• `!servo <0-90>` — Moves the servo motor to a specific angle.\n"
       "• `!clear` — Clears DM / mention alert flags on the LCD.";
     showIfPosted("Help", "Command Sent", sendDiscordMessage(channelId, helpMsg));
@@ -543,6 +542,12 @@ void handleCommand(const String& content, const String& authorId, const String& 
     return;
   }
   if (cmdWord == "!ota") {
+    if (!isOwner(authorId)) {
+      if (!isDM) {
+        sendDiscordMessage(channelId, "You are not allowed to use this command.");
+      }
+      return;
+    }
     recordUserUse(authorId, authorName);
     showIfPosted("OTA", WiFi.localIP().toString(), sendDiscordMessage(channelId, otaStatusText()));
     return;
@@ -590,13 +595,13 @@ void handleCommand(const String& content, const String& authorId, const String& 
     return;
   }
   if (cmdWord == "!led" || cmdWord == "!servo" || cmdWord == "!clear") {
-    recordUserUse(authorId, authorName);
     if (!isOwner(authorId)) {
       if (!isDM) {
         sendDiscordMessage(channelId, "You are not allowed to use this command.");
       }
       return;
     }
+    recordUserUse(authorId, authorName);
     if (cmdWord == "!clear") {
       clearAlertFlags();
       showIfPosted("clear", "alerts OFF",

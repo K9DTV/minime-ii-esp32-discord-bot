@@ -122,7 +122,7 @@ static void webLogCommitLine() {
   webLogAcc[webLogAccLen] = '\0';
   if (lineIsFullStart(webLogAcc)) {
     webInFullLog = true;
-    webFullClear();
+    // Do not wipe the rolling LOG on a dump header (keeps history).
     webLogAccLen = 0;
     return;
   }
@@ -241,7 +241,9 @@ static String buildRootHtml() {
   appendBrand(html);
 
   html += F("<div class=\"layout\">");
-  html += F("<section class=\"box\" id=\"box-metrics\"><h2>Display · v0.7.7</h2>");
+  html += F("<section class=\"box\" id=\"box-metrics\"><h2>Display · v");
+  html += MINIME_VERSION;
+  html += F("</h2>");
   html += F("<div id=\"metrics\" class=\"dash muted\">Loading...</div></section>");
   html += F("<section class=\"box\" id=\"box-users\"><h2>Users</h2>");
   html += F("<div id=\"users\" class=\"users muted\">Loading...</div></section>");

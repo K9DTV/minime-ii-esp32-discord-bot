@@ -13,6 +13,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
+#include <atomic>
 #include <time.h>
 #include <string.h>
 #include <stddef.h>
@@ -131,10 +132,10 @@ extern String transientLine2;
 extern String transientLine3;
 extern unsigned long transientUntilMs;
 extern unsigned long lastDashMillis;
-extern unsigned long lastDisplayActivityMillis;
+extern std::atomic<unsigned long> lastDisplayActivityMillis;
 extern unsigned long lastDashDrawMs;   // last full drawDashboard (incl flush)
 extern unsigned long lastDashFlushMs;  // last gfx->flush() only
-extern bool displayAsleep;
+extern std::atomic<bool> displayAsleep; // Core 0 sleep + Core 1 wake via noteDisplayActivity
 extern String lastEventLine;           // persistent left-panel "Event" (no footer strip)
 extern bool alertDm;                   // sticky until owner !clear (no auto-expiry)
 extern bool alertMention;              // sticky until owner !clear (no auto-expiry)

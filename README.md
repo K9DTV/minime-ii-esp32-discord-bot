@@ -13,7 +13,7 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 **Not prime time yet.** The LCD and LAN web UI are a **starting point** and will go through **a lot of changes**. Expect layouts, chrome, and polish to keep moving. You are invited to flash it, poke Discord/`!help`, and play with the glass and the browser — just know this is early Guition work, not a finished product UI.
 
-**Status:** Guition module firmware · **v0.7.7** (see `VERSION` / `CHANGELOG.md`) · **WIP UI**. Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware · **v0.7.8** (see `VERSION` / `CHANGELOG.md`) · **WIP UI**. Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
@@ -106,8 +106,8 @@ Everything below runs on one **ESP32-S3**. Discord stays in the cloud; MiniMe ta
 
 *Same flowchart as the project page (diagram art may still show MiniMe I labels; this board is Guition + LCD).*
 
-- **Gateway** — live link for chat commands, presence, Online/Idle, heartbeats (must not stall during long HTTPS). Heartbeats start after Hello (jittered first send); a missing OP11 ACK past the Discord interval plus **15 s** grace forces disconnect (`HB_ACK_TIMEOUT`). **Identify-only** after drops (no session resume); one `beginSSL` at boot, then library reconnect only.
-- **REST** — bot posts replies and loads member names; also pulls science/weather/AI over HTTPS/HTTP. Outbound TLS uses the ESP32 **CA cert bundle** (no `setInsecure`). One shared `WiFiClientSecure`; `httpsInUse` prevents overlapping HTTPS from `stop()`ing each other. Gateway WebSocket TLS is separate (WebSockets library).
+- **Gateway** — live link for chat commands, presence, Online/Idle, heartbeats (must not stall during long HTTPS). Heartbeats start after Hello (jittered first send); a missing OP11 ACK past the Discord interval plus **15 s** grace forces disconnect (`HB_ACK_TIMEOUT`). **Identify-only** after drops (no session resume); one `beginSslWithBundle` at boot (ESP32 CA bundle — not plain `beginSSL`/`setInsecure`), then library reconnect only.
+- **REST** — bot posts replies and loads member names; also pulls science/weather/AI over HTTPS/HTTP. Outbound TLS uses the ESP32 **CA cert bundle** (no `setInsecure`). One shared `WiFiClientSecure`; `httpsInUse` prevents overlapping HTTPS from `stop()`ing each other. Gateway WebSocket TLS uses the same CA blob via WebSockets `beginSslWithBundle`.
 - **LCD** — **480×320** landscape status board on the Guition panel (native **320×480**); idle blanks backlight only (Wi-Fi and Gateway stay up). Metrics + users (or LOG + Serial in Log layout). Redraw every **1 s** with dirty tracking. LAN API exposes the same fills as percents.
 - **LAN web UI** — browser twin of the LCD layout at `http://<board-ip>/` (close match; independent Light/Dark); polls `/api/status` every **2 s** (CSS/JS in `web_assets.h`). **MmLog** feeds web LOG/Serial only (no USB Serial / UART0 log dump).
 - **Touch** — wakes the LCD and hits the IC chips (theme / layout). Does not change Discord Online/Idle.
@@ -355,7 +355,7 @@ GitHub Actions compiles this sketch on push (see the **Compile** badge). That is
 3. Provide `secrets.h` (from `secrets.example.h`) with Wi-Fi, token, keys, and IDs.
 4. Set **Tools** as in the table below for this **Guition N16R8** module.
 5. Libraries: GFX Library for Arduino, WebSockets, ArduinoJson, OneWire, DallasTemperature, Adafruit NeoPixel, NTPClient.
-6. Upload. Confirm with Discord `!help` and the LAN page header (`Display · v0.7.7`). Tap the glass to wake after backlight off.
+6. Upload. Confirm with Discord `!help` and the LAN page header (`Display · v` + `MINIME_VERSION` / `VERSION`). Tap the glass to wake after backlight off.
 
 ### Required Tools settings (N16R8)
 

@@ -37,6 +37,9 @@
 #include "cores.h"
 #include "esp_wifi.h"
 
+// Core 1 loop stack: DashSnap publish + HTTPS String bodies need headroom beyond default 8 KB.
+SET_LOOP_TASK_STACK_SIZE(16 * 1024);
+
 void connectWiFi() {
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false); // modem sleep breaks ArduinoOTA (port 3232)

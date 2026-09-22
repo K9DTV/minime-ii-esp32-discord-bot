@@ -1,6 +1,9 @@
 #ifndef MINIME_CONFIG_H
 #define MINIME_CONFIG_H
 
+// Single firmware version string (keep VERSION file in sync).
+#define MINIME_VERSION "0.7.8"
+
 // Discord content max is 2000. !ask max_tokens / JSON buffer sized to fit one message.
 const int DISCORD_CONTENT_MAX = 2000;
 const int DEEPSEEK_MAX_TOKENS = 900;

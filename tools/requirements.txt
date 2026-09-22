@@ -1,0 +1,5 @@
+# For tools/gen_k9dtv_logo_rgb565.py
+Pillow>=9.1
+playwright>=1.40
+
+# After pip install: playwright install chromium
