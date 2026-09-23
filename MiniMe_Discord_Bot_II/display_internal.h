@@ -3,14 +3,9 @@
 
 // Private LCD modules: display.cpp / display_overlay.cpp / dash_snap.cpp / display_draw.cpp
 #include "minime.h"
+#include "display_layout.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-
-enum { LCD_BAR_MAX = 150 };
-enum { LOGO_TOP_PAD = 0, LOGO_BOTTOM_GAP = 4 };
-enum { MENU_CHIP_S = 44 };
-enum { USER_PITCH = 9 };
-enum { DASH_LOG_ROWS = 28 };
 
 struct DashPalette {
   uint16_t bg, panel, line, text, muted, cyan, ok, bad, barTr, barFl;

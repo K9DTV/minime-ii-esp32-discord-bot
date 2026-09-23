@@ -1,6 +1,6 @@
 # MiniMe II — code review notes (pro pass)
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.48**.
+What we **fixed** vs what we **left** and why. Current: **v0.7.51**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -53,6 +53,8 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.48**.
 | Gateway reconnect climb | **0.7.46** — fast×3 then 3/7/12…40 s (not forever 5 s) |
 | Reconnect invariants | **0.7.47** — `gwArmFastIdentify` → `gwBeginDropEpisode`; invariants block above climb constants |
 | TWDT `!hang` scratch | **0.7.48** — `MINIME_TEST_TWDT` / owner `!hang`; **HIL PASS** 2026-09-23 (`loopTask` Task WDT in `!coredump`) |
+| LCD `display_layout.h` | **0.7.49** — chips/panels/rows/hit pads in one header + layout invariants |
+| LCD/web Display+Log align | **0.7.51** — LOG\|Serial; metrics format (dBm, °, freeK); 55-line rings; web height cap |
 
 ## Known tradeoffs (not deferred bugs)
 
@@ -68,4 +70,4 @@ Bodies / Discord posts / `!ask` still use `String`. Tracked users + guild IDs do
 
 ### 2 — Architectural (not this release)
 
-LCD vs web layouts are independent (no `/api/ui` sync).
+Theme chips stay independent (no `/api/ui` sync). **0.7.51** aligns Display metrics formatting and Log LOG|Serial pairing; still not one shared layout codegen.

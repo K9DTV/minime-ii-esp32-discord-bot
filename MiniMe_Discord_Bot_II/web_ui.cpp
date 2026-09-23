@@ -7,20 +7,20 @@
 #include "menu_chip_svg.h"
 #include "web_assets.h"
 
-// Display | SysInfo; under both LOG | Serial.
+// Display = metrics | users; Log = LOG | Serial (LOG left, Serial right — matches LCD).
 // Serial: all MmLog lines except FULL LOG dump body.
 // LOG: body between [GW] === FULL LOG === and === END LOG === (drop/reconnect ring snapshot).
 // Headers themselves are stripped; each FULL LOG start clears the LOG panel.
+// Rings are WEB_*_N == DASH_LOG_ROWS (55).
 
 static WebServer webServer(WEB_UI_PORT);
 static bool webUiReady = false;
 
-static const unsigned WEB_FULL_N = 200;           // ring size; oldest dropped when full
-static const unsigned WEB_SERIAL_N = 12;  // fits Serial panel; oldest dropped
+static const unsigned WEB_FULL_N = 55;    // LOG ring (matches DASH_LOG_ROWS)
+static const unsigned WEB_SERIAL_N = 55;  // Serial ring (same depth)
 static const uint8_t WEB_LOG_COLS = 96;
 static const size_t WEB_FULL_MAX_BYTES = 20480UL; // logical text bytes (not RAM); slots are fixed 97B each
-// RAM: webFullLines[200][97] ~19.4KB + webSerialLines[12][97] ~1.2KB in internal SRAM on purpose
-// (PSRAM ring indexing is slower; tradeoff is intentional).
+// RAM: webFullLines[55][97] + webSerialLines[55][97] ~10.7KB internal SRAM.
 static_assert(WEB_FULL_N >= 1 && WEB_FULL_N <= 255, "WEB_FULL_N must fit uint8_t head/count");
 static_assert(WEB_SERIAL_N >= 1 && WEB_SERIAL_N <= 255, "WEB_SERIAL_N must fit uint8_t head/count");
 
@@ -411,7 +411,7 @@ static void streamRootHtml(Print& out) {
   out.print(F("<section class=\"box\" id=\"box-logfile\"><h2>LOG</h2>"));
   out.print(F("<div id=\"logfile\" class=\"serial\"><div class=\"empty\">Waiting...</div></div></section>"));
   out.print(F("<section class=\"box\" id=\"box-serial\"><h2>Serial</h2>"));
-  out.print(F("<div id=\"serial\" class=\"serial noscroll\"><div class=\"empty\">Waiting...</div></div></section>"));
+  out.print(F("<div id=\"serial\" class=\"serial\"><div class=\"empty\">Waiting...</div></div></section>"));
   out.print(F("<div id=\"err\" class=\"err\" hidden></div>"));
   out.print(F("</div></main><script>var POLL_MS="));
   char pollBuf[16];
@@ -469,7 +469,8 @@ static void handleStatus() {
 
   JsonDocument& doc = *statusDoc;
   doc.clear();
-  doc["gw"] = gatewayConnected;
+  // Same three-state as LCD DashSnap: -1 Bad, 0 Wait, 1 Good
+  doc["gw"] = !gatewayConnected ? -1 : (identified ? 1 : 0);
   doc["identified"] = identified;
   doc["botOnline"] = (botDiscordStatus == 2);
   doc["time"] = timeStr;
@@ -512,6 +513,7 @@ static void handleStatus() {
     otaHostReady = true;
   }
   doc["ota"] = otaHost;
+  doc["ver"] = MINIME_VERSION;
   doc["lcd"] = displayAsleep.load() ? "asleep" : "awake";
   doc["dashFlushMs"] = (unsigned long)lastDashFlushMs;
   doc["dashDrawMs"] = (unsigned long)lastDashDrawMs;

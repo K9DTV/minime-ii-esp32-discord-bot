@@ -1,6 +1,19 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.48** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.51** (see `VERSION` and README).
+
+## 0.7.51
+
+- Log pairing restored: **LOG left / Serial right** on LCD and web (0.7.50 had them swapped).
+- Display metrics formatting aligned LCD↔web: `Sig` + `dBm`, `Srv` + degree, temp `°F/°C`, PSRAM/SRAM show **remaining free in K** (not raw free/total bytes), fixed bar column like web `.mline`. Confirm flash via `Display · v0.7.51`.
+
+## 0.7.50
+
+- LCD/web Display metrics: same field order and labels (add web `Ver`, three-state `GW:Good|Wait|Bad`, Sig/Srv number format match). Users: `MAX_TRACKED_USERS` 24→22; web Users font larger with same row padding; LCD keeps `USER_PITCH=9`. Log layout: Serial left / LOG right on LCD and web; both rings **55** lines (`DASH_LOG_ROWS` / `WEB_*_N`); web Log/Serial panels capped to Display panel height with scrollbars. Confirm flash via `Display · v0.7.50`.
+
+## 0.7.49
+
+- `display_layout.h`: every LCD landscape x/y in one place (chips, panels, rows, chip hit pads) with layout invariants comment — same idea as Gateway reconnect invariants. `display_draw.cpp` / `display_internal.h` consume it. Paint behavior unchanged. Confirm flash via `Display · v0.7.49`.
 
 ## 0.7.48
 

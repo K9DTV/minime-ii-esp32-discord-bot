@@ -66,7 +66,7 @@ static void drawMenuChip(int16_t ox, int16_t oy, const DashPalette& p) {
   if (!gfx) return;
   const int16_t s = MENU_CHIP_S;
   auto S = [s](float v) -> int16_t {
-    return (int16_t)(v * (float)s / 32.0f + 0.5f);
+    return (int16_t)(v * (float)s / (float)MENU_CHIP_VIEWBOX + 0.5f);
   };
 
   uint16_t body, stroke, die, dieIn, pad, pin;
@@ -123,12 +123,12 @@ static void drawMenuChip(int16_t ox, int16_t oy, const DashPalette& p) {
 static void placeChip(int16_t chipX, int16_t chipY, const char* label, const DashPalette& p,
                       int16_t& hitX, int16_t& hitY, int16_t& hitW, int16_t& hitH) {
   drawMenuChip(chipX, chipY, p);
-  const int16_t labY = chipY + MENU_CHIP_S + 1;
+  const int16_t labY = chipY + MENU_CHIP_S + CHIP_LABEL_GAP_Y;
   prtCenter(p.muted, label, chipX + MENU_CHIP_S / 2, labY, 1);
-  hitX = chipX - 4;
-  hitY = chipY - 2;
-  hitW = MENU_CHIP_S + 8;
-  hitH = (int16_t)(labY + 10 - hitY);
+  hitX = chipX - CHIP_HIT_PAD_L;
+  hitY = chipY - CHIP_HIT_PAD_T;
+  hitW = MENU_CHIP_S + CHIP_HIT_EXTRA_W;
+  hitH = (int16_t)(labY + CHIP_LABEL_TEXT_H - hitY);
   const int16_t bandH = logoBandHeight();
   if (hitY + hitH > bandH) hitH = bandH - hitY;
 }
@@ -136,9 +136,9 @@ static void placeChip(int16_t chipX, int16_t chipY, const char* label, const Das
 void drawBrandBar(const DashPalette& p) {
   if (!gfx) return;
   const int16_t bandH = logoBandHeight();
-  gfx->fillRect(0, 0, 480, bandH, p.bg);
+  gfx->fillRect(0, 0, LCD_LANDSCAPE_W, bandH, p.bg);
 
-  const int16_t logoX = (480 - K9DTV_LOGO_W) / 2;
+  const int16_t logoX = (LCD_LANDSCAPE_W - K9DTV_LOGO_W) / 2;
   const uint16_t* logoBits = lcdThemeLight ? K9DTV_LOGO_BRIGHT_RGB565 : K9DTV_LOGO_RGB565;
   gfx->draw16bitRGBBitmap(logoX, LOGO_TOP_PAD, (uint16_t*)logoBits,
                           K9DTV_LOGO_W, K9DTV_LOGO_H);
@@ -158,7 +158,7 @@ void drawBrandBar(const DashPalette& p) {
   // Right gap: Display/Log (web layout chip — label is current mode).
   {
     const int16_t gapL = logoX + K9DTV_LOGO_W;
-    const int16_t gapW = 480 - gapL;
+    const int16_t gapW = LCD_LANDSCAPE_W - gapL;
     const int16_t chipX = gapL + (gapW - MENU_CHIP_S) / 2;
     placeChip(chipX, chipY, lcdLayoutLog ? "Log" : "Display", p,
               layoutChipHitX, layoutChipHitY, layoutChipHitW, layoutChipHitH);
@@ -167,33 +167,39 @@ void drawBrandBar(const DashPalette& p) {
 
 static void drawPanelBox(int16_t x, int16_t y, int16_t w, int16_t h, const DashPalette& p) {
   if (!gfx) return;
-  gfx->fillRoundRect(x, y, w, h, 4, p.panel);
-  gfx->drawRoundRect(x, y, w, h, 4, p.line);
+  gfx->fillRoundRect(x, y, w, h, PANEL_CORNER_R, p.panel);
+  gfx->drawRoundRect(x, y, w, h, PANEL_CORNER_R, p.line);
 }
 
-// Same 3-column idea as web mline(): label | value | bar (one row per meter).
+// Same 3-column idea as web mline(): label | fixed value col | bar (one row per meter).
 static void drawMetricMline(int16_t x, int16_t y, int16_t right, const char* label,
-                            const char* value, int fillFull, const DashPalette& p) {
+                            const char* value, int fillFull, const DashPalette& p,
+                            bool degreeSuffix = false) {
   if (!gfx) return;
   prtCol(p.muted, label, x, y, 1);
-  const int16_t valX = x + 40;
+  const int16_t valX = x + MLINE_VALUE_X;
   prtCol(p.text, value ? value : "", valX, y, 1);
-  int16_t barX = valX + textW(value ? value : "", 1) + 4;
-  if (barX < x + 100) barX = x + 100;
+  int16_t vw = textW(value ? value : "", 1);
+  if (degreeSuffix && vw > 0) {
+    // GFX default font has no degree glyph — small circle like °
+    gfx->drawCircle(valX + vw + 3, y + 1, 2, p.text);
+  }
+  // Fixed bar start (web .mline 3.2rem | 7ch | 1fr) — do not shove bar for long values.
+  int16_t barX = x + MLINE_BAR_MIN_X;
   int16_t barW = (int16_t)(right - barX - 2);
-  if (barW < 24) barW = 24;
+  if (barW < MLINE_BAR_MIN_W) barW = MLINE_BAR_MIN_W;
   if (barW > LCD_BAR_MAX) barW = LCD_BAR_MAX;
   int fillW = (fillFull * barW) / DASH_SIG_HEAP_BAR_MAX;
   if (fillW < 0) fillW = 0;
   if (fillW > barW) fillW = barW;
-  gfx->fillRect(barX, y - 1, barW + 2, 10, p.barTr);
-  gfx->drawRect(barX, y - 1, barW + 2, 10, p.line);
-  if (fillW > 0) gfx->fillRect(barX + 1, y, fillW, 8, p.barFl);
+  gfx->fillRect(barX, y - 1, barW + 2, MLINE_BAR_FRAME_H, p.barTr);
+  gfx->drawRect(barX, y - 1, barW + 2, MLINE_BAR_FRAME_H, p.line);
+  if (fillW > 0) gfx->fillRect(barX + 1, y, fillW, MLINE_BAR_FILL_H, p.barFl);
 }
 
 static void drawSysRow(int16_t x, int16_t y, const char* k, const char* v, const DashPalette& p) {
   prtCol(p.muted, k, x, y, 1);
-  prtCol(p.text, v ? v : "", x + 56, y, 1);
+  prtCol(p.text, v ? v : "", x + SYS_VALUE_X, y, 1);
 }
 
 static void drawLogLines(int16_t sx, int16_t sy, int16_t bottom, const DashPalette& p,
@@ -218,32 +224,33 @@ static void drawLogLines(int16_t sx, int16_t sy, int16_t bottom, const DashPalet
 
 void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   const int16_t top = logoBandHeight();
-  const int16_t lx = 4, ly = top, lw = 234, lh = (int16_t)(318 - top);
+  const int16_t lx = PANEL_LEFT_X, ly = top, lw = PANEL_LEFT_W;
+  const int16_t lh = (int16_t)(PANEL_BOTTOM_Y - top);
   drawPanelBox(lx, ly, lw, lh, p);
 
-  const int16_t cx = lx + 6;
-  const int16_t right = lx + lw - 6;
+  const int16_t cx = lx + PANEL_PAD;
+  const int16_t right = lx + lw - PANEL_PAD;
   const int16_t mid = lx + lw / 2;
-  const int16_t bottom = ly + lh - 4;
-  int16_t y = ly + 5;
+  const int16_t bottom = ly + lh - PANEL_PAD_BOTTOM;
+  int16_t y = ly + PANEL_CONTENT_TOP;
 
   if (s.layoutLog) {
-    // Log button: LOG takes over the left window
+    // Log layout: LOG left (matches web #box-logfile)
     prtCol(p.muted, "LOG", cx, y, 1);
-    y += 12;
+    y += ROW_PITCH_LOOSE;
     drawLogLines(cx, y, bottom, p, s, true);
     return;
   }
 
-  // Exact same order as web_assets.h #metrics (left window):
-  // MiniMe-II|GW|time, Bot|date, Sig, PSRAM, SRAM, Srv, Up/T, Id/Users,
-  // DM/Mention, HTTPS, Event, IP, OTA, CPU, Write, Period, LCD.
+  // Same order + formatting as web_assets.h #metrics:
+  // MiniMe-II|GW|time, Bot|date, Sig dBm, PSRAM/SRAM freeK, Srv deg,
+  // Up/T, Id/Users, DM/Mention, HTTPS, Event, IP, OTA, Ver, CPU, Write, Period, LCD.
   prtCol(p.text, "MiniMe-II", cx, y, 1);
   const char* gwLabel = (s.gw < 0) ? "GW:Bad" : (s.gw > 0 ? "GW:Good" : "GW:Wait");
   uint16_t gwCol = (s.gw > 0) ? p.ok : (s.gw == 0 ? p.cyan : p.bad);
   prtCenter(gwCol, gwLabel, mid, y, 1);
   prtRight(p.muted, s.timeStr, right, y, 1);
-  y += 10;
+  y += ROW_PITCH;
 
   {
     char botBuf[16];
@@ -251,46 +258,66 @@ void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
     prtCol(p.text, botBuf, cx, y, 1);
     prtRight(p.muted, s.dateStr, right, y, 1);
   }
-  y += 10;
+  y += ROW_PITCH;
 
   {
-    char rb[12];
-    snprintf(rb, sizeof(rb), "%ld", s.rssi);
+    char rb[16];
+    snprintf(rb, sizeof(rb), "%ld dBm", s.rssi);
     drawMetricMline(cx, y, right, "Sig", rb, dashSigBarW(s.rssi), p);
   }
-  y += 10;
+  y += ROW_PITCH;
 
   if (s.psTotal > 0) {
-    char pb[28];
-    snprintf(pb, sizeof(pb), "%lu/%lu", (unsigned long)s.psFree, (unsigned long)s.psTotal);
+    char pb[16];
+    // Remaining free (same idea as web), not raw byte totals.
+    snprintf(pb, sizeof(pb), "%luK", (unsigned long)(s.psFree / 1024UL));
     drawMetricMline(cx, y, right, "PSRAM", pb, dashHeapBarW(s.psFree, s.psTotal), p);
-    y += 10;
+    y += ROW_PITCH;
   }
   {
-    char hb[28];
-    snprintf(hb, sizeof(hb), "%lu/%lu", (unsigned long)s.memFree, (unsigned long)s.memTotal);
+    char hb[16];
+    snprintf(hb, sizeof(hb), "%luK", (unsigned long)(s.memFree / 1024UL));
     drawMetricMline(cx, y, right, "SRAM", hb, dashHeapBarW(s.memFree, s.memTotal), p);
   }
-  y += 10;
+  y += ROW_PITCH;
   {
     char sb[12];
     snprintf(sb, sizeof(sb), "%d", s.servoDeg);
-    drawMetricMline(cx, y, right, "Srv", sb, dashSrvBarW(s.servoDeg), p);
+    drawMetricMline(cx, y, right, "Srv", sb, dashSrvBarW(s.servoDeg), p, true);
   }
-  y += 12;
+  y += ROW_PITCH_LOOSE;
 
   {
-    char line[40];
     if (s.tempC10 > -9980) {
       float tc = s.tempC10 / 10.0f;
       float tf = tc * 9.0f / 5.0f + 32.0f;
-      snprintf(line, sizeof(line), "Up %s  T %.0fF/%.0fC", s.upStr, tf, tc);
+      int iF = (int)(tf >= 0.0f ? tf + 0.5f : tf - 0.5f);
+      int iC = (int)(tc >= 0.0f ? tc + 0.5f : tc - 0.5f);
+      char upPart[28];
+      snprintf(upPart, sizeof(upPart), "Up %s  T ", s.upStr);
+      prtCol(p.cyan, upPart, cx, y, 1);
+      int16_t tx = cx + textW(upPart, 1);
+      char nb[8];
+      snprintf(nb, sizeof(nb), "%d", iF);
+      prtCol(p.cyan, nb, tx, y, 1);
+      tx += textW(nb, 1);
+      gfx->drawCircle(tx + 3, y + 1, 2, p.cyan);
+      tx += 7;
+      prtCol(p.cyan, "F/", tx, y, 1);
+      tx += textW("F/", 1);
+      snprintf(nb, sizeof(nb), "%d", iC);
+      prtCol(p.cyan, nb, tx, y, 1);
+      tx += textW(nb, 1);
+      gfx->drawCircle(tx + 3, y + 1, 2, p.cyan);
+      tx += 7;
+      prtCol(p.cyan, "C", tx, y, 1);
     } else {
+      char line[40];
       snprintf(line, sizeof(line), "Up %s  T --Error--", s.upStr);
+      prtCol(p.cyan, line, cx, y, 1);
     }
-    prtCol(p.cyan, line, cx, y, 1);
   }
-  y += 11;
+  y += ROW_PITCH_UP_T;
 
   {
     char idBuf[28];
@@ -298,24 +325,24 @@ void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
     char uBuf[28];
     snprintf(uBuf, sizeof(uBuf), "Users:%u/%u", (unsigned)s.nActive, (unsigned)MAX_TRACKED_USERS);
     prtCol(s.identified ? p.ok : p.bad, idBuf, cx, y, 1);
-    prtCol(p.text, uBuf, cx + 100, y, 1);
+    prtCol(p.text, uBuf, cx + USERS_COL_X, y, 1);
   }
-  y += 10;
+  y += ROW_PITCH;
   {
     char al[40];
     snprintf(al, sizeof(al), "DM:%s  Mention:%s",
              s.dm ? "ON" : "off", s.mention ? "ON" : "off");
     prtCol((s.dm || s.mention) ? p.bad : p.muted, al, cx, y, 1);
   }
-  y += 10;
+  y += ROW_PITCH;
   prtCol(s.httpsBusy ? p.bad : p.muted,
          s.httpsBusy ? "HTTPS:busy" : "HTTPS:idle", cx, y, 1);
-  y += 10;
+  y += ROW_PITCH;
   {
     prtCol(p.muted, "Event:", cx, y, 1);
-    prtCol(p.text, s.event, cx + 42, y, 1);
+    prtCol(p.text, s.event, cx + EVENT_VALUE_X, y, 1);
   }
-  y += 12;
+  y += ROW_PITCH_LOOSE;
 
   static char otaHost[40];
   static bool otaHostReady = false;
@@ -332,43 +359,44 @@ void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   snprintf(periodBuf, sizeof(periodBuf), "%lu ms", (unsigned long)DASH_REFRESH_MS);
   const char* lcdState = displayAsleep.load() ? "asleep" : "awake";
 
-  drawSysRow(cx, y, "IP", s.ip, p); y += 10;
-  drawSysRow(cx, y, "OTA", otaHost, p); y += 10;
-  drawSysRow(cx, y, "Ver", MINIME_VERSION, p); y += 10;
-  drawSysRow(cx, y, "CPU", cpuBuf, p); y += 10;
-  drawSysRow(cx, y, "Write", wrBuf, p); y += 10;
-  drawSysRow(cx, y, "Period", periodBuf, p); y += 10;
+  drawSysRow(cx, y, "IP", s.ip, p); y += ROW_PITCH;
+  drawSysRow(cx, y, "OTA", otaHost, p); y += ROW_PITCH;
+  drawSysRow(cx, y, "Ver", MINIME_VERSION, p); y += ROW_PITCH;
+  drawSysRow(cx, y, "CPU", cpuBuf, p); y += ROW_PITCH;
+  drawSysRow(cx, y, "Write", wrBuf, p); y += ROW_PITCH;
+  drawSysRow(cx, y, "Period", periodBuf, p); y += ROW_PITCH;
   drawSysRow(cx, y, "LCD", lcdState, p);
 }
 
 void drawRightPanel(const DashSnap& s, const DashPalette& p) {
   const int16_t top = logoBandHeight();
-  const int16_t lh = (int16_t)(318 - top);
-  const int16_t rx = 242, ry = top, rw = 234, rh = lh;
+  const int16_t lh = (int16_t)(PANEL_BOTTOM_Y - top);
+  const int16_t rx = PANEL_RIGHT_X, ry = top, rw = PANEL_RIGHT_W, rh = lh;
   drawPanelBox(rx, ry, rw, rh, p);
-  const int16_t sx = rx + 6;
-  const int16_t bottom = ry + rh - 4;
-  int16_t sy = ry + 6;
+  const int16_t sx = rx + PANEL_PAD;
+  const int16_t bottom = ry + rh - PANEL_PAD_BOTTOM;
+  int16_t sy = ry + PANEL_PAD;
 
   if (s.layoutLog) {
-    // Log button: Serial takes over the right window
+    // Log layout: Serial right (matches web #box-serial)
     prtCol(p.muted, "Serial", sx, sy, 1);
-    sy += 12;
+    sy += ROW_PITCH_LOOSE;
     drawLogLines(sx, sy, bottom, p, s, false);
     return;
   }
 
   // Display mode: users on the right (from published snap only)
   prtCol(p.muted, "User", sx, sy, 1);
-  prtCol(p.muted, "Status", sx + 100, sy, 1);
-  prtCol(p.muted, "Bot", sx + 168, sy, 1);
-  sy += 12;
+  prtCol(p.muted, "Status", sx + USER_STATUS_COL_X, sy, 1);
+  prtCol(p.muted, "Bot", sx + USER_BOT_COL_X, sy, 1);
+  sy += ROW_PITCH_LOOSE;
 
+  const uint8_t uts = (uint8_t)USER_TEXT_SIZE;
   for (uint8_t row = 0; row < MAX_TRACKED_USERS; row++) {
     if (sy + 8 > bottom) break;
-    prtCol(p.text, s.users[row].name, sx, sy, 1);
-    prtCol(p.cyan, s.users[row].status, sx + 100, sy, 1);
-    prtCol(p.muted, s.users[row].bot, sx + 168, sy, 1);
+    prtCol(p.text, s.users[row].name, sx, sy, uts);
+    prtCol(p.cyan, s.users[row].status, sx + USER_STATUS_COL_X, sy, uts);
+    prtCol(p.muted, s.users[row].bot, sx + USER_BOT_COL_X, sy, uts);
     sy += USER_PITCH;
   }
 }

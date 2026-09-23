@@ -2,7 +2,7 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.48"
+#define MINIME_VERSION "0.7.51"
 #define MINIME_USER_AGENT "MiniMeBot/1.0"
 
 // Scratch TWDT proof only — enables owner !hang (infinite loop). Never ship with this enabled.
@@ -78,8 +78,8 @@ const unsigned long DASH_REFRESH_MS = 1000UL; // ~60ms draw+flush measured; 1s o
 const unsigned long DISPLAY_IDLE_MS = 300000UL; // 5 minutes after last display activity -> backlight off
 const unsigned long TOUCH_DEBOUNCE_MS = 300;
 
-// ====== USER TRACKING (LCD right panel @ 9px pitch fills ~24 rows) ======
-const uint8_t MAX_TRACKED_USERS = 24;
+// ====== USER TRACKING (LCD right panel @ USER_PITCH; 22 rows) ======
+const uint8_t MAX_TRACKED_USERS = 22;
 const unsigned long USES_WINDOW_MS = 86400000UL;  // 24h
 const uint8_t MAX_CACHED_GUILDS = 3;
 
