@@ -2,7 +2,7 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.56"
+#define MINIME_VERSION "0.7.69"
 #define MINIME_USER_AGENT "MiniMeBot/1.0"
 
 // Scratch TWDT proof only — enables owner !hang (infinite loop). Never ship with this enabled.
@@ -81,6 +81,12 @@ const unsigned long DASH_REFRESH_MS = 1000UL; // ~60ms draw+flush measured; 1s o
 
 const unsigned long DISPLAY_IDLE_MS = 300000UL; // 5 minutes after last display activity -> backlight off
 const unsigned long TOUCH_DEBOUNCE_MS = 300;
+// Backlight PWM (GPIO 1): UI 0..100 maps to duty 10..100%; sleep uses 0.
+const uint32_t LCD_BL_PWM_HZ = 5000;
+const uint8_t LCD_BL_PWM_BITS = 8;
+const uint8_t LCD_BL_PCT_MIN = 10; // floor duty when UI shows 0%
+const uint8_t LCD_BL_PCT_DEFAULT = 80; // UI percent (maps to ~82% duty)
+const uint32_t LCD_BL_DUTY_AWAKE = 204; // legacy default (= 80% of 255)
 // DM / @mention sticky alert: I2S alarm chirp while flags set (owner !clear stops).
 const unsigned long ALERT_SOUND_PERIOD_MS = 3000UL;
 

@@ -16,6 +16,14 @@ static const uint32_t ALERT_HZ = 1000;
 static const uint32_t ALERT_MS = 45;
 static const int16_t ALERT_PEAK = 22000;
 
+static int16_t scalePeak(int16_t peak) {
+  if (peak <= 0) return 0;
+  const int vol = (int)uiVolPct.load();
+  if (vol <= 0) return 0;
+  if (vol >= 100) return peak;
+  return (int16_t)(((int)peak * vol) / 100);
+}
+
 void setupAudio() {
   audioReady = false;
   i2sTx = nullptr;
@@ -137,29 +145,37 @@ static void playTickClick(uint32_t hz, uint32_t ms, int16_t peak) {
 
 void audioTickWake() {
   // Soft lower tick — any touch while backlight is asleep.
-  playTickClick(1600, 10, 7000);
+  if (!uiSoundOn.load() || !uiTicksOn.load()) return;
+  playTickClick(1600, 10, scalePeak(7000));
 }
 
 void audioTickButton() {
-  // Slightly brighter tick — theme / layout chip while awake.
-  playTickClick(2400, 12, 8500);
+  // Slightly brighter tick — theme / layout / logo / controls while awake.
+  if (!uiSoundOn.load() || !uiTicksOn.load()) return;
+  playTickClick(2400, 12, scalePeak(8500));
 }
 
 void audioAlertBeep() {
   // Saved louder sustained tone (single beep) — available for other cues.
-  playBeepMs(ALERT_HZ, ALERT_MS, ALERT_PEAK);
+  if (!uiSoundOn.load()) return;
+  playBeepMs(ALERT_HZ, ALERT_MS, scalePeak(ALERT_PEAK));
 }
 
 void audioAlarmBeep() {
   // Distinct from UI ticks and from audioAlertBeep — two-note alarm chirp.
-  playBeepMs(880, 70, 17000);
+  if (!uiSoundOn.load() || !uiNotifyOn.load()) return;
+  playBeepMs(880, 70, scalePeak(17000));
   delay(35);
-  playBeepMs(1320, 90, 19000);
+  playBeepMs(1320, 90, scalePeak(19000));
 }
 
 void pollAudioAlerts() {
   // Core 0 only (I2S). Sticky until owner !clear clears alertDm / alertMention.
   static unsigned long lastAlarmMs = 0;
+  if (!uiSoundOn.load() || !uiNotifyOn.load()) {
+    lastAlarmMs = 0;
+    return;
+  }
   const bool active = alertDm.load() || alertMention.load();
   if (!active) {
     lastAlarmMs = 0;

@@ -31,11 +31,20 @@ enum {
   PANEL_LEFT_W = 234,
   PANEL_RIGHT_X = 242, // PANEL_LEFT_X + PANEL_LEFT_W + PANEL_GAP
   PANEL_RIGHT_W = 234,
-  PANEL_BOTTOM_Y = 318,
+  PANEL_BOTTOM_Y_FULL = 318, // bottom of both panels
+  // Controls dogs live inside each panel (Cancel=left, Save=right) — no strip below
+  FOOTER_H = 0,
+  PANEL_BOTTOM_Y_CTRL = 318, // same as FULL (legacy name)
   PANEL_CORNER_R = 4,
   PANEL_PAD = 6,
   PANEL_PAD_BOTTOM = 4,
   PANEL_CONTENT_TOP = 5,
+
+  DOG_BTN_W = 48,         // mark dog+K9 width (no button chrome)
+  DOG_BTN_H_ICON = 32,    // mark dog+K9 height
+  DOG_BTN_PAD_X = 8,
+  DOG_BTN_H = 42,         // icon + label under dog outline
+
 
   USER_PITCH = 9,           // line baseline step (unchanged); 22 rows leave margin at bottom
   USER_TEXT_SIZE = 1,       // GFX size 1 @ pitch 9; web Users font is bumped separately

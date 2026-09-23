@@ -67,24 +67,44 @@ void pollTouchWake() {
     return;
   }
 
-  if (now - lastTouchWakeMillis < TOUCH_DEBOUNCE_MS) return;
-
-  lastTouchWakeMillis = now;
   const bool rising = !touchWasActive;
-  touchWasActive = true;
 
   // Wake-from-sleep: backlight only (no chip toggle on the same tap).
   if (displayAsleep.load()) {
+    if (now - lastTouchWakeMillis < TOUCH_DEBOUNCE_MS) return;
+    lastTouchWakeMillis = now;
+    touchWasActive = true;
     noteDisplayActivity();
     audioTickWake();
     return;
   }
 
+  // Controls sliders: track while held (bypass debounce).
+  if (lcdLayoutControls && handleControlsTouch(x, y, rising)) {
+    noteDisplayActivity();
+    touchWasActive = true;
+    if (rising) {
+      lastTouchWakeMillis = now;
+      audioTickButton();
+    }
+    return;
+  }
+
+  if (now - lastTouchWakeMillis < TOUCH_DEBOUNCE_MS) return;
+  lastTouchWakeMillis = now;
+  touchWasActive = true;
+
   if (rising && lcdThemeChipHit(x, y)) {
     toggleLcdTheme();
     audioTickButton();
   } else if (rising && lcdLayoutChipHit(x, y)) {
-    toggleLcdLayout();
+    cycleLcdLayout(1);
+    audioTickButton();
+  } else if (rising && lcdLayoutControls && lcdDogLeftHit(x, y)) {
+    controlsCancel();
+    audioTickButton();
+  } else if (rising && lcdLayoutControls && lcdDogRightHit(x, y)) {
+    controlsSave();
     audioTickButton();
   } else if (rising) {
     noteDisplayActivity();

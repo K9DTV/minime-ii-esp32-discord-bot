@@ -1,6 +1,58 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.56** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.69** (see `VERSION` and README).
+
+## 0.7.69
+
+- Web Controls rolled back to first-intro layout (Brightness/Volume + Sound/Ticks/Notify). LCD Controls/Cancel/Save unchanged. Mark artwork kept. Confirm flash via `Display · v0.7.69`.
+
+## 0.7.68
+
+- Web Controls rebuilt to mirror LCD: cyan in-panel titles (no header bar), track+fill+knob sliders, toggles, Cancel flush left / Save flush right. Confirm flash via `Display · v0.7.68`.
+
+## 0.7.67
+
+- Controls: Cancel flush left / Save flush right; web Brightness/Volume match LCD (label + track/fill/knob); parity rule = scaled LCD twin, SVGs only for logos/buttons. Confirm flash via `Display · v0.7.67`.
+
+## 0.7.66
+
+- Controls: Cancel inside Controls panel, Save inside Toggles (LCD + web); web dogs use mark-icon SVGs. Confirm flash via `Display · v0.7.66`.
+
+## 0.7.65
+
+- Rule: LCD formatting is source of truth; web mirrors and scales. Controls dogs: web uses mark-icon SVGs (`/mark-left.svg` / `/mark-right.svg`) at LCD aspect. Confirm flash via `Display · v0.7.65`.
+
+## 0.7.64
+
+- Controls dogs: no button chrome; Cancel/Save under dog outline; Save K9 centered on dog (LTR). Dropped unused k9_small_* headers + tools temp artifacts. Confirm flash via `Display · v0.7.64`.
+
+## 0.7.63
+
+- Controls Cancel/Save: LCD uses same mark-icon RGB565 as web (left/right; K9 LTR); labels under dog outline, no extra button chrome. Confirm flash via `Display · v0.7.63`.
+
+## 0.7.62
+
+- Controls: Cancel/Save dogs only on Settings (k9-mark-icon); spin logo on Controls; chip still cycles pages. Confirm flash via `Display · v0.7.62`.
+
+## 0.7.61
+
+- Nav: logo is brand only; right IC cycles **Display / Log / Controls**; bottom K9 dog buttons (k9dtv.com K9-small) prev/next. Confirm flash via `Display · v0.7.61`.
+
+## 0.7.60
+
+- Controls polish: Brightness UI **0–100%** (PWM floor **10%**); taller toggles Sound/Ticks/Notify; Home under logo on Controls. Confirm flash via `Display · v0.7.60`.
+
+## 0.7.59
+
+- Controls page (LCD + web): logo opens; Brightness slider GPIO1 **20–100%**; Volume slider I2S **0–100%**; toggles Notify / Ticks / Sound. Layout chip exits Controls. Confirm flash via `Display · v0.7.59`.
+
+## 0.7.58
+
+- LCD backlight PWM: **5 kHz**, **80%** duty when awake. Confirm flash via `Display · v0.7.58`.
+
+## 0.7.57
+
+- LCD backlight: GPIO 1 LEDC PWM **120 Hz**, **50%** duty when awake (0 when asleep). Confirm flash via `Display · v0.7.57`.
 
 ## 0.7.56
 

@@ -25,15 +25,20 @@ main{max-width:56rem;margin:0 auto;padding:1rem}
 .brand a.logo-link{display:inline-block;line-height:0}
 .brand .logo{width:min(100%,18rem);height:auto;display:block;margin:0 auto}
 .top .sub{margin:0;font-size:.78rem;letter-spacing:.06em;color:var(--muted);text-transform:none;text-align:center}
-/* Match LCD: Display = metrics|users; Log = LOG|Serial. Fixed height so Log panels match Display. */
+/* Match LCD pages: Display = metrics|users; Log = LOG|Serial; Controls = sliders|toggles. */
 .layout{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"metrics users";grid-template-rows:26rem;gap:.75rem;align-items:stretch;height:26rem;min-height:26rem;max-height:26rem}
 html[data-layout="log"] .layout{grid-template-areas:"logfile serial"}
-html[data-layout="log"] #box-metrics,html[data-layout="log"] #box-users{display:none}
-html:not([data-layout="log"]) #box-logfile,html:not([data-layout="log"]) #box-serial{display:none}
+html[data-layout="controls"] .layout{grid-template-areas:"ctrl-sliders ctrl-toggles"}
+html[data-layout="log"] #box-metrics,html[data-layout="log"] #box-users,html[data-layout="log"] #box-ctrl-sliders,html[data-layout="log"] #box-ctrl-toggles{display:none}
+html[data-layout="controls"] #box-metrics,html[data-layout="controls"] #box-users,html[data-layout="controls"] #box-logfile,html[data-layout="controls"] #box-serial{display:none}
+html:not([data-layout="log"]):not([data-layout="controls"]) #box-logfile,html:not([data-layout="log"]):not([data-layout="controls"]) #box-serial,html:not([data-layout="log"]):not([data-layout="controls"]) #box-ctrl-sliders,html:not([data-layout="log"]):not([data-layout="controls"]) #box-ctrl-toggles{display:none}
 html[data-layout="log"] #box-logfile,html[data-layout="log"] #box-serial{min-height:0;max-height:none;overflow:hidden}
+html[data-layout="controls"] #box-ctrl-sliders,html[data-layout="controls"] #box-ctrl-toggles{min-height:0;max-height:none;overflow:hidden;display:flex;flex-direction:column}
+html[data-layout="controls"] #box-ctrl-sliders .ctrl,html[data-layout="controls"] #box-ctrl-toggles .ctrl{flex:1 1 auto;min-height:0;overflow:auto}
 .box{border:1px solid var(--line);border-radius:.45rem;background:var(--panel);margin:0;overflow:hidden;display:flex;flex-direction:column;min-height:0}
 .box h2{margin:0;padding:.45rem .7rem;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);background:var(--box-head)}
 #box-metrics{grid-area:metrics}#box-users{grid-area:users}#box-logfile{grid-area:logfile}#box-serial{grid-area:serial}
+#box-ctrl-sliders{grid-area:ctrl-sliders}#box-ctrl-toggles{grid-area:ctrl-toggles}
 .dash{padding:.6rem .7rem;flex:1;min-width:0;overflow:auto}
 .hdr{display:grid;grid-template-columns:1fr auto 1fr;gap:.35rem;margin:0 0 .45rem;padding-bottom:.35rem;border-bottom:1px solid var(--line)}
 .hdr .c{text-align:center}.hdr .r{text-align:right}
@@ -57,9 +62,20 @@ html[data-layout="log"] #box-logfile,html[data-layout="log"] #box-serial{min-hei
 .serial{padding:.3rem .55rem .45rem;font-size:.9rem;line-height:1.15;flex:1;min-height:0;overflow:auto}
 .serial div{padding:.12rem 0;border-bottom:1px solid var(--row-line);white-space:pre-wrap;word-break:break-word;color:var(--text);min-height:1.15em}
 .serial div:last-child{border-bottom:none}.serial .empty{color:var(--muted)}
+/* Controls first-intro: label + % + range; toggles Sound/Ticks/Notify */
+.ctrl{padding:.85rem .9rem;flex:1;display:flex;flex-direction:column;gap:1.1rem}
+.ctrl-row{display:flex;flex-direction:column;gap:.35rem}
+.ctrl-row label{color:var(--muted);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase}
+.ctrl-row .val{color:var(--cyan);font-size:.85rem}
+.ctrl-row input[type=range]{width:100%;accent-color:var(--cyan)}
+.tog{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.75rem .65rem;border:1px solid var(--line);border-radius:.35rem;background:var(--box-head);cursor:pointer;font:inherit;color:inherit;width:100%;min-height:2.75rem}
+.tog .lab{color:var(--muted);font-size:.85rem;letter-spacing:.04em;text-transform:uppercase}
+.tog .st{font-size:.85rem;min-width:2.2rem;text-align:right}
+.tog[aria-pressed="true"] .st{color:var(--ok)}.tog[aria-pressed="false"] .st{color:var(--bad)}
 @media (max-width:720px){
 .layout{grid-template-columns:1fr;grid-template-areas:"metrics" "users";grid-template-rows:none;height:auto;min-height:0;max-height:none}
 html[data-layout="log"] .layout{grid-template-areas:"logfile" "serial"}
+html[data-layout="controls"] .layout{grid-template-areas:"ctrl-sliders" "ctrl-toggles"}
 .top-row{flex-wrap:wrap;justify-content:center}
 }
 )CSS";
@@ -73,14 +89,24 @@ else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').ma
 document.documentElement.setAttribute('data-theme','light');
 var L=localStorage.getItem('mm-layout');
 if(L==='log')document.documentElement.setAttribute('data-layout','log');
+else if(L==='controls')document.documentElement.setAttribute('data-layout','controls');
 else document.documentElement.removeAttribute('data-layout');}catch(e){}})();
 )JS";
 
 static const char WEB_UI_JS[] PROGMEM = R"JS(
 var THEME_KEY='k9-theme';var LAYOUT_KEY='mm-layout';
+var ctrlBusy=false;var lastCtrl={};
+var LAYOUT_ORDER=['display','log','controls'];
+var ctrlBtnLeave=false;
 function themeNow(){return document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';}
-function layoutNow(){return document.documentElement.getAttribute('data-layout')==='log'?'log':'display';}
+function layoutNow(){var L=document.documentElement.getAttribute('data-layout');return L==='log'||L==='controls'?L:'display';}
 function chipSrc(){return themeNow()==='light'?'/chip-bright.svg':'/chip.svg';}
+function markLeftSrc(){return themeNow()==='light'?'/mark-left-bright.svg':'/mark-left.svg';}
+function markRightSrc(){return themeNow()==='light'?'/mark-right-bright.svg':'/mark-right.svg';}
+function logoSrc(){
+var light=themeNow()==='light';
+if(layoutNow()==='controls')return light?'/logo-spin-bright.svg':'/logo-spin.svg';
+return light?'/logo-bright.svg':'/logo.svg';}
 function applyTheme(t,persist){
 if(t==='light')document.documentElement.setAttribute('data-theme','light');
 else document.documentElement.removeAttribute('data-theme');
@@ -92,23 +118,43 @@ var lchip=document.getElementById('layout-chip-img');
 var glyph=document.getElementById('theme-chip-glyph');
 var text=document.getElementById('theme-chip-text');
 var btn=document.getElementById('theme-toggle');
-if(logo)logo.src=light?'/logo-bright.svg':'/logo.svg';
+var dL=document.getElementById('dog-left-img');
+var dR=document.getElementById('dog-right-img');
+if(logo)logo.src=logoSrc();
 if(chip)chip.src=chipSrc();
 if(lchip)lchip.src=chipSrc();
+if(dL)dL.src=markLeftSrc();
+if(dR)dR.src=markRightSrc();
 if(glyph)glyph.textContent=light?'\u263D':'\u2600';
 if(text)text.textContent=light?'Dark':'Light';
 if(btn){btn.setAttribute('aria-pressed',light?'true':'false');
 btn.setAttribute('aria-label',light?'Switch to dark mode':'Switch to light mode');}}
+function layoutLabel(m){return m==='controls'?'Controls':(m==='log'?'Log':'Display');}
 function applyLayout(m,persist){
-if(m==='log')document.documentElement.setAttribute('data-layout','log');
+var prev=layoutNow();
+if(m==='log'||m==='controls')document.documentElement.setAttribute('data-layout',m);
 else document.documentElement.removeAttribute('data-layout');
-if(persist){try{localStorage.setItem(LAYOUT_KEY,m);}catch(e){}}
-var log=m==='log';
+if(persist){try{localStorage.setItem(LAYOUT_KEY,m==='display'?'display':m);}catch(e){}}
 var text=document.getElementById('layout-chip-text');
 var btn=document.getElementById('layout-toggle');
-if(text)text.textContent=log?'Log':'Display';
-if(btn){btn.setAttribute('aria-pressed',log?'true':'false');
-btn.setAttribute('aria-label',log?'Switch to display view':'Switch to log view');}}
+var sub=document.getElementById('brand-sub');
+var logo=document.getElementById('brand-logo');
+if(text)text.textContent=layoutLabel(m);
+if(btn){btn.setAttribute('aria-pressed',m!=='display'?'true':'false');
+btn.setAttribute('aria-label','Cycle Display Log Controls');}
+if(sub)sub.textContent='MiniMe-II A Discord Bot';
+if(logo)logo.src=logoSrc();
+if(m==='controls'){
+if(prev!=='controls'){postControls('action=enter');}
+syncControlsForm(lastCtrl);
+}else if(prev==='controls'&&m!=='controls'&&!ctrlBtnLeave){
+postControls('action=cancel');
+}}
+function cycleLayout(dir){
+var i=LAYOUT_ORDER.indexOf(layoutNow());
+if(i<0)i=0;
+i=(i+dir+LAYOUT_ORDER.length)%LAYOUT_ORDER.length;
+applyLayout(LAYOUT_ORDER[i],true);}
 applyTheme(themeNow(),false);
 applyLayout(layoutNow(),false);
 var tb=document.getElementById('theme-toggle');
@@ -117,10 +163,21 @@ applyTheme(themeNow()==='light'?'dark':'light',true);
 tb.blur();
 });
 var lb=document.getElementById('layout-toggle');
-if(lb)lb.addEventListener('click',function(){
-applyLayout(layoutNow()==='log'?'display':'log',true);
-lb.blur();
-});
+if(lb)lb.addEventListener('click',function(){cycleLayout(1);lb.blur();});
+var bc=document.getElementById('ctrl-cancel');
+if(bc)bc.addEventListener('click',function(){
+ctrlBtnLeave=true;
+postControls('action=cancel').then(function(){
+applyLayout('display',true);
+ctrlBtnLeave=false;
+});bc.blur();});
+var bs=document.getElementById('ctrl-save');
+if(bs)bs.addEventListener('click',function(){
+ctrlBtnLeave=true;
+postControls('action=save').then(function(){
+applyLayout('display',true);
+ctrlBtnLeave=false;
+});bs.blur();});
 function esc(s){return String(s==null||s===undefined?'':s).replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));}
 function bar(pct){pct=Math.max(0,Math.min(100,+pct||0));return '<span class="bar"><i style="width:'+pct+'%"></i></span>';}
 function mline(lab,n,pct){return '<div class="mline"><span class="k">'+lab+'</span><span class="n">'+n+'</span>'+bar(pct)+'</div>';}
@@ -130,7 +187,38 @@ var a=(lines||[]).filter(function(l){return !!l;});
 if(!a.length)return '<div class="empty">Waiting...</div>';
 return a.map(function(l){return '<div>'+esc(l)+'</div>';}).join('');}
 function fmtK(n){n=+n||0;return Math.floor(n/1024)+'K';}
+function setTog(id,on){var b=document.getElementById(id);if(!b)return;
+b.setAttribute('aria-pressed',on?'true':'false');
+var st=b.querySelector('.st');if(st)st.textContent=on?'ON':'off';}
+function syncControlsForm(j){
+if(!j||ctrlBusy)return;
+var b=document.getElementById('ctrl-bright');
+var v=document.getElementById('ctrl-vol');
+var bv=document.getElementById('ctrl-bright-val');
+var vv=document.getElementById('ctrl-vol-val');
+if(b&&document.activeElement!==b){b.value=String(j.bright!=null?j.bright:80);if(bv)bv.textContent=b.value+'%';}
+if(v&&document.activeElement!==v){v.value=String(j.vol!=null?j.vol:70);if(vv)vv.textContent=v.value+'%';}
+setTog('ctrl-notify',!!j.notify);setTog('ctrl-ticks',!!j.ticks);setTog('ctrl-sound',!!j.sound);}
+async function postControls(params){
+ctrlBusy=true;
+try{await fetch('/api/controls',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:params});}
+catch(e){}
+ctrlBusy=false;}
+function wireControls(){
+var b=document.getElementById('ctrl-bright');
+var v=document.getElementById('ctrl-vol');
+var bv=document.getElementById('ctrl-bright-val');
+var vv=document.getElementById('ctrl-vol-val');
+if(b){b.addEventListener('input',function(){if(bv)bv.textContent=b.value+'%';postControls('bright='+encodeURIComponent(b.value));});}
+if(v){v.addEventListener('input',function(){if(vv)vv.textContent=v.value+'%';postControls('vol='+encodeURIComponent(v.value));});}
+function wireTog(id,key){var el=document.getElementById(id);if(!el)return;
+el.addEventListener('click',function(){var on=el.getAttribute('aria-pressed')!=='true';
+setTog(id,on);postControls(key+'='+(on?'1':'0'));el.blur();});}
+wireTog('ctrl-sound','sound');wireTog('ctrl-ticks','ticks');wireTog('ctrl-notify','notify');}
+wireControls();
 function render(j){
+lastCtrl={bright:j.bright,vol:j.vol,notify:j.notify,ticks:j.ticks,sound:j.sound};
+if(layoutNow()==='controls')syncControlsForm(lastCtrl);
 var gwN=+j.gw;
 var gw=gwN>0?'<span class="ok">GW:Good</span>':(gwN===0?'<span style="color:var(--cyan)">GW:Wait</span>':'<span class="bad">GW:Bad</span>');
 var bot=j.botOnline?'Online':'Idle';

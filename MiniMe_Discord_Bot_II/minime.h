@@ -176,6 +176,13 @@ extern std::atomic<bool> alertDm;         // sticky until owner !clear
 extern std::atomic<bool> alertMention;    // sticky until owner !clear
 extern bool lcdThemeLight;             // LCD palette only (web theme is independent)
 extern bool lcdLayoutLog;              // false=metrics|users; true=LOG|Serial overlay
+extern bool lcdLayoutControls;         // Controls page (right chip cycle)
+extern std::atomic<uint8_t> uiBrightPct; // UI 0..100 (duty maps to 10..100%)
+extern std::atomic<uint8_t> uiVolPct;    // 0..100 -> I2S peak scale
+extern std::atomic<bool> uiNotifyOn;     // DM/@mention alarm
+extern std::atomic<bool> uiTicksOn;      // touch ticks
+extern std::atomic<bool> uiSoundOn;      // master mute
+extern std::atomic<uint32_t> uiControlsGen;
 extern std::atomic<uint32_t> mmLogDropCore0; // Core0 log ring overflow (def in web_ui.cpp)
 extern unsigned long lastDashMillis;
 extern std::atomic<unsigned long> lastDisplayActivityMillis;
@@ -199,10 +206,29 @@ void showTransient(const String& line1, const String& line2 = "", const String& 
 
 bool lcdThemeChipHit(uint16_t x, uint16_t y);
 bool lcdLayoutChipHit(uint16_t x, uint16_t y);
+bool lcdLogoHit(uint16_t x, uint16_t y);
+bool handleControlsTouch(uint16_t x, uint16_t y, bool rising);
 void toggleLcdTheme();
 void toggleLcdLayout();
+void toggleLcdControls();
 void setLcdThemeLight(bool light);
 void setLcdLayoutLog(bool logMode);
+void setLcdControls(bool on);
+void applyLcdLayoutMode(uint8_t mode); // 0=Display, 1=Log, 2=Controls
+void cycleLcdLayout(int dir);          // +1 / -1 through Display|Log|Controls
+bool lcdDogLeftHit(uint16_t x, uint16_t y);
+bool lcdDogRightHit(uint16_t x, uint16_t y);
+void applyBacklightFromSettings();
+void setUiBrightPct(uint8_t pct);
+void setUiVolPct(uint8_t pct);
+void setUiNotifyOn(bool on);
+void setUiTicksOn(bool on);
+void setUiSoundOn(bool on);
+void controlsSnapshotEnter(uint8_t returnMode);
+void controlsRestoreSnapshot();
+void controlsCancel();
+void controlsSave();
+bool controlsLeavingIsCommit();
 // Panel bar fills (single source for LCD + web API percents)
 enum { DASH_SIG_HEAP_BAR_MAX = 280, DASH_SRV_BAR_MAX = 280 };
 int dashSigBarW(long rssi);

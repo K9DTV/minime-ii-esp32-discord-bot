@@ -1,5 +1,6 @@
 #include "display_internal.h"
 #include "k9dtv_logo_rgb565.h"
+#include "k9_mark_icon_rgb565.h"
 
 DashPalette dashPalette() {
   // Match web_assets.h :root / html[data-theme=light] tokens (RGB888 -> RGB565).
@@ -59,6 +60,10 @@ static void prtCenter(uint16_t col, const char* text, int16_t midX, int16_t y, u
 
 static int16_t logoBandHeight() {
   return (int16_t)(LOGO_TOP_PAD + K9DTV_LOGO_H + LOGO_BOTTOM_GAP);
+}
+
+static int16_t panelBottomY() {
+  return (int16_t)PANEL_BOTTOM_Y_FULL;
 }
 
 // Site menu-chip.svg / menu-chip-bright.svg, scaled; label under chip like web.
@@ -142,6 +147,11 @@ void drawBrandBar(const DashPalette& p) {
   const uint16_t* logoBits = lcdThemeLight ? K9DTV_LOGO_BRIGHT_RGB565 : K9DTV_LOGO_RGB565;
   gfx->draw16bitRGBBitmap(logoX, LOGO_TOP_PAD, (uint16_t*)logoBits,
                           K9DTV_LOGO_W, K9DTV_LOGO_H);
+  // Logo is brand only (not a Controls hit).
+  logoHitX = 0;
+  logoHitY = 0;
+  logoHitW = 0;
+  logoHitH = 0;
 
   const int16_t chipY = LOGO_TOP_PAD + (K9DTV_LOGO_H - MENU_CHIP_S) / 2;
 
@@ -155,13 +165,69 @@ void drawBrandBar(const DashPalette& p) {
     placeChip(chipX, chipY, lab, p, themeChipHitX, themeChipHitY, themeChipHitW, themeChipHitH);
   }
 
-  // Right gap: Display/Log (web layout chip — label is current mode).
+  // Right gap: Display / Log / Controls (cycle).
   {
     const int16_t gapL = logoX + K9DTV_LOGO_W;
     const int16_t gapW = LCD_LANDSCAPE_W - gapL;
     const int16_t chipX = gapL + (gapW - MENU_CHIP_S) / 2;
-    placeChip(chipX, chipY, lcdLayoutLog ? "Log" : "Display", p,
+    const char* lab = lcdLayoutControls ? "Controls" : (lcdLayoutLog ? "Log" : "Display");
+    placeChip(chipX, chipY, lab, p,
               layoutChipHitX, layoutChipHitY, layoutChipHitW, layoutChipHitH);
+  }
+}
+
+// Controls-only footer: dog+K9 mark (no button chrome); label under dog outline.
+static void blitMarkIcon(int16_t dx, int16_t dy, int16_t dw, int16_t dh, bool faceRight) {
+  if (!gfx) return;
+  const uint16_t* bits;
+  if (faceRight) {
+    bits = lcdThemeLight ? K9_MARK_RIGHT_BRIGHT_RGB565 : K9_MARK_RIGHT_RGB565;
+  } else {
+    bits = lcdThemeLight ? K9_MARK_LEFT_BRIGHT_RGB565 : K9_MARK_LEFT_RGB565;
+  }
+  for (int16_t y = 0; y < dh; y++) {
+    const int16_t srcY = (int16_t)(((int32_t)y * K9_MARK_H) / dh);
+    if (srcY < 0 || srcY >= K9_MARK_H) continue;
+    for (int16_t x = 0; x < dw; x++) {
+      const int16_t srcX = (int16_t)(((int32_t)x * K9_MARK_W) / dw);
+      if (srcX < 0 || srcX >= K9_MARK_W) continue;
+      gfx->drawPixel(dx + x, dy + y, bits[(int)srcY * K9_MARK_W + srcX]);
+    }
+  }
+}
+
+// Cancel left edge of Controls panel / Save right edge of Toggles panel.
+static void drawPanelDog(int16_t panelX, int16_t panelY, int16_t panelW, int16_t panelH,
+                         bool faceRight, const char* lab, const DashPalette& p,
+                         int16_t& hx, int16_t& hy, int16_t& hw, int16_t& hh) {
+  if (!gfx) {
+    hw = 0;
+    hh = 0;
+    return;
+  }
+  const int16_t dw = DOG_BTN_W;
+  const int16_t dh = DOG_BTN_H_ICON;
+  const int16_t labH = 10;
+  const int16_t bh = (int16_t)(dh + labH);
+  // Cancel = very left of its window; Save = very right of its window
+  const int16_t dx = faceRight
+      ? (int16_t)(panelX + panelW - PANEL_PAD - dw)
+      : (int16_t)(panelX + PANEL_PAD);
+  const int16_t dy = (int16_t)(panelY + panelH - PANEL_PAD_BOTTOM - bh);
+  blitMarkIcon(dx, dy, dw, dh, faceRight);
+  prtCenter(p.muted, lab, dx + dw / 2, (int16_t)(dy + dh + 1), 1);
+  hx = dx;
+  hy = dy;
+  hw = dw;
+  hh = bh;
+}
+
+void drawDogFooter(const DashPalette& p) {
+  // Legacy name: dogs are drawn inside each Controls panel now (see drawControlsLeft/Right).
+  (void)p;
+  if (!lcdLayoutControls) {
+    dogLeftHitW = 0;
+    dogRightHitW = 0;
   }
 }
 
@@ -169,6 +235,86 @@ static void drawPanelBox(int16_t x, int16_t y, int16_t w, int16_t h, const DashP
   if (!gfx) return;
   gfx->fillRoundRect(x, y, w, h, PANEL_CORNER_R, p.panel);
   gfx->drawRoundRect(x, y, w, h, PANEL_CORNER_R, p.line);
+}
+
+static void drawCtrlSlider(int16_t x, int16_t y, int16_t w, const char* label, uint8_t pct,
+                           uint8_t minPct, const DashPalette& p,
+                           int16_t& trackX, int16_t& trackY, int16_t& trackW, int16_t& trackH) {
+  if (!gfx) return;
+  char buf[28];
+  snprintf(buf, sizeof(buf), "%s %u%%", label, (unsigned)pct);
+  prtCol(p.muted, buf, x, y, 1);
+  const int16_t ty = (int16_t)(y + 14);
+  const int16_t th = 16;
+  gfx->fillRect(x, ty, w, th, p.barTr);
+  gfx->drawRect(x, ty, w, th, p.line);
+  const int span = (minPct >= 100) ? 1 : (100 - (int)minPct);
+  int rel = (int)pct - (int)minPct;
+  if (rel < 0) rel = 0;
+  if (rel > span) rel = span;
+  int fillW = (rel * (w - 2)) / span;
+  if (fillW < 0) fillW = 0;
+  if (fillW > w - 2) fillW = w - 2;
+  if (fillW > 0) gfx->fillRect(x + 1, ty + 1, fillW, th - 2, p.barFl);
+  // Knob
+  int16_t kx = (int16_t)(x + fillW - 2);
+  if (kx < x) kx = x;
+  if (kx > x + w - 6) kx = (int16_t)(x + w - 6);
+  gfx->fillRect(kx, ty - 2, 6, th + 4, p.cyan);
+  trackX = x;
+  trackY = ty;
+  trackW = w;
+  trackH = th;
+}
+
+static void drawCtrlToggle(int16_t x, int16_t y, int16_t w, const char* label, bool on,
+                           const DashPalette& p,
+                           int16_t& hitX, int16_t& hitY, int16_t& hitW, int16_t& hitH) {
+  if (!gfx) return;
+  const int16_t h = 36;
+  gfx->fillRoundRect(x, y, w, h, 4, p.panel);
+  gfx->drawRoundRect(x, y, w, h, 4, p.line);
+  prtCol(p.muted, label, x + 8, y + 14, 1);
+  const char* st = on ? "ON" : "off";
+  prtCol(on ? p.ok : p.bad, st, x + w - 36, y + 14, 1);
+  hitX = x;
+  hitY = y;
+  hitW = w;
+  hitH = h;
+}
+
+void drawControlsLeft(const DashPalette& p) {
+  const int16_t top = logoBandHeight();
+  const int16_t lx = PANEL_LEFT_X, ly = top, lw = PANEL_LEFT_W;
+  const int16_t lh = (int16_t)(panelBottomY() - top);
+  drawPanelBox(lx, ly, lw, lh, p);
+  const int16_t sx = lx + PANEL_PAD;
+  const int16_t sw = (int16_t)(lw - 2 * PANEL_PAD);
+  prtCol(p.cyan, "Controls", sx, ly + PANEL_CONTENT_TOP, 1);
+  drawCtrlSlider(sx, ly + 28, sw, "Brightness", uiBrightPct.load(), 0, p,
+                 ctrlBrightTrackX, ctrlBrightTrackY, ctrlBrightTrackW, ctrlBrightTrackH);
+  drawCtrlSlider(sx, ly + 78, sw, "Volume", uiVolPct.load(), 0, p,
+                 ctrlVolTrackX, ctrlVolTrackY, ctrlVolTrackW, ctrlVolTrackH);
+  drawPanelDog(lx, ly, lw, lh, false, "Cancel", p,
+               dogLeftHitX, dogLeftHitY, dogLeftHitW, dogLeftHitH);
+}
+
+void drawControlsRight(const DashPalette& p) {
+  const int16_t top = logoBandHeight();
+  const int16_t rx = PANEL_RIGHT_X, ry = top, rw = PANEL_RIGHT_W;
+  const int16_t rh = (int16_t)(panelBottomY() - top);
+  drawPanelBox(rx, ry, rw, rh, p);
+  const int16_t sx = rx + PANEL_PAD;
+  const int16_t sw = (int16_t)(rw - 2 * PANEL_PAD);
+  prtCol(p.cyan, "Toggles", sx, ry + PANEL_CONTENT_TOP, 1);
+  drawCtrlToggle(sx, ry + 28, sw, "Sound", uiSoundOn.load(), p,
+                 ctrlToggle0X, ctrlToggle0Y, ctrlToggle0W, ctrlToggle0H);
+  drawCtrlToggle(sx, ry + 74, sw, "Ticks", uiTicksOn.load(), p,
+                 ctrlToggle1X, ctrlToggle1Y, ctrlToggle1W, ctrlToggle1H);
+  drawCtrlToggle(sx, ry + 120, sw, "Notify", uiNotifyOn.load(), p,
+                 ctrlToggle2X, ctrlToggle2Y, ctrlToggle2W, ctrlToggle2H);
+  drawPanelDog(rx, ry, rw, rh, true, "Save", p,
+               dogRightHitX, dogRightHitY, dogRightHitW, dogRightHitH);
 }
 
 // Same 3-column idea as web mline(): label | fixed value col | bar (one row per meter).
@@ -225,7 +371,7 @@ static void drawLogLines(int16_t sx, int16_t sy, int16_t bottom, const DashPalet
 void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   const int16_t top = logoBandHeight();
   const int16_t lx = PANEL_LEFT_X, ly = top, lw = PANEL_LEFT_W;
-  const int16_t lh = (int16_t)(PANEL_BOTTOM_Y - top);
+  const int16_t lh = (int16_t)(panelBottomY() - top);
   drawPanelBox(lx, ly, lw, lh, p);
 
   const int16_t cx = lx + PANEL_PAD;
@@ -370,7 +516,7 @@ void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
 
 void drawRightPanel(const DashSnap& s, const DashPalette& p) {
   const int16_t top = logoBandHeight();
-  const int16_t lh = (int16_t)(PANEL_BOTTOM_Y - top);
+  const int16_t lh = (int16_t)(panelBottomY() - top);
   const int16_t rx = PANEL_RIGHT_X, ry = top, rw = PANEL_RIGHT_W, rh = lh;
   drawPanelBox(rx, ry, rw, rh, p);
   const int16_t sx = rx + PANEL_PAD;
@@ -410,6 +556,8 @@ void drawDashboard() {
   // Live chip toggles / Core 0 temp may be ahead of the last Core 1 publish.
   nowSnap.themeLight = lcdThemeLight;
   nowSnap.layoutLog = lcdLayoutLog;
+  nowSnap.layoutControls = lcdLayoutControls;
+  nowSnap.controlsGen = uiControlsGen.load();
   {
     float tc = 0, tf = 0;
     bool had = false, fresh = false;
@@ -426,7 +574,8 @@ void drawDashboard() {
   bool needBrand = dashForceFull.load() || !dashBrandValid
                 || !drawnSnap.valid
                 || drawnSnap.themeLight != nowSnap.themeLight
-                || drawnSnap.layoutLog != nowSnap.layoutLog;
+                || drawnSnap.layoutLog != nowSnap.layoutLog
+                || drawnSnap.layoutControls != nowSnap.layoutControls;
   bool needLeft = needBrand || !drawnSnap.valid || !snapLeftEqual(drawnSnap, nowSnap);
   bool needRight = needBrand || !drawnSnap.valid || !snapRightEqual(drawnSnap, nowSnap);
 
@@ -440,14 +589,24 @@ void drawDashboard() {
   if (needBrand) {
     gfx->fillScreen(p.bg);
     drawBrandBar(p);
+    if (!nowSnap.layoutControls) {
+      dogLeftHitW = 0;
+      dogRightHitW = 0;
+    }
     dashBrandValid = true;
     needLeft = true;
     needRight = true;
   }
 
-  if (needLeft) drawLeftPanel(nowSnap, p);
+  if (needLeft) {
+    if (nowSnap.layoutControls) drawControlsLeft(p);
+    else drawLeftPanel(nowSnap, p);
+  }
   yield();
-  if (needRight) drawRightPanel(nowSnap, p);
+  if (needRight) {
+    if (nowSnap.layoutControls) drawControlsRight(p);
+    else drawRightPanel(nowSnap, p);
+  }
   yield();
 
   // Gateway stays on Core 1 — never pumpGateway mid-draw.

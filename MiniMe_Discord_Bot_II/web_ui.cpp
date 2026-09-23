@@ -4,7 +4,13 @@
 #include <new>
 #include "k9dtv_logo_svg.h"
 #include "k9dtv_logo_bright_svg.h"
+#include "k9dtv_logo_spin_svg.h"
+#include "k9dtv_logo_spin_bright_svg.h"
 #include "menu_chip_svg.h"
+#include "k9_mark_icon_svg.h"
+#include "k9_mark_icon_bright_svg.h"
+#include "k9_mark_icon_right_svg.h"
+#include "k9_mark_icon_right_bright_svg.h"
 #include "web_assets.h"
 
 // Display = metrics | users; Log = LOG | Serial (LOG left, Serial right — matches LCD).
@@ -374,11 +380,11 @@ static void printBrand(Print& out) {
   out.print(F("<header class=\"brand\">"));
   out.print(F("<a class=\"logo-link\" href=\"https://k9dtv.com\" target=\"_blank\" rel=\"noopener\">"));
   out.print(F("<img class=\"logo\" id=\"brand-logo\" src=\"/logo.svg\" width=\"343\" height=\"107\" alt=\"K9DTV\"></a></header>"));
-  out.print(F("<button type=\"button\" id=\"layout-toggle\" class=\"theme-chip-trigger\" aria-pressed=\"false\" aria-label=\"Switch to log view\">"));
+  out.print(F("<button type=\"button\" id=\"layout-toggle\" class=\"theme-chip-trigger\" aria-pressed=\"false\" aria-label=\"Cycle display log controls\">"));
   out.print(F("<img class=\"menu-chip-icon\" id=\"layout-chip-img\" src=\"/chip.svg\" width=\"64\" height=\"64\" alt=\"\" aria-hidden=\"true\">"));
   out.print(F("<span class=\"menu-chip-label\" aria-hidden=\"true\">"));
   out.print(F("<span class=\"theme-toggle-text\" id=\"layout-chip-text\">Display</span></span></button>"));
-  out.print(F("</div><p class=\"sub\">MiniMe-II A Discord Bot</p></div>"));
+  out.print(F("</div><p class=\"sub\" id=\"brand-sub\">MiniMe-II A Discord Bot</p></div>"));
 }
 
 static void sendNoCacheHeaders() {
@@ -412,6 +418,22 @@ static void streamRootHtml(Print& out) {
   out.print(F("<div id=\"logfile\" class=\"serial\"><div class=\"empty\">Waiting...</div></div></section>"));
   out.print(F("<section class=\"box\" id=\"box-serial\"><h2>Serial</h2>"));
   out.print(F("<div id=\"serial\" class=\"serial\"><div class=\"empty\">Waiting...</div></div></section>"));
+  // Controls page (first-intro web layout): Brightness/Volume + Sound/Ticks/Notify. LCD Cancel/Save unchanged.
+  out.print(F("<section class=\"box\" id=\"box-ctrl-sliders\"><h2>Controls</h2>"));
+  out.print(F("<div class=\"ctrl\">"));
+  out.print(F("<div class=\"ctrl-row\"><label for=\"ctrl-bright\">Brightness</label>"));
+  out.print(F("<span class=\"val\" id=\"ctrl-bright-val\">80%</span>"));
+  out.print(F("<input id=\"ctrl-bright\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"></div>"));
+  out.print(F("<div class=\"ctrl-row\"><label for=\"ctrl-vol\">Volume</label>"));
+  out.print(F("<span class=\"val\" id=\"ctrl-vol-val\">70%</span>"));
+  out.print(F("<input id=\"ctrl-vol\" type=\"range\" min=\"0\" max=\"100\" value=\"70\"></div>"));
+  out.print(F("</div></section>"));
+  out.print(F("<section class=\"box\" id=\"box-ctrl-toggles\"><h2>Toggles</h2>"));
+  out.print(F("<div class=\"ctrl\">"));
+  out.print(F("<button type=\"button\" class=\"tog\" id=\"ctrl-sound\" aria-pressed=\"true\"><span class=\"lab\">Sound</span><span class=\"st\">ON</span></button>"));
+  out.print(F("<button type=\"button\" class=\"tog\" id=\"ctrl-ticks\" aria-pressed=\"true\"><span class=\"lab\">Ticks</span><span class=\"st\">ON</span></button>"));
+  out.print(F("<button type=\"button\" class=\"tog\" id=\"ctrl-notify\" aria-pressed=\"true\"><span class=\"lab\">Notify</span><span class=\"st\">ON</span></button>"));
+  out.print(F("</div></section>"));
   out.print(F("<div id=\"err\" class=\"err\" hidden></div>"));
   out.print(F("</div></main><script>var POLL_MS="));
   char pollBuf[16];
@@ -525,6 +547,11 @@ static void handleStatus() {
   doc["mmLogDropCore0"] = mmLogDropCore0.load();
   doc["msg1"] = msg1;
   doc["msg2"] = msg2;
+  doc["bright"] = uiBrightPct.load();
+  doc["vol"] = uiVolPct.load();
+  doc["notify"] = uiNotifyOn.load();
+  doc["ticks"] = uiTicksOn.load();
+  doc["sound"] = uiSoundOn.load();
 
   JsonArray users = doc["users"].to<JsonArray>();
   uint8_t nActive = 0;
@@ -581,6 +608,74 @@ static void handleChipBright() {
   webServer.send_P(200, "image/svg+xml", MENU_CHIP_BRIGHT_SVG);
 }
 
+static void handleLogoSpin() {
+  webServer.sendHeader("Cache-Control", "public, max-age=86400");
+  webServer.send_P(200, "image/svg+xml", K9DTV_LOGO_SPIN_SVG);
+}
+
+static void handleLogoSpinBright() {
+  webServer.sendHeader("Cache-Control", "public, max-age=86400");
+  webServer.send_P(200, "image/svg+xml", K9DTV_LOGO_SPIN_BRIGHT_SVG);
+}
+
+static void handleMarkLeft() {
+  webServer.sendHeader("Cache-Control", "public, max-age=86400");
+  webServer.send_P(200, "image/svg+xml", K9_MARK_ICON_SVG);
+}
+
+static void handleMarkLeftBright() {
+  webServer.sendHeader("Cache-Control", "public, max-age=86400");
+  webServer.send_P(200, "image/svg+xml", K9_MARK_ICON_BRIGHT_SVG);
+}
+
+static void handleMarkRight() {
+  webServer.sendHeader("Cache-Control", "public, max-age=86400");
+  webServer.send_P(200, "image/svg+xml", K9_MARK_ICON_RIGHT_SVG);
+}
+
+static void handleMarkRightBright() {
+  webServer.sendHeader("Cache-Control", "public, max-age=86400");
+  webServer.send_P(200, "image/svg+xml", K9_MARK_ICON_RIGHT_BRIGHT_SVG);
+}
+
+static void handleControlsPost() {
+  sendNoCacheHeaders();
+  if (webServer.hasArg("action")) {
+    const String act = webServer.arg("action");
+    if (act == "cancel") {
+      controlsCancel();
+    } else if (act == "save") {
+      controlsSave();
+    } else if (act == "enter") {
+      // Web opened Controls — snapshot current values.
+      controlsSnapshotEnter(0);
+    }
+  }
+  if (webServer.hasArg("bright")) {
+    setUiBrightPct((uint8_t)constrain(webServer.arg("bright").toInt(), 0, 100));
+  }
+  if (webServer.hasArg("vol")) {
+    setUiVolPct((uint8_t)constrain(webServer.arg("vol").toInt(), 0, 100));
+  }
+  if (webServer.hasArg("notify")) {
+    setUiNotifyOn(webServer.arg("notify") == "1" || webServer.arg("notify") == "true");
+  }
+  if (webServer.hasArg("ticks")) {
+    setUiTicksOn(webServer.arg("ticks") == "1" || webServer.arg("ticks") == "true");
+  }
+  if (webServer.hasArg("sound")) {
+    setUiSoundOn(webServer.arg("sound") == "1" || webServer.arg("sound") == "true");
+  }
+  char buf[96];
+  snprintf(buf, sizeof(buf),
+           "{\"ok\":1,\"bright\":%u,\"vol\":%u,\"notify\":%s,\"ticks\":%s,\"sound\":%s}",
+           (unsigned)uiBrightPct.load(), (unsigned)uiVolPct.load(),
+           uiNotifyOn.load() ? "true" : "false",
+           uiTicksOn.load() ? "true" : "false",
+           uiSoundOn.load() ? "true" : "false");
+  webServer.send(200, "application/json", buf);
+}
+
 void setupWebUi() {
   webFullClear();
   webInFullLog = false;
@@ -612,9 +707,16 @@ void setupWebUi() {
   webServer.on("/", HTTP_GET, handleRoot);
   webServer.on("/logo.svg", HTTP_GET, handleLogo);
   webServer.on("/logo-bright.svg", HTTP_GET, handleLogoBright);
+  webServer.on("/logo-spin.svg", HTTP_GET, handleLogoSpin);
+  webServer.on("/logo-spin-bright.svg", HTTP_GET, handleLogoSpinBright);
   webServer.on("/chip.svg", HTTP_GET, handleChip);
   webServer.on("/chip-bright.svg", HTTP_GET, handleChipBright);
+  webServer.on("/mark-left.svg", HTTP_GET, handleMarkLeft);
+  webServer.on("/mark-left-bright.svg", HTTP_GET, handleMarkLeftBright);
+  webServer.on("/mark-right.svg", HTTP_GET, handleMarkRight);
+  webServer.on("/mark-right-bright.svg", HTTP_GET, handleMarkRightBright);
   webServer.on("/api/status", HTTP_GET, handleStatus);
+  webServer.on("/api/controls", HTTP_POST, handleControlsPost);
   webServer.begin();
   webUiReady = true;
   MmLog.print("[WEB] http://");

@@ -35,6 +35,8 @@ static void captureSnap(DashSnap& s) {
   s.valid = true;
   s.themeLight = lcdThemeLight;
   s.layoutLog = lcdLayoutLog;
+  s.layoutControls = lcdLayoutControls;
+  s.controlsGen = uiControlsGen.load();
   updateLocalTime();
   formatLocalTimeStr(s.timeStr, sizeof(s.timeStr));
   formatLocalDateStr(s.dateStr, sizeof(s.dateStr));
@@ -129,6 +131,8 @@ void loadPublishedSnap(DashSnap& out) {
 
 bool snapLeftEqual(const DashSnap& a, const DashSnap& b) {
   if (a.themeLight != b.themeLight || a.layoutLog != b.layoutLog) return false;
+  if (a.layoutControls != b.layoutControls) return false;
+  if (a.layoutControls) return a.controlsGen == b.controlsGen;
   if (a.layoutLog) return a.logGen == b.logGen; // LOG window
   // Display mode left: status / metrics
   return strcmp(a.timeStr, b.timeStr) == 0
@@ -148,6 +152,8 @@ bool snapLeftEqual(const DashSnap& a, const DashSnap& b) {
 
 bool snapRightEqual(const DashSnap& a, const DashSnap& b) {
   if (a.themeLight != b.themeLight || a.layoutLog != b.layoutLog) return false;
+  if (a.layoutControls != b.layoutControls) return false;
+  if (a.layoutControls) return a.controlsGen == b.controlsGen;
   if (a.layoutLog) return a.logGen == b.logGen; // Serial window
   return a.userHash == b.userHash; // Display mode right: users
 }

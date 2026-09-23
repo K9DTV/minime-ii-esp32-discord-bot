@@ -21,6 +21,8 @@ struct DashSnap {
   bool valid;
   bool themeLight;
   bool layoutLog;
+  bool layoutControls;
+  uint32_t controlsGen;
   char timeStr[10];
   char dateStr[20];
   char upStr[24];
@@ -51,6 +53,14 @@ extern Arduino_GFX* lcdPanel;
 
 extern int16_t themeChipHitX, themeChipHitY, themeChipHitW, themeChipHitH;
 extern int16_t layoutChipHitX, layoutChipHitY, layoutChipHitW, layoutChipHitH;
+extern int16_t dogLeftHitX, dogLeftHitY, dogLeftHitW, dogLeftHitH;
+extern int16_t dogRightHitX, dogRightHitY, dogRightHitW, dogRightHitH;
+extern int16_t logoHitX, logoHitY, logoHitW, logoHitH;
+extern int16_t ctrlBrightTrackX, ctrlBrightTrackY, ctrlBrightTrackW, ctrlBrightTrackH;
+extern int16_t ctrlVolTrackX, ctrlVolTrackY, ctrlVolTrackW, ctrlVolTrackH;
+extern int16_t ctrlToggle0X, ctrlToggle0Y, ctrlToggle0W, ctrlToggle0H;
+extern int16_t ctrlToggle1X, ctrlToggle1Y, ctrlToggle1W, ctrlToggle1H;
+extern int16_t ctrlToggle2X, ctrlToggle2Y, ctrlToggle2W, ctrlToggle2H;
 extern std::atomic<bool> dashForceFull;
 extern bool dashBrandValid;
 extern DashSnap drawnSnap;
@@ -63,7 +73,10 @@ bool snapLeftEqual(const DashSnap& a, const DashSnap& b);
 bool snapRightEqual(const DashSnap& a, const DashSnap& b);
 
 void drawBrandBar(const DashPalette& p);
+void drawDogFooter(const DashPalette& p);
 void drawLeftPanel(const DashSnap& s, const DashPalette& p);
 void drawRightPanel(const DashSnap& s, const DashPalette& p);
+void drawControlsLeft(const DashPalette& p);
+void drawControlsRight(const DashPalette& p);
 
 #endif

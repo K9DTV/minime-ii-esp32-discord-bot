@@ -202,6 +202,9 @@ async def build_pair() -> None:
     lines += emit_array("K9DTV_LOGO_BRIGHT_RGB565", bright)
     lines += ["", "#endif", ""]
     DST.write_text("\n".join(lines), encoding="utf-8")
+    for p in (png_d, png_b, TOOLS / "_k9dtv_logo_lcd_preview.png", TOOLS / "_k9dtv_logo_lcd_preview_bright.png", TOOLS / "_logo_render.html"):
+        if p.is_file():
+            p.unlink()
     print(f"wrote {DST} ({w}x{h}) dark+bright")
 
 

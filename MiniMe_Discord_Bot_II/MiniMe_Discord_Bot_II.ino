@@ -13,6 +13,7 @@
   dash_snap.cpp                    -- DashSnap capture/publish seqlock
   display_draw.cpp                 -- palette, panels, drawDashboard
   display_internal.h               -- private LCD types shared by the four files above
+  ui_controls.cpp                  -- Controls page: bright/vol/toggles
   touch.cpp                        -- AXS15231B I2C touch wake
   hardware.cpp                     -- servo, NeoPixel, DS18B20, GPIO, piezo ticks
   audio.cpp                        -- I2S speaker UI ticks (wake vs button)
@@ -25,6 +26,8 @@
   k9dtv_logo_svg.h                 -- dark K9DTV logo for /logo.svg
   k9dtv_logo_bright_svg.h          -- light K9DTV logo for /logo-bright.svg
   k9dtv_logo_rgb565.h              -- LCD bitmap logos dark+bright RGB565
+  k9_mark_icon_svg.h (+ bright/right) -- Cancel/Save dog+K9 SVGs (web)
+  k9_mark_icon_rgb565.h            -- LCD Cancel/Save mark-icons left/right RGB565
   menu_chip_svg.h                  -- dark/light IC chips for theme toggle
   commands.cpp                     -- tokenizer + handleCommand dispatch
   command_fetch.cpp                -- weather/news/arxiv/APOD/ISS/DeepSeek fetches
