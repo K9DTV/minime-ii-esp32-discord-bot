@@ -2,7 +2,7 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.51"
+#define MINIME_VERSION "0.7.56"
 #define MINIME_USER_AGENT "MiniMeBot/1.0"
 
 // Scratch TWDT proof only — enables owner !hang (infinite loop). Never ship with this enabled.
@@ -24,6 +24,7 @@ const size_t DEEPSEEK_JSON_DOC = 24576; // soft size hint for !ask (AJ7 grows; w
 // Display QSPI (Arduino_ESP32QSPI + Arduino_AXS15231B): CS 45, SCK 47, D0 21, D1 48, D2 40, D3 39
 // Touch I2C (same AXS15231B): SDA 4, SCL 8, INT 3. Backlight: GPIO 1.
 // NeoPixel/servo remapped off QSPI pins (48/47). Change if you rewire.
+// I2S speaker (NS4168): DOUT 41, BCLK 42, LRCLK 2.
 const int LCD_BL_PIN  = 1;
 const int LCD_CS_PIN  = 45;
 const int LCD_SCK_PIN = 47;
@@ -40,6 +41,9 @@ const uint8_t TOUCH_I2C_ADDR = 0x3B;
 const int RGB_LED_PIN = 16;
 const int PIN_SERVO   = 17;
 const int PIN_DS18B20 = 10;
+const int I2S_DOUT_PIN  = 41;
+const int I2S_BCLK_PIN  = 42;
+const int I2S_LRCLK_PIN = 2; // WS / LRC
 
 // ====== TIME CONFIG (NTP) -- US Pacific DST ======
 const long PST_OFFSET_SEC = -28800; // UTC-8
@@ -77,6 +81,8 @@ const unsigned long DASH_REFRESH_MS = 1000UL; // ~60ms draw+flush measured; 1s o
 
 const unsigned long DISPLAY_IDLE_MS = 300000UL; // 5 minutes after last display activity -> backlight off
 const unsigned long TOUCH_DEBOUNCE_MS = 300;
+// DM / @mention sticky alert: I2S alarm chirp while flags set (owner !clear stops).
+const unsigned long ALERT_SOUND_PERIOD_MS = 3000UL;
 
 // ====== USER TRACKING (LCD right panel @ USER_PITCH; 22 rows) ======
 const uint8_t MAX_TRACKED_USERS = 22;

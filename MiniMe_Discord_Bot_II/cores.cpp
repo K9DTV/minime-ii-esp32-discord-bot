@@ -80,6 +80,7 @@ static void uiTask(void* /*arg*/) {
   for (;;) {
     if (!otaIsBusy()) {
       pollTouchWake();
+      pollAudioAlerts();
       updateDisplay();
     }
     vTaskDelay(pdMS_TO_TICKS(20));

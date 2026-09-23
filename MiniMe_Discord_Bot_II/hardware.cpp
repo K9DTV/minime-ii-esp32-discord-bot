@@ -30,6 +30,7 @@ void setupPins() {
   pinMode(PIN_DS18B20, INPUT_PULLUP);
   setupServo();
   setServoAngle(45);
+  setupAudio();
 }
 
 // Core 0 uiTask only. Shared DallasTemperature/OneWire — never call from Core 1

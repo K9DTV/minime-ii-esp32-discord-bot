@@ -1,6 +1,6 @@
 # MiniMe II — code review notes (pro pass)
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.51**.
+What we **fixed** vs what we **left** and why. Current: **v0.7.56**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -55,6 +55,8 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.51**.
 | TWDT `!hang` scratch | **0.7.48** — `MINIME_TEST_TWDT` / owner `!hang`; **HIL PASS** 2026-09-23 (`loopTask` Task WDT in `!coredump`) |
 | LCD `display_layout.h` | **0.7.49** — chips/panels/rows/hit pads in one header + layout invariants |
 | LCD/web Display+Log align | **0.7.51** — LOG\|Serial; metrics format (dBm, °, freeK); 55-line rings; web height cap |
+| Touch piezo ticks | **0.7.52** — wake tick vs button tick (`PIN_BUZZER` GPIO 18); silent non-button awake taps |
+| Touch I2S speaker | **0.7.53** — I2S 41/42/2 → NS4168; replaced GPIO LEDC path |
 
 ## Known tradeoffs (not deferred bugs)
 

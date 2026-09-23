@@ -76,14 +76,18 @@ void pollTouchWake() {
   // Wake-from-sleep: backlight only (no chip toggle on the same tap).
   if (displayAsleep.load()) {
     noteDisplayActivity();
+    audioTickWake();
     return;
   }
 
   if (rising && lcdThemeChipHit(x, y)) {
     toggleLcdTheme();
+    audioTickButton();
   } else if (rising && lcdLayoutChipHit(x, y)) {
     toggleLcdLayout();
+    audioTickButton();
   } else if (rising) {
     noteDisplayActivity();
+    // Awake + non-button: no tick
   }
 }

@@ -222,6 +222,12 @@ extern DallasTemperature sensors;
 extern Adafruit_NeoPixel pixels;
 void setupPins();
 void setupServo();
+void setupAudio();
+void audioTickWake();    // asleep: any touch wakes + short tick
+void audioTickButton();  // awake: theme/layout chip only (short tick)
+void audioAlertBeep();   // single sustained beep (saved tone; available for other uses)
+void audioAlarmBeep();   // repeating DM/@mention alarm chirp (two-note)
+void pollAudioAlerts();  // Core 0: while alertDm|alertMention, alarm every ALERT_SOUND_PERIOD_MS
 void setServoAngle(int angleDeg);
 // Core 0 uiTask only: non-blocking DS18B20 (shared OneWire — never call from Core 1).
 bool pollTemperatureNonBlocking(float& tempC, float& tempF);

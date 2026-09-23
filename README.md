@@ -34,7 +34,7 @@ This UI is **not done yet** and **will change**. The mocks below are 480×320 la
 
 Interactive HTML (all four): [`docs/lcd-mock/all-four.html`](docs/lcd-mock/all-four.html).
 
-**Status:** Guition module firmware - **v0.7.51** (see `VERSION` / `CHANGELOG.md`). Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware - **v0.7.56** (see `VERSION` / `CHANGELOG.md`). Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
@@ -99,7 +99,7 @@ Same list Discord shows for `!help`:
 - `!ota` -- Wi-Fi ArduinoOTA info (IP / hostname / port 3232)
 - `!coredump` -- last panic from flash coredump (`!coredump clear` erases)
 - `!servo <0-90>` -- servo angle (updates the `Srv` bar; optional external servo on GPIO 17)
-- `!clear` -- clear DM / mention alert flags on the LCD
+- `!clear` -- clear DM / mention alert flags on the LCD (stops the repeating alarm)
 
 This Guition module has **no LED1 / LED2** and **no on-board RGB**. `!led` is not shipped (no handler).
 
@@ -177,7 +177,7 @@ Header band: K9DTV logo (`k9dtv_logo_rgb565.h` -- dark + bright RGB565) + two me
 
 Empty user slots show `---`. Names from startup REST member fetch (nick -> global name -> username). Presence from the Gateway. Command counts reset every 24 hours.
 
-DM to the bot and @mention of `OWNER_ID_STR` set **DM** / **Mention** flags on the left panel; owner `!clear` clears them.
+DM to the bot and @mention of `OWNER_ID_STR` set **DM** / **Mention** flags on the left panel and start a two-note I2S **alarm every 3 s**; owner `!clear` clears the flags and stops the sound.
 
 ### `!display`
 
@@ -332,8 +332,21 @@ Board: **Guition JC3248W535EN** module (ESP32-S3-N16R8 + AXS15231B LCD + in-cell
 | Touch I2C SDA / SCL / INT | 4 / 8 / 3 |
 | Servo (optional external) | 17 |
 | DS18B20 data (optional external) | 10 |
+| I2S DOUT / BCLK / LRCLK (on-module amp → speaker) | 41 / 42 / 2 |
 
 Change pins in `minime_config.h` if your wiring differs. **No LED1 / LED2**, **no on-module RGB**, **no** `!set1` / `!set2`, **no** USB VBUS ADC (GPIO 1 is backlight).
+
+### Speaker (on-module I2S + NS4168)
+
+Guition demo pins: **DOUT 41**, **BCLK 42**, **LRCLK/WS 2**. Firmware plays short sine ticks over I2S (no external piezo).
+
+Touch feedback:
+
+- **Asleep:** any touch → soft lower tick + wake backlight
+- **Awake:** Light/Dark or Display/Log chip → higher confirm tick
+- **Awake:** anywhere else → silent (still refreshes idle timer)
+
+If the speaker is still very quiet, community reports often need a **10 kΩ pull-up on NS4168 CTRL (U4 pin 1) to 3.3 V** so the amp is enabled / right-channel selected — that is a hardware mod, not a firmware volume slider.
 
 ### DS18B20 (GPIO 10, if fitted)
 
@@ -351,7 +364,7 @@ TO-92, powered from **3.3 V**. Internal pull-up enabled; a **4.7 kohm** DQ->3.3 
 
 ## Touch (in-cell)
 
-Capacitive touch on the AXS15231B wakes the LCD after backlight-off and hits the theme / layout chips.
+Capacitive touch on the AXS15231B wakes the LCD after backlight-off and hits the theme / layout chips (I2S speaker ticks — see above).
 
 <details>
 <summary><strong>Touch behavior</strong></summary>

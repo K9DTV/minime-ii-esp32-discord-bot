@@ -1,6 +1,26 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.51** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.56** (see `VERSION` and README).
+
+## 0.7.56
+
+- DM / @mention: two-note I2S **alarm** every **3 s** while sticky flags are set; owner `!clear` stops it (`pollAudioAlerts` on Core 0). Touch stays short ticks. Confirm flash via `Display · v0.7.56`.
+
+## 0.7.55
+
+- Touch UI: short decaying **ticks** (not beeps). Saved louder sustained tone as `audioAlertBeep()` for DM/@mention later (not wired yet). Confirm flash via `Display · v0.7.55`.
+
+## 0.7.54
+
+- I2S touch ticks shorter/softer (wake ~22 ms / peak 9k; button ~28 ms / peak 11k). Confirm flash via `Display · v0.7.54`.
+
+## 0.7.53
+
+- Touch ticks retargeted to **on-module I2S speaker** (DOUT **41**, BCLK **42**, LRCLK **2** → NS4168). Dropped GPIO-18 LEDC piezo path. Short enveloped sine clicks (wake vs button). Confirm flash via `Display · v0.7.53`. If still quiet: NS4168 CTRL pull-up hardware note in README.
+
+## 0.7.52
+
+- Touch UI ticks (optional piezo on **GPIO 18**): soft lower click on any wake-from-sleep touch; higher confirm click on Light/Dark or Display/Log chip while awake; silent for other awake taps. `audio.cpp` + `PIN_BUZZER`. Confirm flash via `Display · v0.7.52`.
 
 ## 0.7.51
 

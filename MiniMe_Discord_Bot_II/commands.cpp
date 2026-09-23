@@ -98,7 +98,7 @@ static void cmdHelp(const CmdCtx& ctx) {
     "• `!ota` — Wi-Fi firmware update info (IP / hostname).\n"
     "• `!coredump` — Last panic from flash coredump (`!coredump clear` erases).\n"
     "• `!servo <0-90>` — Moves the servo motor to a specific angle.\n"
-    "• `!clear` — Clears DM / mention alert flags on the LCD.";
+    "• `!clear` — Clears DM / mention alert flags on the LCD (stops the alarm sound).";
   showIfPosted("Help", "Command Sent", sendDiscordMessage(ctx.channelId, helpMsg));
 }
 

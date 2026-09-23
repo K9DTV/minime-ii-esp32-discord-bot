@@ -14,7 +14,8 @@
   display_draw.cpp                 -- palette, panels, drawDashboard
   display_internal.h               -- private LCD types shared by the four files above
   touch.cpp                        -- AXS15231B I2C touch wake
-  hardware.cpp                     -- servo, NeoPixel, DS18B20, GPIO
+  hardware.cpp                     -- servo, NeoPixel, DS18B20, GPIO, piezo ticks
+  audio.cpp                        -- I2S speaker UI ticks (wake vs button)
   discord_rest.cpp                 -- HTTPS REST (CA bundle), sendDiscordMessage, members
   discord_gateway.cpp              -- websocket, heartbeat, identify, events (filter init at connect)
   serial_log.cpp                   -- MmLog -> web UI only (no USB Serial / UART0)
