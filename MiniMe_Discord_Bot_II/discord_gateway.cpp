@@ -24,10 +24,14 @@ static char gwDropStartEvent[GW_LOG_COLS + 1];
 static bool gwInDropState = false;
 static unsigned long gwLastDropRemindMillis = 0;
 static unsigned long gwLastFullLogMillis = 0;
-static unsigned long gwReconnectIntervalMs = 5000;
-static const unsigned long GW_RECONNECT_BASE_MS = 5000UL;
-static const unsigned long GW_RECONNECT_MAX_MS = 5000UL; // was 60000; keep tries short so drop recovery stays under ~30s when Discord answers
-static const unsigned long GW_RECONNECT_FAST_MS = 200UL; // after drop: IDENTIFY ASAP
+static unsigned long gwReconnectIntervalMs = 3000;
+// Fast tries after a drop (wifi up), then climb: 3s -> 7s -> 12s, +8s steps, cap 40s.
+// Avoids hammering Discord every 5s (or 200ms) for the length of a real outage.
+static const unsigned long GW_RECONNECT_FAST_MS = 200UL;
+static const uint8_t GW_RECONNECT_FAST_TRIES = 3;
+static const unsigned long GW_RECONNECT_BASE_MS = 3000UL;
+static const unsigned long GW_RECONNECT_MAX_MS = 40000UL;
+static uint8_t gwReconnectFailCount = 0;
 static unsigned long gwLastWifiKickMillis = 0;
 static char gwLastDropKind[32];
 static bool gwLoggedConnectDuringDrop = false;
@@ -147,11 +151,11 @@ static void gwSetReconnectIntervalMs(unsigned long ms) {
   gwLogAppend(buf);
 }
 
-// Drop path: short reconnect so DISCONNECTED cannot climb to 5s.
+// Drop path: clear session; interval comes from gwSetReconnectBackoff (fast then climb).
 static void gwArmFastIdentify(const char* reason) {
   gwClearSession(reason);
   gwFastIdentifyPending = true;
-  gwSetReconnectIntervalMs(GW_RECONNECT_FAST_MS);
+  gwReconnectFailCount = 0; // new drop episode — next backoff(false) starts at fast tries
 }
 
 void gwSerialService() {
@@ -200,15 +204,27 @@ void gwSerialService() {
   }
 }
 
+static unsigned long gwNextBackoffMs(uint8_t failCount) {
+  // failCount is 1..n after each failed reconnect attempt.
+  if (failCount == 0) return GW_RECONNECT_BASE_MS;
+  if (failCount <= GW_RECONNECT_FAST_TRIES) return GW_RECONNECT_FAST_MS;
+  // Climb: 3s, 7s, 12s, then +8s toward 40s.
+  static const unsigned long kClimb[] = { 3000UL, 7000UL, 12000UL };
+  uint8_t step = (uint8_t)(failCount - GW_RECONNECT_FAST_TRIES - 1);
+  if (step < 3) return kClimb[step];
+  unsigned long ms = 12000UL + (unsigned long)(step - 2) * 8000UL;
+  if (ms > GW_RECONNECT_MAX_MS) ms = GW_RECONNECT_MAX_MS;
+  return ms;
+}
+
 static void gwSetReconnectBackoff(bool reset) {
   if (reset) {
+    gwReconnectFailCount = 0;
     gwSetReconnectIntervalMs(GW_RECONNECT_BASE_MS);
-  } else {
-    unsigned long next = gwReconnectIntervalMs * 2UL;
-    if (next < GW_RECONNECT_BASE_MS) next = GW_RECONNECT_BASE_MS;
-    if (next > GW_RECONNECT_MAX_MS) next = GW_RECONNECT_MAX_MS;
-    gwSetReconnectIntervalMs(next);
+    return;
   }
+  if (gwReconnectFailCount < 255) gwReconnectFailCount++;
+  gwSetReconnectIntervalMs(gwNextBackoffMs(gwReconnectFailCount));
 }
 
 static void ensureWifiForGateway() {
@@ -389,6 +405,7 @@ static void pumpGatewayKeepAlive() {
                (unsigned long)(now - hbSentMillis));
       gwLogAppend(toMsg);
       gwArmFastIdentify("hb_ack");
+      gwSetReconnectBackoff(false);
       hbAckPending = false;
       gatewayWS.disconnect();
     }
@@ -467,12 +484,15 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       noteLastEvent(wifiUp ? "GW drop" : "GW wifi down");
 
       // Identify-only after drops. Do not beginSslWithBundle again — library reconnects to BIND_HOST.
-      if (gwFastIdentifyPending) {
-        gwSetReconnectIntervalMs(GW_RECONNECT_FAST_MS);
-      } else if (wifiUp) {
-        gwArmFastIdentify("disconnect");
+      // Wifi up: few fast tries, then climb (3/7/12..40s). Wifi down: same climb (no fast flood).
+      if (wifiUp) {
+        if (!gwFastIdentifyPending) {
+          gwArmFastIdentify("disconnect");
+        }
+        gwSetReconnectBackoff(false);
       } else {
         gwClearSession("wifi_down");
+        gwFastIdentifyPending = false;
         gwSetReconnectBackoff(false);
       }
       ensureWifiForGateway();
@@ -547,6 +567,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       if (op == 7) {
         gwNoteDrop("OP7_RECONNECT", "OP7_RECONNECT");
         gwArmFastIdentify("op7");
+        gwSetReconnectBackoff(false);
         gatewayWS.disconnect();
         return;
       }
@@ -563,6 +584,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
                  resumable ? '1' : '0');
         gwNoteDrop(detail, detail);
         gwArmFastIdentify("op9");
+        gwSetReconnectBackoff(false);
         gatewayWS.disconnect();
         return;
       }

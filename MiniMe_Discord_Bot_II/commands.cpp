@@ -45,7 +45,7 @@ static void runFetchCommand(const String& channelId, const char* label, const ch
 }
 
 // LCD value only if Discord accepted the post (same rule as sendFetchResult / !help).
-// Usage-error replies (Usage: !weather …) are fire-and-forget: no LCD, no post-bool check — cheap chat nacks only.
+// Usage-error replies (Usage: !weather ...) are fire-and-forget: no LCD, no post-bool check.
 static void showIfPosted(const char* label, const String& okLine2, bool posted) {
   if (posted) showTransient(label, okLine2);
   else {
@@ -54,9 +54,218 @@ static void showIfPosted(const char* label, const String& okLine2, bool posted) 
   }
 }
 
-// Commands whose args are the rest of the line (multi-word). Others take one token.
-static bool cmdConsumesRest(const String& cmd) {
-  return cmd == "!ask" || cmd == "!display";
+// ---- dispatch table (single place for consumes-rest / owner / record-use) ----
+
+struct CmdCtx {
+  const String& channelId;
+  const String& authorId;
+  const String& authorName;
+  const String& args;
+  bool isDM;
+};
+
+typedef void (*CmdHandler)(const CmdCtx& ctx);
+
+enum CmdFlags : uint8_t {
+  CMD_NONE = 0,
+  CMD_CONSUMES_REST = 1u << 0, // multi-word args (mid-line tokenize keeps full rest)
+  CMD_OWNER = 1u << 1,
+  CMD_RECORD_USE = 1u << 2,
+};
+
+struct CmdEntry {
+  const char* name;
+  uint8_t flags;
+  CmdHandler handler;
+};
+
+static void cmdHelp(const CmdCtx& ctx) {
+  String helpMsg =
+    "🤖 **MiniMe Bot Commands**\n\n"
+    "**👤 Public Commands:**\n"
+    "• `!apod` — NASA Astronomy Picture of the Day.\n"
+    "• `!ask <question>` — Asks DeepSeek (text AI reply in chat).\n"
+    "• `!display <text>` — Writes custom text to the LCD screen.\n"
+    "• `!help` — Shows this command list.\n"
+    "• `!iss` — Current International Space Station position.\n"
+    "• `!news` — Space and high-tech science headlines.\n"
+    "• `!physics` — Latest arXiv physics papers.\n"
+    "• `!sys` — System diagnostics (uptime, internal heap, PSRAM, RSSI, gateway, firmware URL).\n"
+    "• `!temp` — Reads the current indoor temperature sensor.\n"
+    "• `!time` — Displays the current bot time.\n"
+    "• `!weather <zip>` — Fetches the weather report for a US ZIP code.\n\n"
+    "**👑 Owner-Only Commands:**\n"
+    "• `!ota` — Wi-Fi firmware update info (IP / hostname).\n"
+    "• `!coredump` — Last panic from flash coredump (`!coredump clear` erases).\n"
+    "• `!servo <0-90>` — Moves the servo motor to a specific angle.\n"
+    "• `!clear` — Clears DM / mention alert flags on the LCD.";
+  showIfPosted("Help", "Command Sent", sendDiscordMessage(ctx.channelId, helpMsg));
+}
+
+static void cmdWeather(const CmdCtx& ctx) {
+  if (ctx.args.length() == 0) {
+    sendDiscordMessage(ctx.channelId, "Usage: !weather <zip>");
+    return;
+  }
+  String zip = ctx.args;
+  bool validZip = (zip.length() == 5);
+  if (validZip) {
+    for (unsigned i = 0; i < 5; i++) {
+      char c = zip.charAt(i);
+      if (c < '0' || c > '9') { validZip = false; break; }
+    }
+  }
+  if (!validZip) {
+    sendDiscordMessage(ctx.channelId, "Invalid ZIP code.");
+    return;
+  }
+  String report;
+  showTransient("Weather", "Fetching...");
+  bool ok = getWeather(zip, report);
+  sendFetchResult(ctx.channelId, "Weather", ok, report, zip, "Sent");
+}
+
+static void cmdNews(const CmdCtx& ctx) {
+  runFetchCommand(ctx.channelId, "News", "Fetching...", getScienceNews);
+}
+
+static void cmdPhysics(const CmdCtx& ctx) {
+  runFetchCommand(ctx.channelId, "Physics", "Fetching arXiv...", getPhysicsPapers);
+}
+
+static void cmdApod(const CmdCtx& ctx) {
+  runFetchCommand(ctx.channelId, "APOD", "Fetching NASA...", getApod);
+}
+
+static void cmdIss(const CmdCtx& ctx) {
+  runFetchCommand(ctx.channelId, "ISS", "Fetching...", getIssPosition);
+}
+
+static void cmdTemp(const CmdCtx& ctx) {
+  float c = 0, f = 0;
+  bool had = false, fresh = false;
+  dashTempSnapshot(c, f, had, fresh);
+  if (fresh) {
+    String msg = "Current Temp: " + String(c, 1) + "°C / " + String(f, 1) + "°F";
+    showIfPosted("Temp", String(f, 1) + "F/" + String(c, 1) + "C",
+                 sendDiscordMessage(ctx.channelId, msg));
+  } else if (had) {
+    showIfPosted("Temp", "Stale",
+                 sendDiscordCmdError(ctx.channelId, "Temperature reading is stale (>30s). Sensor may be disconnected."));
+  } else {
+    showIfPosted("Temp", "Sensor error",
+                 sendDiscordCmdError(ctx.channelId, "Temperature sensor error."));
+  }
+}
+
+static void cmdSys(const CmdCtx& ctx) {
+  showIfPosted("Sys", "Sent", sendDiscordMessage(ctx.channelId, getSystemInfo(), true));
+}
+
+static void cmdOta(const CmdCtx& ctx) {
+  showIfPosted("OTA", WiFi.localIP().toString(), sendDiscordMessage(ctx.channelId, otaStatusText()));
+}
+
+static void cmdCoredump(const CmdCtx& ctx) {
+  String report;
+  if (ctx.args.equalsIgnoreCase("clear") || ctx.args.equalsIgnoreCase("erase")) {
+    bool ok = clearCoreDumpImage(report);
+    showIfPosted("Coredump", ok ? "Cleared" : "Error",
+                 ok ? sendDiscordMessage(ctx.channelId, report, true)
+                    : sendDiscordCmdError(ctx.channelId, report, true));
+    return;
+  }
+  showTransient("Coredump", "Reading...");
+  bool ok = formatCoreDumpReport(report);
+  showIfPosted("Coredump", ok ? "Sent" : "Empty",
+               ok ? sendDiscordMessage(ctx.channelId, report, true)
+                  : sendDiscordCmdError(ctx.channelId, report, true));
+}
+
+static void cmdTime(const CmdCtx& ctx) {
+  updateLocalTime();
+  char currentTime[12];
+  formatLocalTimeStr(currentTime, sizeof(currentTime));
+  String msg = String("🕒 Current Bot Time: ") + currentTime;
+  showIfPosted("Time", currentTime, sendDiscordMessage(ctx.channelId, msg));
+}
+
+static void cmdAsk(const CmdCtx& ctx) {
+  if (ctx.args.length() == 0) {
+    sendDiscordMessage(ctx.channelId, "Usage: !ask <question>");
+    return;
+  }
+  if (askNeedPost) {
+    sendDiscordCmdError(ctx.channelId, "DeepSeek is already answering. Try again in a moment.");
+    return;
+  }
+  askPendingQuestion = ctx.args;
+  askPendingChannelId = ctx.channelId;
+  askNeedPost = true;
+  showTransient("DeepSeek", "Queued"); // local queue; Discord reply checked in runAskFromLoop
+}
+
+static void cmdDisplay(const CmdCtx& ctx) {
+  if (ctx.args.length() == 0) {
+    sendDiscordMessage(ctx.channelId, "Usage: !display <text>");
+    return;
+  }
+  String text = ctx.args;
+  if (text.length() > 50) text = text.substring(0, 50);
+  String line15 = text.substring(0, text.length() > 25 ? 25 : text.length());
+  String line16 = text.length() > 25 ? text.substring(25) : "";
+  showTransient(line15, line16, "", 6000); // local LCD is the feature
+  if (!sendDiscordMessage(ctx.channelId, "Display updated.")) {
+    noteCmdErrorReply("Post fail: Display");
+    showTransient("Display", "Post fail");
+  }
+}
+
+static void cmdClear(const CmdCtx& ctx) {
+  clearAlertFlags();
+  showIfPosted("clear", "alerts OFF",
+               sendDiscordMessage(ctx.channelId, "DM/mention alerts cleared"));
+}
+
+static void cmdServo(const CmdCtx& ctx) {
+  if (ctx.args.length() == 0) {
+    sendDiscordMessage(ctx.channelId, "Usage: !servo <0-90>");
+    return;
+  }
+  int angle = ctx.args.toInt();
+  if (angle < 0 || angle > 90) {
+    sendDiscordMessage(ctx.channelId, "Angle out of range. Allowed: 0-90 degrees.");
+    return;
+  }
+  setServoAngle(angle);
+  String msg = "Servo set to " + String(angle) + " degrees.";
+  showIfPosted("Servo", String(angle) + " deg", sendDiscordMessage(ctx.channelId, msg));
+}
+
+// Name match is exact (already lowercased). CMD_CONSUMES_REST is the mid-line tokenize rule.
+static const CmdEntry kCmds[] = {
+  { "!help",     CMD_NONE,                           cmdHelp },
+  { "!weather",  CMD_RECORD_USE,                     cmdWeather },
+  { "!news",     CMD_RECORD_USE,                     cmdNews },
+  { "!physics",  CMD_RECORD_USE,                     cmdPhysics },
+  { "!apod",     CMD_RECORD_USE,                     cmdApod },
+  { "!iss",      CMD_RECORD_USE,                     cmdIss },
+  { "!temp",     CMD_RECORD_USE,                     cmdTemp },
+  { "!sys",      CMD_RECORD_USE,                     cmdSys },
+  { "!ota",      CMD_OWNER | CMD_RECORD_USE,         cmdOta },
+  { "!coredump", CMD_OWNER | CMD_RECORD_USE,         cmdCoredump },
+  { "!time",     CMD_RECORD_USE,                     cmdTime },
+  { "!ask",      CMD_CONSUMES_REST | CMD_RECORD_USE, cmdAsk },
+  { "!display",  CMD_CONSUMES_REST | CMD_RECORD_USE, cmdDisplay },
+  { "!clear",    CMD_OWNER | CMD_RECORD_USE,         cmdClear },
+  { "!servo",    CMD_OWNER | CMD_RECORD_USE,         cmdServo },
+};
+
+static const CmdEntry* findCmd(const String& cmdWord) {
+  for (size_t i = 0; i < sizeof(kCmds) / sizeof(kCmds[0]); i++) {
+    if (cmdWord.equals(kCmds[i].name)) return &kCmds[i];
+  }
+  return nullptr;
 }
 
 static void stripTrailingPunct(String& s) {
@@ -72,7 +281,10 @@ static void stripTrailingPunct(String& s) {
 }
 
 // Find "!cmd" at line start or after whitespace. Sets cmdWord (lower) + args.
-static bool tokenizeCommand(const String& content, String& cmdWord, String& args) {
+// entryOut is the table row for cmdWord (nullptr if unknown); one findCmd for tokenize + dispatch.
+static bool tokenizeCommand(const String& content, const CmdEntry*& entryOut,
+                            String& cmdWord, String& args) {
+  entryOut = nullptr;
   String raw = content;
   raw.trim();
   if (raw.length() == 0) return false;
@@ -103,13 +315,17 @@ static bool tokenizeCommand(const String& content, String& cmdWord, String& args
   args.trim();
   stripTrailingPunct(cmdWord);
 
-  // Mid-line: one-word args unless cmdConsumesRest. Strip trailing punct on short args.
-  if (midLine && args.length() > 0 && !cmdConsumesRest(cmdWord)) {
+  if (cmdWord.length() <= 1) return false;
+  entryOut = findCmd(cmdWord);
+
+  // Mid-line: one-word args unless CMD_CONSUMES_REST. Strip trailing punct on short args.
+  if (midLine && args.length() > 0 &&
+      !(entryOut && (entryOut->flags & CMD_CONSUMES_REST))) {
     int argSp = args.indexOf(' ');
     if (argSp > 0) args = args.substring(0, argSp);
     stripTrailingPunct(args);
   }
-  return cmdWord.length() > 1;
+  return true;
 }
 
 void handleCommand(const String& content, const String& authorId, const String& authorName,
@@ -119,211 +335,30 @@ void handleCommand(const String& content, const String& authorId, const String& 
     return;
   }
   String cmdWord, args;
-  if (!tokenizeCommand(content, cmdWord, args)) return;
+  const CmdEntry* e = nullptr;
+  if (!tokenizeCommand(content, e, cmdWord, args)) return;
 
   noteBotActivity();
-  // Bot:N: recordUserUse only inside known-command branches below (not !help / unknown).
 
-  if (cmdWord == "!help") {
-    String helpMsg =
-      "🤖 **MiniMe Bot Commands**\n\n"
-      "**👤 Public Commands:**\n"
-      "• `!apod` — NASA Astronomy Picture of the Day.\n"
-      "• `!ask <question>` — Asks DeepSeek (text AI reply in chat).\n"
-      "• `!display <text>` — Writes custom text to the LCD screen.\n"
-      "• `!help` — Shows this command list.\n"
-      "• `!iss` — Current International Space Station position.\n"
-      "• `!news` — Space and high-tech science headlines.\n"
-      "• `!physics` — Latest arXiv physics papers.\n"
-      "• `!sys` — System diagnostics (uptime, internal heap, PSRAM, RSSI, gateway, firmware URL).\n"
-      "• `!temp` — Reads the current indoor temperature sensor.\n"
-      "• `!time` — Displays the current bot time.\n"
-      "• `!weather <zip>` — Fetches the weather report for a US ZIP code.\n\n"
-      "**👑 Owner-Only Commands:**\n"
-      "• `!ota` — Wi-Fi firmware update info (IP / hostname).\n"
-      "• `!coredump` — Last panic from flash coredump (`!coredump clear` erases).\n"
-      "• `!servo <0-90>` — Moves the servo motor to a specific angle.\n"
-      "• `!clear` — Clears DM / mention alert flags on the LCD.";
-    showIfPosted("Help", "Command Sent", sendDiscordMessage(channelId, helpMsg));
+  if (!e) {
+    sendDiscordMessage(channelId, "That is not a command.");
+    showTransient("Unknown", cmdWord);
     return;
   }
-  if (cmdWord == "!weather") {
-    recordUserUse(authorId, authorName);
-    if (args.length() == 0) {
-      sendDiscordMessage(channelId, "Usage: !weather <zip>");
-      return;
-    }
-    String zip = args;
-    bool validZip = (zip.length() == 5);
-    if (validZip) {
-      for (unsigned i = 0; i < 5; i++) {
-        char c = zip.charAt(i);
-        if (c < '0' || c > '9') { validZip = false; break; }
-      }
-    }
-    if (!validZip) {
-      sendDiscordMessage(channelId, "Invalid ZIP code.");
-      return;
-    }
-    String report;
-    showTransient("Weather", "Fetching...");
-    bool ok = getWeather(zip, report);
-    // okLine2 = ZIP so LCD shows Weather / <zip> / Sent|Post fail|Error
-    sendFetchResult(channelId, "Weather", ok, report, zip, "Sent");
-    return;
-  }
-  if (cmdWord == "!news") {
-    recordUserUse(authorId, authorName);
-    runFetchCommand(channelId, "News", "Fetching...", getScienceNews);
-    return;
-  }
-  if (cmdWord == "!physics") {
-    recordUserUse(authorId, authorName);
-    runFetchCommand(channelId, "Physics", "Fetching arXiv...", getPhysicsPapers);
-    return;
-  }
-  if (cmdWord == "!apod") {
-    recordUserUse(authorId, authorName);
-    runFetchCommand(channelId, "APOD", "Fetching NASA...", getApod);
-    return;
-  }
-  if (cmdWord == "!iss") {
-    recordUserUse(authorId, authorName);
-    runFetchCommand(channelId, "ISS", "Fetching...", getIssPosition);
-    return;
-  }
-  if (cmdWord == "!temp") {
-    recordUserUse(authorId, authorName);
-    float c = 0, f = 0;
-    bool had = false, fresh = false;
-    dashTempSnapshot(c, f, had, fresh);
-    if (fresh) {
-      String msg = "Current Temp: " + String(c, 1) + "°C / " + String(f, 1) + "°F";
-      showIfPosted("Temp", String(f, 1) + "F/" + String(c, 1) + "C",
-                   sendDiscordMessage(channelId, msg));
-    } else if (had) {
-      showIfPosted("Temp", "Stale",
-                   sendDiscordCmdError(channelId, "Temperature reading is stale (>30s). Sensor may be disconnected."));
-    } else {
-      showIfPosted("Temp", "Sensor error",
-                   sendDiscordCmdError(channelId, "Temperature sensor error."));
-    }
-    return;
-  }
-  if (cmdWord == "!sys") {
-    recordUserUse(authorId, authorName);
-    showIfPosted("Sys", "Sent", sendDiscordMessage(channelId, getSystemInfo(), true));
-    return;
-  }
-  if (cmdWord == "!ota") {
+
+  if (e->flags & CMD_OWNER) {
     if (!isOwner(authorId)) {
       if (!isDM) {
         sendDiscordMessage(channelId, "You are not allowed to use this command.");
       }
-      return;
-    }
-    recordUserUse(authorId, authorName);
-    showIfPosted("OTA", WiFi.localIP().toString(), sendDiscordMessage(channelId, otaStatusText()));
-    return;
-  }
-  if (cmdWord == "!coredump") {
-    if (!isOwner(authorId)) {
-      if (!isDM) {
-        sendDiscordMessage(channelId, "You are not allowed to use this command.");
-      }
-      return;
-    }
-    recordUserUse(authorId, authorName);
-    String report;
-    if (args.equalsIgnoreCase("clear") || args.equalsIgnoreCase("erase")) {
-      bool ok = clearCoreDumpImage(report);
-      showIfPosted("Coredump", ok ? "Cleared" : "Error",
-                   ok ? sendDiscordMessage(channelId, report, true)
-                      : sendDiscordCmdError(channelId, report, true));
-      return;
-    }
-    showTransient("Coredump", "Reading...");
-    bool ok = formatCoreDumpReport(report);
-    showIfPosted("Coredump", ok ? "Sent" : "Empty",
-                 ok ? sendDiscordMessage(channelId, report, true)
-                    : sendDiscordCmdError(channelId, report, true));
-    return;
-  }
-  if (cmdWord == "!time") {
-    recordUserUse(authorId, authorName);
-    updateLocalTime();
-    char currentTime[12];
-    formatLocalTimeStr(currentTime, sizeof(currentTime));
-    String msg = String("🕒 Current Bot Time: ") + currentTime;
-    showIfPosted("Time", currentTime, sendDiscordMessage(channelId, msg));
-    return;
-  }
-  if (cmdWord == "!ask") {
-    recordUserUse(authorId, authorName);
-    if (args.length() == 0) {
-      sendDiscordMessage(channelId, "Usage: !ask <question>");
-      return;
-    }
-    if (askNeedPost) {
-      sendDiscordCmdError(channelId, "DeepSeek is already answering. Try again in a moment.");
-      return;
-    }
-    String question = args;
-    askPendingQuestion = question;
-    askPendingChannelId = channelId;
-    askNeedPost = true;
-    showTransient("DeepSeek", "Queued"); // local queue; Discord reply checked in runAskFromLoop
-    return;
-  }
-  if (cmdWord == "!display") {
-    recordUserUse(authorId, authorName);
-    if (args.length() == 0) {
-      sendDiscordMessage(channelId, "Usage: !display <text>");
-      return;
-    }
-    String text = args;
-    if (text.length() > 50) text = text.substring(0, 50);
-    String line15 = text.substring(0, text.length() > 25 ? 25 : text.length());
-    String line16 = text.length() > 25 ? text.substring(25) : "";
-    showTransient(line15, line16, "", 6000); // local LCD is the feature
-    // If Discord ack fails, overwrite with Post fail (local text already shown briefly).
-    if (!sendDiscordMessage(channelId, "Display updated.")) {
-      noteCmdErrorReply("Post fail: Display");
-      showTransient("Display", "Post fail");
-    }
-    return;
-  }
-  if (cmdWord == "!servo" || cmdWord == "!clear") {
-    if (!isOwner(authorId)) {
-      if (!isDM) {
-        sendDiscordMessage(channelId, "You are not allowed to use this command.");
-      }
-      return;
-    }
-    recordUserUse(authorId, authorName);
-    if (cmdWord == "!clear") {
-      clearAlertFlags();
-      showIfPosted("clear", "alerts OFF",
-                   sendDiscordMessage(channelId, "DM/mention alerts cleared"));
-      return;
-    }
-    if (cmdWord == "!servo") {
-      if (args.length() == 0) {
-        sendDiscordMessage(channelId, "Usage: !servo <0-90>");
-        return;
-      }
-      int angle = args.toInt();
-      if (angle < 0 || angle > 90) {
-        sendDiscordMessage(channelId, "Angle out of range. Allowed: 0-90 degrees.");
-        return;
-      }
-      setServoAngle(angle);
-      String msg = "Servo set to " + String(angle) + " degrees.";
-      showIfPosted("Servo", String(angle) + " deg", sendDiscordMessage(channelId, msg));
       return;
     }
   }
 
-  sendDiscordMessage(channelId, "That is not a command.");
-  showTransient("Unknown", cmdWord);
+  if (e->flags & CMD_RECORD_USE) {
+    recordUserUse(authorId, authorName);
+  }
+
+  CmdCtx ctx{ channelId, authorId, authorName, args, isDM };
+  e->handler(ctx);
 }

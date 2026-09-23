@@ -16,7 +16,7 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 **Not prime time yet.** The LCD and LAN web UI are a **starting point** and will go through **a lot of changes**. Expect layouts, chrome, and polish to keep moving. You are invited to flash it, poke Discord/`!help`, and play with the glass and the browser -- just know this is early Guition work, not a finished product UI.
 
-**Status:** Guition module firmware - **v0.7.43** (see `VERSION` / `CHANGELOG.md`) - **WIP UI**. Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware - **v0.7.46** (see `VERSION` / `CHANGELOG.md`) - **WIP UI**. Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
@@ -52,7 +52,7 @@ AI helped with firmware edits, multi-file layout, and GitHub updates. I owned th
 
 - **LCD + LAN web UI** -- heavy redesign ahead; what you see now is a baseline to iterate on
 - **Desk case / enclosure** for the Guition module (this is already the module board, not a breadboard prototype)
-- **CI** -- four badges: **Compile** (Arduino), **Sanity** (fast host checks), **Python** (pytest + Pillow), **HTML** (LAN CSS/JS/SVG in headers). Local soak: [`docs/HIL_SOAK.md`](docs/HIL_SOAK.md) / `docs/lan-monitor.ps1`
+- **CI** -- four badges: **Compile** (Arduino), **Sanity** (fast host checks), **Python** (pytest + Pillow), **HTML** (LAN CSS/JS/SVG in headers). Local soak: [`docs/HIL_SOAK.md`](docs/HIL_SOAK.md) / `docs/lan-monitor.ps1`. Latest attested soak: [`docs/soak-results.md`](docs/soak-results.md).
 
 Done recently: dual-core LCD vs Gateway, Display/Log + Light/Dark chips, DM/@mention flags, dirty redraw, Wi-Fi ArduinoOTA (`!ota`), LAN dashboard matched to the LCD layout, ArduinoJson 7, `!ask` HOL, Core0 log bridge.
 
@@ -353,7 +353,7 @@ Capacitive touch on the AXS15231B wakes the LCD after backlight-off and hits the
 
 ## Arduino IDE setup
 
-GitHub Actions runs **Compile**, **Sanity**, **Python**, and **HTML** on push (badges above). None upload or talk to the board. Local soak: [`docs/HIL_SOAK.md`](docs/HIL_SOAK.md).
+GitHub Actions runs **Compile**, **Sanity**, **Python**, and **HTML** on push (badges above). None upload or talk to the board. Local soak: [`docs/HIL_SOAK.md`](docs/HIL_SOAK.md). Attested results: [`docs/soak-results.md`](docs/soak-results.md).
 
 1. Install [Arduino IDE](https://www.arduino.cc/en/software) and the **esp32** board package (Espressif).
 2. Open **only** `MiniMe_Discord_Bot_II/MiniMe_Discord_Bot_II.ino` from a folder that contains that **single** `.ino` plus the `.cpp` / `.h` files and `partitions.csv`. Arduino merges every `.ino` in the folder into one translation unit — a leftover `Discord_Bot_MiniMe_II.ino` (or any second `.ino`) causes `redefinition of 'void connectWiFi()'` / `setup` / stack helpers. Delete extras; folder name should match the one `.ino` basename.

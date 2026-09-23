@@ -1,11 +1,24 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.43** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.46** (see `VERSION` and README).
+
+## 0.7.46
+
+- Gateway reconnect climb: after a drop, **3** fast tries (200 ms), then **3 s → 7 s → 12 s**, then +8 s steps capped at **40 s** (was forever-capped at 5 s / sticky 200 ms on wifi-up). Resets on READY/RESUMED. Confirm flash via `Display · v0.7.46`.
+
+## 0.7.45
+
+- CI Python: `tools/test_cmd_tokenize.py` (tokenize / `CMD_CONSUMES_REST`, sync-checked against `commands.cpp`) and `tools/test_body_reader.py` (FakeClient mirror of `readHttpBodyAfterHeaders` — incomplete CL / missing 0-chunk / mid-chunk / cap => false). Host mirrors: `cmd_tokenize.py`, `http_body_reader.py`. Confirm flash via `Display · v0.7.45`.
+
+## 0.7.44
+
+- `commands.cpp`: dispatch table (`kCmds`) with `CMD_CONSUMES_REST` / `CMD_OWNER` / `CMD_RECORD_USE` — tokenize mid-line rest rule and owner/record gates share one table; handlers are thin `cmd*` functions. `tokenizeCommand` returns the `CmdEntry*` so dispatch does not re-scan. Behavior unchanged: owner gate still runs before `recordUserUse`; unknown commands still reply + transient without recording; usage errors inside handlers still run after `recordUserUse` for `CMD_RECORD_USE` cmds (same as pre-refactor). Confirm flash via `Display · v0.7.44`.
 
 ## 0.7.43
 
 - TWDT try (different from 0.7.30/0.7.34): after setup, `esp_task_wdt_reconfigure` to **90 s** + `enableLoopWDT` on Core 1 `loopTask` only. No `uiTask` subscribe, no mid-HTTPS `esp_task_wdt_reset`. Soft Discord guard remains HB ack; TWDT is stuck-loop backstop. Confirm flash via `Display · v0.7.43`. If panic: lines above `ELF file SHA256` or `!coredump`.
 - `!ask`: handshake 15 s / body deadline 30 s. `sendDiscordMessage`: 60 s wall budget (release + fail) so 429 stacking cannot outrun the 90 s TWDT.
+- **HIL attestation (2026-09-22/23):** multi-hour lan-monitor soak + `!ask` hammer 23:10–00:16 PDT — no Discord drops, no TWDT panic, ~8 s total `GW_DOWN` (update reboot 3 s + brief 5 s). Details: [`docs/soak-results.md`](docs/soak-results.md).
 
 ## 0.7.42
 
