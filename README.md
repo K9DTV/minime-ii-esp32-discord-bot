@@ -45,7 +45,7 @@ After Wi-Fi connects, open `http://<board-ip>/` for the LAN dashboard (same Disp
 
 License: see `LICENSE` (non-commercial for original MiniMe II files only; commercial use requires express written permission).
 
-This is my first big modern MCU / Discord bot project on ESP32.  
+This is my second iteration of MiniMe. I have taken a much harder look at this project and am aiming for something that could be a real product — useful and reliable for people who use it.
 AI helped with firmware edits, multi-file layout, and GitHub updates. I owned the architecture, wiring, Discord Gateway/LCD design, commands, power/idle trade-offs, and what shipped on the board.
 
 ## Ongoing project
