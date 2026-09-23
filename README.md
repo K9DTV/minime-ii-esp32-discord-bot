@@ -16,6 +16,24 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 **Web UI and LCD UI still need work.** Both are a starting point — expect the left-hand window on the glass and in the browser to change as layouts and polish move. The firmware behind them is solid, well understood, and tested. A new function may land later; the main focus for now is the information shown to the user. Flash it, try Discord/`!help`, and poke the glass and the LAN page — just know the UI is early Guition work, not a finished product.
 
+### LCD UI preview (not final)
+
+This UI is **not done yet** and **will change**. The mocks below are 480×320 landscape from the current firmware layout (real K9DTV logo + menu chips). Dark | Light side by side.
+
+**Display** (metrics | users)
+
+| Dark | Light |
+|:----:|:-----:|
+| ![Display dark](docs/lcd-mock/display-dark.png) | ![Display light](docs/lcd-mock/display-light.png) |
+
+**Log** (LOG | Serial)
+
+| Dark | Light |
+|:----:|:-----:|
+| ![Log dark](docs/lcd-mock/log-dark.png) | ![Log light](docs/lcd-mock/log-light.png) |
+
+Interactive HTML (all four): [`docs/lcd-mock/all-four.html`](docs/lcd-mock/all-four.html).
+
 **Status:** Guition module firmware - **v0.7.51** (see `VERSION` / `CHANGELOG.md`). Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
@@ -41,7 +59,7 @@ the IDE is using a **second, broken** GFX install. Arduino reports something lik
 **If those same errors continue with `GFX_Library_for_Arduino`:**  
 GFX version and ESP32 core mismatch. Update GFX to latest, or pin the esp32 core (e.g. **3.3.5** / **3.2.1**). Check `...\GFX_Library_for_Arduino\library.properties` `version=` if it still fails.
 
-After Wi-Fi connects, open `http://<board-ip>/` for the LAN dashboard (same Display/Log idea as the LCD). Guition web screenshots can go in `docs/` when you have current ones.
+After Wi-Fi connects, open `http://<board-ip>/` for the LAN dashboard (same Display/Log idea as the LCD).
 
 License: see `LICENSE` (non-commercial for original MiniMe II files only; commercial use requires express written permission).
 

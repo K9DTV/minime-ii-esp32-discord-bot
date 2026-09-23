@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>MiniMe II LCD Display mock 480x320</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: ui-monospace, Consolas, monospace;
+  }
+  /* Exact firmware canvas */
+  #lcd {
+    width: 480px;
+    height: 320px;
+    background: #121212;
+    color: #e0e0e0;
+    position: relative;
+    overflow: hidden;
+    image-rendering: pixelated;
+  }
+  #brand {
+    position: absolute;
+    left: 0; top: 0;
+    width: 480px;
+    height: 73px; /* LOGO_H 69 + LOGO_BOTTOM_GAP 4 */
+    background: #121212;
+  }
+  #logo {
+    position: absolute;
+    left: 123.5px; /* (480-233)/2 */
+    top: 0;
+    width: 233px;
+    height: 69px;
+    display: block;
+  }
+  .chip-wrap {
+    position: absolute;
+    top: 12.5px; /* (69-44)/2 */
+    width: 44px;
+    text-align: center;
+  }
+  .chip-wrap.theme { left: 39.75px; } /* ((123.5)-44)/2 */
+  .chip-wrap.layout { left: 396.25px; } /* 123.5+233 + ((480-356.5)-44)/2 */
+  .chip-wrap img {
+    width: 44px;
+    height: 44px;
+    display: block;
+  }
+  .chip-wrap span {
+    display: block;
+    margin-top: 1px;
+    font-size: 8px;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #b8b8b8;
+    white-space: nowrap;
+  }
+  .panel {
+    position: absolute;
+    top: 73px;
+    height: 245px; /* 318-73 */
+    background: #1a1a1a;
+    border: 1px solid #2c2c2c;
+    border-radius: 4px;
+    padding: 5px 6px 4px;
+    font-size: 10px;
+    line-height: 10px;
+    overflow: hidden;
+  }
+  #left { left: 4px; width: 234px; }
+  #right { left: 242px; width: 234px; }
+  .row { margin: 0 0 0; height: 10px; position: relative; white-space: nowrap; }
+  .row.loose { height: 12px; }
+  .row.upt { height: 11px; }
+  .muted { color: #b8b8b8; }
+  .ok { color: #2ecc71; }
+  .bad { color: #ffb020; }
+  .cyan { color: #5eb3ff; }
+  .c { text-align: center; }
+  .r { text-align: right; }
+  .hdr {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    height: 10px;
+    margin-bottom: 0;
+  }
+  .mline {
+    display: grid;
+    grid-template-columns: 40px 60px 1fr;
+    align-items: center;
+    height: 10px;
+    column-gap: 0;
+  }
+  .mline .k { color: #b8b8b8; }
+  .mline .n { color: #e0e0e0; overflow: hidden; }
+  .bar {
+    height: 8px;
+    margin-top: 0;
+    border: 1px solid #2c2c2c;
+    background: #0a0a0a;
+    max-width: 150px;
+  }
+  .bar > i {
+    display: block;
+    height: 100%;
+    background: #5eb3ff;
+  }
+  .sys { margin-top: 2px; }
+  .sys div {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    height: 10px;
+  }
+  .sys .k { color: #b8b8b8; }
+  #users .head {
+    display: grid;
+    grid-template-columns: 1fr 100px 50px;
+    color: #b8b8b8;
+    height: 12px;
+    margin-bottom: 0;
+    font-size: 9px;
+  }
+  #users .urow {
+    display: grid;
+    grid-template-columns: 1fr 100px 50px;
+    height: 9px;
+    font-size: 9px;
+    line-height: 9px;
+  }
+  #users .st { color: #5eb3ff; }
+  #users .bt { color: #b8b8b8; text-align: right; padding-right: 4px; }
+</style>
+</head>
+<body>
+<div id="lcd">
+  <div id="brand">
+    <div class="chip-wrap theme">
+      <img src="chip.svg" alt=""/>
+      <span>* Light</span>
+    </div>
+    <img id="logo" src="../../tools/_k9dtv_logo_lcd_preview.png" alt="K9DTV"/>
+    <div class="chip-wrap layout">
+      <img src="chip.svg" alt=""/>
+      <span>Display</span>
+    </div>
+  </div>
+
+  <section class="panel" id="left">
+    <div class="hdr">
+      <span>MiniMe-II</span>
+      <span class="c ok">GW:Good</span>
+      <span class="r muted">10:42 PM</span>
+    </div>
+    <div class="hdr">
+      <span>Bot Online</span>
+      <span></span>
+      <span class="r muted">Wed Sep 23</span>
+    </div>
+    <div class="mline"><span class="k">Sig</span><span class="n">-55 dBm</span><span class="bar"><i style="width:75%"></i></span></div>
+    <div class="mline"><span class="k">PSRAM</span><span class="n">7200K</span><span class="bar"><i style="width:88%"></i></span></div>
+    <div class="mline"><span class="k">SRAM</span><span class="n">180K</span><span class="bar"><i style="width:55%"></i></span></div>
+    <div class="mline"><span class="k">Srv</span><span class="n">45°</span><span class="bar"><i style="width:50%"></i></span></div>
+    <div class="row loose cyan">Up 2d 4h 12m  T 72°F/22°C</div>
+    <div class="row"><span class="ok">Id:yes</span> &nbsp; Users:3/22</div>
+    <div class="row muted">DM:off  Mention:off</div>
+    <div class="row muted">HTTPS:idle</div>
+    <div class="row"><span class="muted">Event:</span> READY</div>
+    <div class="sys">
+      <div><span class="k">IP</span><span>192.168.68.60</span></div>
+      <div><span class="k">OTA</span><span>minime2.local</span></div>
+      <div><span class="k">Ver</span><span>0.7.51</span></div>
+      <div><span class="k">CPU</span><span>240 MHz</span></div>
+      <div><span class="k">Write</span><span>48 / 62 ms</span></div>
+      <div><span class="k">Period</span><span>1000 ms</span></div>
+      <div><span class="k">LCD</span><span>awake</span></div>
+    </div>
+  </section>
+
+  <section class="panel" id="right">
+    <div id="users">
+      <div class="head"><span>User</span><span>Status</span><span class="bt">Bot</span></div>
+      <div class="urow"><span>dogma</span><span class="st">Online</span><span class="bt">12</span></div>
+      <div class="urow"><span>alice</span><span class="st">Idle</span><span class="bt">3</span></div>
+      <div class="urow"><span>bob</span><span class="st">DND</span><span class="bt">1</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+      <div class="urow"><span>---</span><span class="st">Off</span><span class="bt">0</span></div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>MiniMe II LCD mocks — Display / Log × Dark / Light</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #2a2a2a;
+    color: #ccc;
+    font-family: "Segoe UI", Arial, sans-serif;
+    padding: 1.5rem;
+  }
+  h1 { font-size: 1.1rem; margin: 0 0 1rem; font-weight: 600; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 1.5rem;
+  }
+  figure { margin: 0; }
+  figcaption {
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #999;
+    margin: 0 0 0.4rem;
+  }
+  /* Exact firmware canvas 480x320 */
+  .lcd {
+    width: 480px;
+    height: 320px;
+    position: relative;
+    overflow: hidden;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 10px;
+    line-height: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  }
+  .lcd.dark { background: #121212; color: #e0e0e0; --panel:#1a1a1a; --line:#2c2c2c; --muted:#b8b8b8; --ok:#2ecc71; --bad:#ffb020; --cyan:#5eb3ff; --bar-tr:#0a0a0a; }
+  .lcd.light { background: #dde2ea; color: #0f172a; --panel:#f3f5f8; --line:#8b95a5; --muted:#334155; --ok:#14532d; --bad:#9a3412; --cyan:#005f73; --bar-tr:#ffffff; }
+  .brand { position: absolute; left: 0; top: 0; width: 480px; height: 73px; }
+  .logo { position: absolute; left: 123.5px; top: 0; width: 233px; height: 69px; display: block; }
+  .chip-wrap { position: absolute; top: 12.5px; width: 44px; text-align: center; }
+  .chip-wrap.theme { left: 39.75px; }
+  .chip-wrap.layout { left: 396.25px; }
+  .chip-wrap img { width: 44px; height: 44px; display: block; }
+  .chip-wrap span {
+    display: block; margin-top: 1px; font-size: 8px; font-family: "Segoe UI", Arial, sans-serif;
+    font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); white-space: nowrap;
+  }
+  .panel {
+    position: absolute; top: 73px; height: 245px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 4px; padding: 5px 6px 4px; overflow: hidden;
+  }
+  .left { left: 4px; width: 234px; }
+  .right { left: 242px; width: 234px; }
+  .muted { color: var(--muted); }
+  .ok { color: var(--ok); }
+  .bad { color: var(--bad); }
+  .cyan { color: var(--cyan); }
+  .hdr { display: grid; grid-template-columns: 1fr auto 1fr; height: 10px; }
+  .hdr .c { text-align: center; }
+  .hdr .r { text-align: right; }
+  .mline { display: grid; grid-template-columns: 40px 60px 1fr; align-items: center; height: 10px; }
+  .mline .k { color: var(--muted); }
+  .bar { height: 8px; border: 1px solid var(--line); background: var(--bar-tr); max-width: 150px; }
+  .bar > i { display: block; height: 100%; background: var(--cyan); }
+  .row { height: 10px; white-space: nowrap; overflow: hidden; }
+  .row.loose { height: 12px; }
+  .sys { margin-top: 2px; }
+  .sys div { display: grid; grid-template-columns: 56px 1fr; height: 10px; }
+  .sys .k { color: var(--muted); }
+  .uhead, .urow {
+    display: grid; grid-template-columns: 1fr 88px 44px; font-size: 9px; line-height: 9px;
+  }
+  .uhead { color: var(--muted); height: 12px; }
+  .urow { height: 9px; }
+  .st { color: var(--cyan); }
+  .bt { color: var(--muted); text-align: right; }
+  .log-title { color: var(--muted); height: 12px; }
+  .log-line {
+    height: 9px; font-size: 9px; line-height: 9px; color: inherit;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .log-line.empty { color: var(--muted); border: none; }
+</style>
+</head>
+<body>
+<h1>MiniMe II LCD — 480×320 mocks (real logo + menu chips)</h1>
+<div class="grid">
+
+<figure>
+  <figcaption>1 · Display · Dark</figcaption>
+  <div class="lcd dark" id="d-dark">
+    <div class="brand">
+      <div class="chip-wrap theme"><img src="chip.svg" alt=""/><span>* Light</span></div>
+      <img class="logo" src="../../tools/_k9dtv_logo_lcd_preview.png" alt="K9DTV"/>
+      <div class="chip-wrap layout"><img src="chip.svg" alt=""/><span>Display</span></div>
+    </div>
+    <section class="panel left" data-metrics></section>
+    <section class="panel right" data-users></section>
+  </div>
+</figure>
+
+<figure>
+  <figcaption>2 · Display · Light</figcaption>
+  <div class="lcd light" id="d-light">
+    <div class="brand">
+      <div class="chip-wrap theme"><img src="chip-bright.svg" alt=""/><span>) Dark</span></div>
+      <img class="logo" src="../../tools/_k9dtv_logo_lcd_preview_bright.png" alt="K9DTV"/>
+      <div class="chip-wrap layout"><img src="chip-bright.svg" alt=""/><span>Display</span></div>
+    </div>
+    <section class="panel left" data-metrics></section>
+    <section class="panel right" data-users></section>
+  </div>
+</figure>
+
+<figure>
+  <figcaption>3 · Log (LOG | Serial) · Dark</figcaption>
+  <div class="lcd dark" id="l-dark">
+    <div class="brand">
+      <div class="chip-wrap theme"><img src="chip.svg" alt=""/><span>* Light</span></div>
+      <img class="logo" src="../../tools/_k9dtv_logo_lcd_preview.png" alt="K9DTV"/>
+      <div class="chip-wrap layout"><img src="chip.svg" alt=""/><span>Log</span></div>
+    </div>
+    <section class="panel left" data-log></section>
+    <section class="panel right" data-serial></section>
+  </div>
+</figure>
+
+<figure>
+  <figcaption>4 · Log (LOG | Serial) · Light</figcaption>
+  <div class="lcd light" id="l-light">
+    <div class="brand">
+      <div class="chip-wrap theme"><img src="chip-bright.svg" alt=""/><span>) Dark</span></div>
+      <img class="logo" src="../../tools/_k9dtv_logo_lcd_preview_bright.png" alt="K9DTV"/>
+      <div class="chip-wrap layout"><img src="chip-bright.svg" alt=""/><span>Log</span></div>
+    </div>
+    <section class="panel left" data-log></section>
+    <section class="panel right" data-serial></section>
+  </div>
+</figure>
+
+</div>
+
+<script>
+const metricsHtml = `
+  <div class="hdr"><span>MiniMe-II</span><span class="c ok">GW:Good</span><span class="r muted">10:42 PM</span></div>
+  <div class="hdr"><span>Bot Online</span><span></span><span class="r muted">Wed Sep 23</span></div>
+  <div class="mline"><span class="k">Sig</span><span>-55 dBm</span><span class="bar"><i style="width:75%"></i></span></div>
+  <div class="mline"><span class="k">PSRAM</span><span>7200K</span><span class="bar"><i style="width:88%"></i></span></div>
+  <div class="mline"><span class="k">SRAM</span><span>180K</span><span class="bar"><i style="width:55%"></i></span></div>
+  <div class="mline"><span class="k">Srv</span><span>45°</span><span class="bar"><i style="width:50%"></i></span></div>
+  <div class="row loose cyan">Up 2d 4h 12m  T 72°F/22°C</div>
+  <div class="row"><span class="ok">Id:yes</span> &nbsp; Users:3/22</div>
+  <div class="row muted">DM:off  Mention:off</div>
+  <div class="row muted">HTTPS:idle</div>
+  <div class="row"><span class="muted">Event:</span> READY</div>
+  <div class="sys">
+    <div><span class="k">IP</span><span>192.168.68.60</span></div>
+    <div><span class="k">OTA</span><span>minime2.local</span></div>
+    <div><span class="k">Ver</span><span>0.7.51</span></div>
+    <div><span class="k">CPU</span><span>240 MHz</span></div>
+    <div><span class="k">Write</span><span>48 / 62 ms</span></div>
+    <div><span class="k">Period</span><span>1000 ms</span></div>
+    <div><span class="k">LCD</span><span>awake</span></div>
+  </div>`;
+
+const usersHtml = (() => {
+  const rows = [
+    ['dogma','Online','12'],['alice','Idle','3'],['bob','DND','1']
+  ];
+  for (let i = 0; i < 19; i++) rows.push(['---','Off','0']);
+  return '<div class="uhead"><span>User</span><span>Status</span><span class="bt">Bot</span></div>' +
+    rows.map(r => `<div class="urow"><span>${r[0]}</span><span class="st">${r[1]}</span><span class="bt">${r[2]}</span></div>`).join('');
+})();
+
+const logLines = [
+  '[GW] drop episode begin',
+  '[GW] reconnect try 1/3',
+  '[GW] WS open',
+  '[GW] HELLO',
+  '[GW] IDENTIFY',
+  '[GW] READY guilds=2',
+  '[HB] ack ok',
+  '[CMD] !sys from dogma',
+  '[HTTPS] GET /users/@me',
+  '[LOG] snapshot 55 lines',
+  '--- more ---',
+  '[GW] PRESENCE_UPDATE',
+  '[MM] Core0 bridge drain',
+  '[OTA] idle',
+  '[SYS] uptime ok'
+];
+while (logLines.length < 24) logLines.push('');
+
+const serialLines = [
+  '[boot] MiniMe-II 0.7.51',
+  '[WiFi] connected',
+  '[GW] connecting…',
+  '[GW] identified',
+  '[UI] dash flush 48ms',
+  '[UI] dash draw 62ms',
+  '[CMD] !help',
+  '[CMD] !temp 72F',
+  '[SERVO] 45 deg',
+  '[HTTPS] idle',
+  'MmLog line …',
+  'MmLog line …',
+  'MmLog line …'
+];
+while (serialLines.length < 24) serialLines.push('');
+
+function fillLog(el, title, lines) {
+  el.innerHTML = `<div class="log-title">${title}</div>` +
+    lines.map(l => l
+      ? `<div class="log-line">${l}</div>`
+      : `<div class="log-line empty"></div>`).join('');
+}
+
+document.querySelectorAll('[data-metrics]').forEach(el => { el.innerHTML = metricsHtml; });
+document.querySelectorAll('[data-users]').forEach(el => { el.innerHTML = usersHtml; });
+document.querySelectorAll('[data-log]').forEach(el => fillLog(el, 'LOG', logLines));
+document.querySelectorAll('[data-serial]').forEach(el => fillLog(el, 'Serial', serialLines));
+</script>
+</body>
+</html>
