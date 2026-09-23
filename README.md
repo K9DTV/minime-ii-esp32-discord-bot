@@ -14,9 +14,9 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 **LCD <-> LAN web:** the glass dashboard and `http://<board-ip>/` are designed as a **close match** -- same Display (metrics|users) / Log (LOG|Serial) pairing and the same status fields (including internal SRAM bar + PSRAM free/total when present). Light/Dark on the glass and in the browser are **independent** (each has its own chip).
 
-**Not prime time yet.** The LCD and LAN web UI are a **starting point** and will go through **a lot of changes**. Expect layouts, chrome, and polish to keep moving. You are invited to flash it, poke Discord/`!help`, and play with the glass and the browser -- just know this is early Guition work, not a finished product UI.
+**Web UI and LCD UI still need work.** Both are a starting point — expect the left-hand window on the glass and in the browser to change as layouts and polish move. The firmware behind them is solid, well understood, and tested. A new function may land later; the main focus for now is the information shown to the user. Flash it, try Discord/`!help`, and poke the glass and the LAN page — just know the UI is early Guition work, not a finished product.
 
-**Status:** Guition module firmware - **v0.7.51** (see `VERSION` / `CHANGELOG.md`) - **WIP UI**. Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware - **v0.7.51** (see `VERSION` / `CHANGELOG.md`). Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
