@@ -25,6 +25,11 @@ static bool gwInDropState = false;
 static unsigned long gwLastDropRemindMillis = 0;
 static unsigned long gwLastFullLogMillis = 0;
 static unsigned long gwReconnectIntervalMs = 3000;
+// Reconnect state invariants:
+//   - gwReconnectFailCount resets on READY/RESUMED (gwSetReconnectBackoff(true))
+//   - gwReconnectFailCount resets at the start of every drop episode (gwBeginDropEpisode)
+//   - gwFastIdentifyPending resets on WStype_CONNECTED and on gwClearDropState()
+//   - gwReconnectIntervalMs is written only through gwSetReconnectIntervalMs()
 // Fast tries after a drop (wifi up), then climb: 3s -> 7s -> 12s, +8s steps, cap 40s.
 // Avoids hammering Discord every 5s (or 200ms) for the length of a real outage.
 static const unsigned long GW_RECONNECT_FAST_MS = 200UL;
@@ -37,7 +42,8 @@ static char gwLastDropKind[32];
 static bool gwLoggedConnectDuringDrop = false;
 static unsigned long gwDropStartedMillis = 0;
 static unsigned long gwLastDisconnectMillis = 0;
-static bool gwFastIdentifyPending = false; // DISCONNECTED must not climb back to 5s after OP7/OP9
+// True while a drop episode is open (session cleared; backoff owns the interval).
+static bool gwFastIdentifyPending = false;
 static bool hbAckPending = false;
 static unsigned long hbSentMillis = 0;
 // Nested pumpGateway (re-entry while gatewayWS.loop runs): skip — do not re-enter loop().
@@ -151,8 +157,8 @@ static void gwSetReconnectIntervalMs(unsigned long ms) {
   gwLogAppend(buf);
 }
 
-// Drop path: clear session; interval comes from gwSetReconnectBackoff (fast then climb).
-static void gwArmFastIdentify(const char* reason) {
+// Start a drop episode: clear session + reset fail count. Interval via gwSetReconnectBackoff.
+static void gwBeginDropEpisode(const char* reason) {
   gwClearSession(reason);
   gwFastIdentifyPending = true;
   gwReconnectFailCount = 0; // new drop episode — next backoff(false) starts at fast tries
@@ -404,7 +410,7 @@ static void pumpGatewayKeepAlive() {
       snprintf(toMsg, sizeof(toMsg), "HB_ACK_TIMEOUT after_ms=%lu",
                (unsigned long)(now - hbSentMillis));
       gwLogAppend(toMsg);
-      gwArmFastIdentify("hb_ack");
+      gwBeginDropEpisode("hb_ack");
       gwSetReconnectBackoff(false);
       hbAckPending = false;
       gatewayWS.disconnect();
@@ -487,7 +493,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       // Wifi up: few fast tries, then climb (3/7/12..40s). Wifi down: same climb (no fast flood).
       if (wifiUp) {
         if (!gwFastIdentifyPending) {
-          gwArmFastIdentify("disconnect");
+          gwBeginDropEpisode("disconnect");
         }
         gwSetReconnectBackoff(false);
       } else {
@@ -566,7 +572,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       // Reconnect: clear session; library reconnects to same BIND_HOST (no second beginSslWithBundle)
       if (op == 7) {
         gwNoteDrop("OP7_RECONNECT", "OP7_RECONNECT");
-        gwArmFastIdentify("op7");
+        gwBeginDropEpisode("op7");
         gwSetReconnectBackoff(false);
         gatewayWS.disconnect();
         return;
@@ -583,7 +589,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
         snprintf(detail, sizeof(detail), "OP9_INVALID_SESSION resumable=%c",
                  resumable ? '1' : '0');
         gwNoteDrop(detail, detail);
-        gwArmFastIdentify("op9");
+        gwBeginDropEpisode("op9");
         gwSetReconnectBackoff(false);
         gatewayWS.disconnect();
         return;

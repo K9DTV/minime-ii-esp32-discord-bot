@@ -1,6 +1,6 @@
 # MiniMe II — code review notes (pro pass)
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.46**.
+What we **fixed** vs what we **left** and why. Current: **v0.7.47**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -51,6 +51,7 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.46**.
 | Command dispatch table | **0.7.44** — `kCmds` + flags; `CMD_CONSUMES_REST` is the mid-line tokenize rule |
 | Host tokenize / body CI | **0.7.45** — `test_cmd_tokenize.py` + `test_body_reader.py` (FakeClient) |
 | Gateway reconnect climb | **0.7.46** — fast×3 then 3/7/12…40 s (not forever 5 s) |
+| Reconnect invariants | **0.7.47** — `gwArmFastIdentify` → `gwBeginDropEpisode`; invariants block above climb constants |
 
 ## Known tradeoffs (not deferred bugs)
 

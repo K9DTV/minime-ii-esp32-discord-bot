@@ -1,6 +1,10 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.46** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.47** (see `VERSION` and README).
+
+## 0.7.47
+
+- Rename `gwArmFastIdentify` -> `gwBeginDropEpisode` (clears session + resets fail count; interval is backoff-owned). Document reconnect state invariants above the climb constants. Confirm flash via `Display · v0.7.47`.
 
 ## 0.7.46
 
