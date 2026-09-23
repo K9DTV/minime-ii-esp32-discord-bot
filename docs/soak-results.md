@@ -54,3 +54,31 @@ Seven LAN `/api/status` timeouts (monitor HTTP timeout). **Not** Discord Gateway
 ### Verdict
 
 **v0.7.43 TWDT + ask budgets are board-proven** under multi-hour soak and ~66 minutes of repeated `!ask`. Soft Discord guard (HB ack) + 90 s loop backstop held without false panic. GitHub CI green still does not replace HIL; this file is the HIL attestation for this release.
+
+## TWDT positive proof — `!hang` (v0.7.48+)
+
+Proves the **90 s loop TWDT fires when Core 1 hangs**, not only that it stays quiet under `!ask`.
+
+### Scratch build steps
+
+1. In `MiniMe_Discord_Bot_II/minime_config.h`, uncomment `#define MINIME_TEST_TWDT`.
+2. Flash that build (`Display · v0.7.48` or newer with the define).
+3. As owner: `!hang` — LCD may show `TWDT` / `hang...`; Discord goes quiet (loop stuck).
+4. Wait **≥ 90 s** for Task WDT panic + reboot.
+5. After boot: owner `!coredump` — summary should name **Task WDT** / loop task.
+6. Save a screenshot of the `!coredump` reply (or Serial/LOG lines above `ELF file SHA256`) into `docs/` and link it below.
+7. **Comment out** `#define MINIME_TEST_TWDT` again and reflash production (never leave `!hang` enabled).
+
+### Result (fill after run)
+
+| Field | Value |
+|---|---|
+| Firmware | scratch build with `MINIME_TEST_TWDT` (App SHA `d7804ba59…`) |
+| Date | 2026-09-23 ~**01:54** PDT |
+| Panic reason | **Task watchdog got triggered** — `loopTask (CPU 1)` did not reset in time |
+| Evidence | Discord `!coredump` after reboot (coredump @ `0xFD0000`, PC `0x4037B59F`, IDLE1 / ExcCause as reported) |
+| Screenshot | [`TWDT.jpg`](TWDT.jpg) |
+| Production build | v0.7.48, `MINIME_TEST_TWDT` **not** defined; `!hang` handler compiled out (`kCmds` does not register it) |
+| Result | **PASS** |
+
+**Verdict:** 90 s loop TWDT **fires when Core 1 hangs** (`!hang`), proven via flash coredump — not only quiet under soak/`!ask`.

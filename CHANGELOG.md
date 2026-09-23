@@ -1,6 +1,10 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.47** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.48** (see `VERSION` and README).
+
+## 0.7.48
+
+- Scratch TWDT proof: optional `#define MINIME_TEST_TWDT` enables owner `!hang` (infinite `delay` loop so Core 1 stops feeding the 90 s loop TWDT). Procedure in [`docs/soak-results.md`](docs/soak-results.md). Keep define **off** for normal flashes. Confirm flash via `Display · v0.7.48`.
 
 ## 0.7.47
 

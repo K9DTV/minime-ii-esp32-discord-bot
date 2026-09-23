@@ -2,8 +2,12 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.47"
+#define MINIME_VERSION "0.7.48"
 #define MINIME_USER_AGENT "MiniMeBot/1.0"
+
+// Scratch TWDT proof only — enables owner !hang (infinite loop). Never ship with this enabled.
+// Uncomment for one flash, run !hang, wait ~90s, reboot, !coredump, then comment out again.
+// #define MINIME_TEST_TWDT
 
 // Discord content max is 2000. !ask max_tokens / JSON buffer sized to fit one message.
 const int DISCORD_CONTENT_MAX = 2000;

@@ -1,6 +1,6 @@
 # MiniMe II — code review notes (pro pass)
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.47**.
+What we **fixed** vs what we **left** and why. Current: **v0.7.48**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -52,11 +52,13 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.47**.
 | Host tokenize / body CI | **0.7.45** — `test_cmd_tokenize.py` + `test_body_reader.py` (FakeClient) |
 | Gateway reconnect climb | **0.7.46** — fast×3 then 3/7/12…40 s (not forever 5 s) |
 | Reconnect invariants | **0.7.47** — `gwArmFastIdentify` → `gwBeginDropEpisode`; invariants block above climb constants |
+| TWDT `!hang` scratch | **0.7.48** — `MINIME_TEST_TWDT` / owner `!hang`; **HIL PASS** 2026-09-23 (`loopTask` Task WDT in `!coredump`) |
 
 ## Known tradeoffs (not deferred bugs)
 
 - **0.7.38 HOL:** mid-shared-fetch busy spam avoided by `!httpsInUse` gate; `!ask` unblocks Discord/`!weather`. Panic inside `handleCommand` can leave `drainCmdsBusy` stuck until reboot (RAII clears normal returns).
 - **0.7.43 TWDT:** loopTask watched at 90 s. **Attested PASS** — multi-hour soak + `!ask` hammer 23:10–00:16 PDT, no Discord drops, no TWDT panic ([`soak-results.md`](soak-results.md)).
+- **0.7.48 TWDT positive:** `!hang` scratch build — `!coredump` shows Task WDT on `loopTask` (CPU 1). Mechanism proven.
 
 ## Still deferred (why)
 

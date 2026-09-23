@@ -242,6 +242,16 @@ static void cmdServo(const CmdCtx& ctx) {
   showIfPosted("Servo", String(angle) + " deg", sendDiscordMessage(ctx.channelId, msg));
 }
 
+#ifdef MINIME_TEST_TWDT
+// Scratch only: never returns so Core 1 loop() stops feeding TWDT (~90 s panic).
+static void cmdHang(const CmdCtx&) {
+  showTransient("TWDT", "hang...");
+  while (true) {
+    delay(1);
+  }
+}
+#endif
+
 // Name match is exact (already lowercased). CMD_CONSUMES_REST is the mid-line tokenize rule.
 static const CmdEntry kCmds[] = {
   { "!help",     CMD_NONE,                           cmdHelp },
@@ -259,6 +269,9 @@ static const CmdEntry kCmds[] = {
   { "!display",  CMD_CONSUMES_REST | CMD_RECORD_USE, cmdDisplay },
   { "!clear",    CMD_OWNER | CMD_RECORD_USE,         cmdClear },
   { "!servo",    CMD_OWNER | CMD_RECORD_USE,         cmdServo },
+#ifdef MINIME_TEST_TWDT
+  { "!hang",     CMD_OWNER,                          cmdHang },
+#endif
 };
 
 static const CmdEntry* findCmd(const String& cmdWord) {

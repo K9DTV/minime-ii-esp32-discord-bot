@@ -98,9 +98,20 @@ def tokenize(content: str) -> TokenizeResult:
     return TokenizeResult(True, cmd, args, known, consumes)
 
 
+def _production_cpp_text(path: Path = COMMANDS_CPP) -> str:
+    """Strip MINIME_TEST_TWDT blocks so CI matches production kCmds (no !hang)."""
+    text = path.read_text(encoding="utf-8")
+    return re.sub(
+        r"#ifdef\s+MINIME_TEST_TWDT.*?\#endif",
+        "",
+        text,
+        flags=re.DOTALL,
+    )
+
+
 def consumes_rest_from_cpp(path: Path = COMMANDS_CPP) -> set[str]:
     """Parse kCmds rows that include CMD_CONSUMES_REST."""
-    text = path.read_text(encoding="utf-8")
+    text = _production_cpp_text(path)
     found: set[str] = set()
     for m in re.finditer(
         r'\{\s*"(![a-z]+)"\s*,\s*([^}]+)\}\s*,',
@@ -113,7 +124,7 @@ def consumes_rest_from_cpp(path: Path = COMMANDS_CPP) -> set[str]:
 
 
 def known_cmds_from_cpp(path: Path = COMMANDS_CPP) -> set[str]:
-    text = path.read_text(encoding="utf-8")
+    text = _production_cpp_text(path)
     # Rows inside kCmds[] only — names on lines with CMD_ flags.
     found: set[str] = set()
     in_table = False
