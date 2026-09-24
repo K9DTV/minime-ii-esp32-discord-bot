@@ -402,9 +402,12 @@ static void streamRootHtml(Print& out) {
   out.print(F("<script>"));
   out.print(FPSTR(WEB_UI_BOOT_JS));
   out.print(F("</script>"));
-  out.print(F("<title>MiniMe-II</title><style>"));
-  out.print(FPSTR(WEB_UI_CSS));
-  out.print(F("</style></head><body><main>"));
+  out.print(F("<title>MiniMe-II</title>"));
+  // CSS/JS as separate PROGMEM sends (send_P) -- not inlined every / (was starving Wi-Fi).
+  out.print(F("<link rel=\"stylesheet\" href=\"/ui.css?v="));
+  out.print(MINIME_VERSION);
+  out.print(F("\">"));
+  out.print(F("</head><body><main>"));
   printBrand(out);
 
   out.print(F("<div class=\"layout\">"));
@@ -418,30 +421,42 @@ static void streamRootHtml(Print& out) {
   out.print(F("<div id=\"logfile\" class=\"serial\"><div class=\"empty\">Waiting...</div></div></section>"));
   out.print(F("<section class=\"box\" id=\"box-serial\"><h2>Serial</h2>"));
   out.print(F("<div id=\"serial\" class=\"serial\"><div class=\"empty\">Waiting...</div></div></section>"));
-  // Controls page (first-intro web layout): Brightness/Volume + Sound/Ticks/Notify. LCD Cancel/Save unchanged.
-  out.print(F("<section class=\"box\" id=\"box-ctrl-sliders\"><h2>Controls</h2>"));
-  out.print(F("<div class=\"ctrl\">"));
-  out.print(F("<div class=\"ctrl-row\"><label for=\"ctrl-bright\">Brightness</label>"));
-  out.print(F("<span class=\"val\" id=\"ctrl-bright-val\">80%</span>"));
-  out.print(F("<input id=\"ctrl-bright\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"></div>"));
-  out.print(F("<div class=\"ctrl-row\"><label for=\"ctrl-vol\">Volume</label>"));
-  out.print(F("<span class=\"val\" id=\"ctrl-vol-val\">70%</span>"));
-  out.print(F("<input id=\"ctrl-vol\" type=\"range\" min=\"0\" max=\"100\" value=\"70\"></div>"));
+  // Controls = scaled LCD twin; Cancel/Save art = mark SVGs only.
+  out.print(F("<section class=\"box box-lcd-ctrl\" id=\"box-ctrl-sliders\">"));
+  out.print(F("<div class=\"ctrl-panel\">"));
+  out.print(F("<div class=\"ctrl-title\">Controls</div>"));
+  out.print(F("<div class=\"ctrl-row\"><div class=\"ctrl-lab\" id=\"ctrl-bright-lab\">Brightness 80%</div>"));
+  out.print(F("<div class=\"ctrl-track\" id=\"ctrl-bright-track\" style=\"--pct:80\">"));
+  out.print(F("<div class=\"ctrl-fill\"></div><div class=\"ctrl-knob\"></div>"));
+  out.print(F("<input id=\"ctrl-bright\" type=\"range\" min=\"0\" max=\"100\" value=\"80\" aria-label=\"Brightness\">"));
+  out.print(F("</div></div>"));
+  out.print(F("<div class=\"ctrl-row\"><div class=\"ctrl-lab\" id=\"ctrl-vol-lab\">Volume 70%</div>"));
+  out.print(F("<div class=\"ctrl-track\" id=\"ctrl-vol-track\" style=\"--pct:70\">"));
+  out.print(F("<div class=\"ctrl-fill\"></div><div class=\"ctrl-knob\"></div>"));
+  out.print(F("<input id=\"ctrl-vol\" type=\"range\" min=\"0\" max=\"100\" value=\"70\" aria-label=\"Volume\">"));
+  out.print(F("</div></div>"));
+  out.print(F("<button type=\"button\" class=\"dog-btn dog-cancel\" id=\"ctrl-cancel\" aria-label=\"Cancel\">"));
+  out.print(F("<img id=\"dog-left-img\" src=\"/mark-left.svg\" width=\"48\" height=\"32\" alt=\"\">"));
+  out.print(F("<span class=\"dog-lab\">Cancel</span></button>"));
   out.print(F("</div></section>"));
-  out.print(F("<section class=\"box\" id=\"box-ctrl-toggles\"><h2>Toggles</h2>"));
-  out.print(F("<div class=\"ctrl\">"));
+  out.print(F("<section class=\"box box-lcd-ctrl\" id=\"box-ctrl-toggles\">"));
+  out.print(F("<div class=\"ctrl-panel\">"));
+  out.print(F("<div class=\"ctrl-title\">Toggles</div>"));
   out.print(F("<button type=\"button\" class=\"tog\" id=\"ctrl-sound\" aria-pressed=\"true\"><span class=\"lab\">Sound</span><span class=\"st\">ON</span></button>"));
   out.print(F("<button type=\"button\" class=\"tog\" id=\"ctrl-ticks\" aria-pressed=\"true\"><span class=\"lab\">Ticks</span><span class=\"st\">ON</span></button>"));
   out.print(F("<button type=\"button\" class=\"tog\" id=\"ctrl-notify\" aria-pressed=\"true\"><span class=\"lab\">Notify</span><span class=\"st\">ON</span></button>"));
+  out.print(F("<button type=\"button\" class=\"dog-btn dog-save\" id=\"ctrl-save\" aria-label=\"Save\">"));
+  out.print(F("<img id=\"dog-right-img\" src=\"/mark-right.svg\" width=\"48\" height=\"32\" alt=\"\">"));
+  out.print(F("<span class=\"dog-lab\">Save</span></button>"));
   out.print(F("</div></section>"));
   out.print(F("<div id=\"err\" class=\"err\" hidden></div>"));
   out.print(F("</div></main><script>var POLL_MS="));
   char pollBuf[16];
   snprintf(pollBuf, sizeof(pollBuf), "%lu", (unsigned long)WEB_STATUS_POLL_MS);
   out.print(pollBuf);
-  out.print(F(";</script><script>"));
-  out.print(FPSTR(WEB_UI_JS));
-  out.print(F("</script></body></html>"));
+  out.print(F(";</script><script src=\"/ui.js?v="));
+  out.print(MINIME_VERSION);
+  out.print(F("\"></script></body></html>"));
 }
 
 template <size_t N>
@@ -593,6 +608,17 @@ static void handleLogo() {
   webServer.send_P(200, "image/svg+xml", K9DTV_LOGO_SVG);
 }
 
+static void handleUiCss() {
+  // send_P = one PROGMEM blast; was chunked-inline on every / and choked Wi-Fi.
+  webServer.sendHeader("Cache-Control", "public, max-age=86400");
+  webServer.send_P(200, "text/css; charset=utf-8", WEB_UI_CSS);
+}
+
+static void handleUiJs() {
+  webServer.sendHeader("Cache-Control", "public, max-age=86400");
+  webServer.send_P(200, "application/javascript; charset=utf-8", WEB_UI_JS);
+}
+
 static void handleLogoBright() {
   webServer.sendHeader("Cache-Control", "public, max-age=86400");
   webServer.send_P(200, "image/svg+xml", K9DTV_LOGO_BRIGHT_SVG);
@@ -705,6 +731,8 @@ void setupWebUi() {
     mmSpiRamJsonAlloc().deallocate(probe);
   }
   webServer.on("/", HTTP_GET, handleRoot);
+  webServer.on("/ui.css", HTTP_GET, handleUiCss);
+  webServer.on("/ui.js", HTTP_GET, handleUiJs);
   webServer.on("/logo.svg", HTTP_GET, handleLogo);
   webServer.on("/logo-bright.svg", HTTP_GET, handleLogoBright);
   webServer.on("/logo-spin.svg", HTTP_GET, handleLogoSpin);

@@ -1,6 +1,14 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.69** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.71** (see `VERSION` and README).
+
+## 0.7.71
+
+- Web perf: CSS/JS served via `/ui.css` + `/ui.js` (`send_P`, cached) instead of inlining huge PROGMEM into every `/`. Controls still LCD twin + mark SVGs. Confirm flash via `Display · v0.7.71`.
+
+## 0.7.70
+
+- Web Controls page = scaled LCD twin (cyan titles, track+fill+knob sliders, toggles, Cancel left / Save right). Only diffs: scale + mark SVGs. LCD unchanged. Confirm flash via `Display · v0.7.70`.
 
 ## 0.7.69
 

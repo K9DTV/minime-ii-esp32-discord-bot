@@ -34,9 +34,10 @@ html[data-layout="controls"] #box-metrics,html[data-layout="controls"] #box-user
 html:not([data-layout="log"]):not([data-layout="controls"]) #box-logfile,html:not([data-layout="log"]):not([data-layout="controls"]) #box-serial,html:not([data-layout="log"]):not([data-layout="controls"]) #box-ctrl-sliders,html:not([data-layout="log"]):not([data-layout="controls"]) #box-ctrl-toggles{display:none}
 html[data-layout="log"] #box-logfile,html[data-layout="log"] #box-serial{min-height:0;max-height:none;overflow:hidden}
 html[data-layout="controls"] #box-ctrl-sliders,html[data-layout="controls"] #box-ctrl-toggles{min-height:0;max-height:none;overflow:hidden;display:flex;flex-direction:column}
-html[data-layout="controls"] #box-ctrl-sliders .ctrl,html[data-layout="controls"] #box-ctrl-toggles .ctrl{flex:1 1 auto;min-height:0;overflow:auto}
 .box{border:1px solid var(--line);border-radius:.45rem;background:var(--panel);margin:0;overflow:hidden;display:flex;flex-direction:column;min-height:0}
 .box h2{margin:0;padding:.45rem .7rem;font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);background:var(--box-head)}
+/* LCD Controls panels: no header strip; r=4 like PANEL_CORNER_R */
+.box.box-lcd-ctrl{border-radius:.25rem;overflow:visible}
 #box-metrics{grid-area:metrics}#box-users{grid-area:users}#box-logfile{grid-area:logfile}#box-serial{grid-area:serial}
 #box-ctrl-sliders{grid-area:ctrl-sliders}#box-ctrl-toggles{grid-area:ctrl-toggles}
 .dash{padding:.6rem .7rem;flex:1;min-width:0;overflow:auto}
@@ -62,16 +63,27 @@ html[data-layout="controls"] #box-ctrl-sliders .ctrl,html[data-layout="controls"
 .serial{padding:.3rem .55rem .45rem;font-size:.9rem;line-height:1.15;flex:1;min-height:0;overflow:auto}
 .serial div{padding:.12rem 0;border-bottom:1px solid var(--row-line);white-space:pre-wrap;word-break:break-word;color:var(--text);min-height:1.15em}
 .serial div:last-child{border-bottom:none}.serial .empty{color:var(--muted)}
-/* Controls first-intro: label + % + range; toggles Sound/Ticks/Notify */
-.ctrl{padding:.85rem .9rem;flex:1;display:flex;flex-direction:column;gap:1.1rem}
-.ctrl-row{display:flex;flex-direction:column;gap:.35rem}
-.ctrl-row label{color:var(--muted);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase}
-.ctrl-row .val{color:var(--cyan);font-size:.85rem}
-.ctrl-row input[type=range]{width:100%;accent-color:var(--cyan)}
-.tog{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.75rem .65rem;border:1px solid var(--line);border-radius:.35rem;background:var(--box-head);cursor:pointer;font:inherit;color:inherit;width:100%;min-height:2.75rem}
-.tog .lab{color:var(--muted);font-size:.85rem;letter-spacing:.04em;text-transform:uppercase}
-.tog .st{font-size:.85rem;min-width:2.2rem;text-align:right}
+.ctrl-panel{padding:.4rem .4rem .25rem;flex:1;display:flex;flex-direction:column;min-height:0;box-sizing:border-box}
+.ctrl-title{color:var(--cyan);font-size:.85rem;font-weight:400;line-height:1;margin:0 0 .7rem;padding:0;letter-spacing:0;text-transform:none}
+.ctrl-row{display:flex;flex-direction:column;gap:.5rem;margin:0 0 1.35rem;flex:0 0 auto}
+.ctrl-row .ctrl-lab{color:var(--muted);font-size:.85rem;line-height:1;font-weight:400;letter-spacing:0;text-transform:none}
+.ctrl-track{position:relative;width:100%;height:1rem;margin:.125rem 0;background:var(--bar-track);border:1px solid var(--line);border-radius:0;box-sizing:border-box;--pct:0;overflow:visible}
+.ctrl-track .ctrl-fill{position:absolute;left:1px;top:1px;bottom:1px;width:calc((100% - 2px) * var(--pct) / 100);max-width:calc(100% - 2px);background:var(--cyan);pointer-events:none}
+.ctrl-track .ctrl-knob{position:absolute;top:-2px;width:6px;height:calc(100% + 4px);left:calc((100% - 6px) * var(--pct) / 100);background:var(--cyan);pointer-events:none}
+.ctrl-track input[type=range]{-webkit-appearance:none;appearance:none;position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer;z-index:2;border:none;background:transparent}
+.ctrl-track input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:6px;height:1.25rem;background:transparent;border:none}
+.ctrl-track input[type=range]::-moz-range-thumb{width:6px;height:1.25rem;background:transparent;border:none}
+.tog{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:0 .5rem;border:1px solid var(--line);border-radius:.25rem;background:var(--panel);cursor:pointer;font:inherit;color:inherit;width:100%;height:2.25rem;min-height:2.25rem;box-sizing:border-box;margin:0 0 .65rem;flex:0 0 auto}
+.tog .lab{color:var(--muted);font-size:.85rem;letter-spacing:0;text-transform:none;font-weight:400}
+.tog .st{font-size:.85rem;min-width:2.2rem;text-align:right;font-weight:400}
 .tog[aria-pressed="true"] .st{color:var(--ok)}.tog[aria-pressed="false"] .st{color:var(--bad)}
+.dog-btn{margin:0;padding:0;border:none;border-radius:0;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;-webkit-tap-highlight-color:transparent;min-width:0;flex:0 0 auto}
+.dog-btn.dog-cancel{align-self:flex-start;margin-top:auto}
+.dog-btn.dog-save{align-self:flex-end;margin-top:auto}
+.dog-btn img{width:3rem;height:2rem;display:block;object-fit:contain}
+.dog-btn .dog-lab{font-family:var(--k9-mono);font-size:.85rem;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted);line-height:1}
+.dog-btn:focus{outline:none}
+.dog-btn:focus-visible{outline:2px solid var(--k9-cyan);outline-offset:3px}
 @media (max-width:720px){
 .layout{grid-template-columns:1fr;grid-template-areas:"metrics" "users";grid-template-rows:none;height:auto;min-height:0;max-height:none}
 html[data-layout="log"] .layout{grid-template-areas:"logfile" "serial"}
@@ -190,14 +202,24 @@ function fmtK(n){n=+n||0;return Math.floor(n/1024)+'K';}
 function setTog(id,on){var b=document.getElementById(id);if(!b)return;
 b.setAttribute('aria-pressed',on?'true':'false');
 var st=b.querySelector('.st');if(st)st.textContent=on?'ON':'off';}
+function setRangeUi(el,lab,pct){
+if(!el)return;
+pct=Math.max(0,Math.min(100,+pct||0));
+el.value=String(pct);
+var track=el.closest('.ctrl-track');
+if(track)track.style.setProperty('--pct',String(pct));
+if(lab){
+var name=lab.id==='ctrl-vol-lab'?'Volume':'Brightness';
+lab.textContent=name+' '+pct+'%';
+}}
 function syncControlsForm(j){
 if(!j||ctrlBusy)return;
 var b=document.getElementById('ctrl-bright');
 var v=document.getElementById('ctrl-vol');
-var bv=document.getElementById('ctrl-bright-val');
-var vv=document.getElementById('ctrl-vol-val');
-if(b&&document.activeElement!==b){b.value=String(j.bright!=null?j.bright:80);if(bv)bv.textContent=b.value+'%';}
-if(v&&document.activeElement!==v){v.value=String(j.vol!=null?j.vol:70);if(vv)vv.textContent=v.value+'%';}
+var bl=document.getElementById('ctrl-bright-lab');
+var vl=document.getElementById('ctrl-vol-lab');
+if(b&&document.activeElement!==b)setRangeUi(b,bl,j.bright!=null?j.bright:80);
+if(v&&document.activeElement!==v)setRangeUi(v,vl,j.vol!=null?j.vol:70);
 setTog('ctrl-notify',!!j.notify);setTog('ctrl-ticks',!!j.ticks);setTog('ctrl-sound',!!j.sound);}
 async function postControls(params){
 ctrlBusy=true;
@@ -207,10 +229,10 @@ ctrlBusy=false;}
 function wireControls(){
 var b=document.getElementById('ctrl-bright');
 var v=document.getElementById('ctrl-vol');
-var bv=document.getElementById('ctrl-bright-val');
-var vv=document.getElementById('ctrl-vol-val');
-if(b){b.addEventListener('input',function(){if(bv)bv.textContent=b.value+'%';postControls('bright='+encodeURIComponent(b.value));});}
-if(v){v.addEventListener('input',function(){if(vv)vv.textContent=v.value+'%';postControls('vol='+encodeURIComponent(v.value));});}
+var bl=document.getElementById('ctrl-bright-lab');
+var vl=document.getElementById('ctrl-vol-lab');
+if(b){b.addEventListener('input',function(){setRangeUi(b,bl,b.value);postControls('bright='+encodeURIComponent(b.value));});}
+if(v){v.addEventListener('input',function(){setRangeUi(v,vl,v.value);postControls('vol='+encodeURIComponent(v.value));});}
 function wireTog(id,key){var el=document.getElementById(id);if(!el)return;
 el.addEventListener('click',function(){var on=el.getAttribute('aria-pressed')!=='true';
 setTog(id,on);postControls(key+'='+(on?'1':'0'));el.blur();});}
