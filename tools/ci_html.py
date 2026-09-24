@@ -36,12 +36,15 @@ def brace_balance(s: str, open_c: str, close_c: str) -> bool:
 def main() -> int:
     assets = SKETCH / "web_assets.h"
     ui = SKETCH / "web_ui.cpp"
+    render = SKETCH / "web_render.cpp"
     if not assets.is_file():
         fail("web_assets.h missing")
         print_fails()
         return 1
     if not ui.is_file():
         fail("web_ui.cpp missing")
+    if not render.is_file():
+        fail("web_render.cpp missing")
 
     at = assets.read_text(encoding="utf-8", errors="replace")
     css = extract_raw(at, "CSS")
@@ -71,14 +74,22 @@ def main() -> int:
             fail("boot JS missing k9-theme")
         if "mm-layout" not in boot_js:
             fail("boot JS missing mm-layout")
-        for needle in ("THEME_KEY", "brand-logo", "theme-toggle", "layout-toggle", "/api/status"):
+        for needle in (
+            "THEME_KEY",
+            "brand-logo",
+            "theme-toggle",
+            "layout-toggle",
+            "/api/status",
+            "postControlsDebounced",
+        ):
             if needle not in app_js:
                 fail(f"WEB_UI_JS missing {needle}")
         if not brace_balance(app_js, "{", "}"):
             fail("WEB_UI_JS curly braces unbalanced")
 
-    if ui.is_file():
-        ut = ui.read_text(encoding="utf-8", errors="replace")
+    # Page markup + asset handlers live in web_render.cpp (web_ui.cpp = routing + rings).
+    if render.is_file():
+        rt = render.read_text(encoding="utf-8", errors="replace")
         for needle in (
             "box-metrics",
             "box-users",
@@ -89,6 +100,12 @@ def main() -> int:
             "WEB_UI_CSS",
             "WEB_UI_JS",
         ):
+            if needle not in rt:
+                fail(f"web_render.cpp missing {needle}")
+
+    if ui.is_file():
+        ut = ui.read_text(encoding="utf-8", errors="replace")
+        for needle in ("setupWebUi", "pumpWebUi", "/api/controls", "webUiHandleRoot"):
             if needle not in ut:
                 fail(f"web_ui.cpp missing {needle}")
 

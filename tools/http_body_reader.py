@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Host-side mirror of readHttpBodyAfterHeaders (discord_rest.cpp) for CI."""
+"""Host-side mirror of readHttpBodyAfterHeaders (discord_http.cpp) for CI."""
 from __future__ import annotations
 
 from typing import Optional

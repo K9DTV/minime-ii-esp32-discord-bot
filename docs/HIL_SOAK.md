@@ -39,6 +39,8 @@ Behavior:
 4. Owner `!sys` — `MmLog Core0 drops` should stay low unless the Core0 ring overflows
 5. Optional OTA once — after reboot, confirm version + GW again
 
+**v0.7.80 batch (split + fixed buffers + Controls):** use the focused playbook [`soak-0.7.80.md`](soak-0.7.80.md).
+
 ## What CI covers instead
 
 | Layer | Where | Proves |

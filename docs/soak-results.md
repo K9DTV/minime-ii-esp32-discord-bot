@@ -2,6 +2,36 @@
 
 Attested local soaks (GitHub Actions cannot reach the board). Playbook: [`HIL_SOAK.md`](HIL_SOAK.md). Raw log for the run below lived in `docs/lan-monitor.log` on the soak PC (gitignored).
 
+## 2026-09-23 — v0.7.80 split + fixed buffers + Controls
+
+| Field | Value |
+|---|---|
+| Firmware | **v0.7.80** (`Display · v0.7.80`) |
+| Commit | `57a9b41` — web/discord file split; README status/OTA/LAN; (CI tokenize/`ci_html` fix still local at attestation) |
+| Board | Guition JC3248W535EN @ `http://192.168.68.60` |
+| Playbook | [`soak-0.7.80.md`](soak-0.7.80.md) |
+| Monitor | `docs/lan-monitor.ps1` (Bypass); start **21:45** PDT |
+| Attestation | **21:56** PDT (operator) |
+| Result | **PASS** (blocks A–D) |
+
+### What was under test
+
+- Fixed-buffer Discord REST / DeepSeek (`!ask` short + long + hammer)
+- `web_ui` / `web_render` / `discord_http` split (LAN Display/Log/Controls)
+- Web slider debounce (bright/vol)
+- LCD Controls hit boxes; Save / Cancel / factory (long-press + `!resetprefs`)
+- Smoke: wake, theme chip, DM/@mention + `!clear`
+
+### Operator report
+
+Blocks **A, B, C, D** completed — all worked as expected. No fail noted (panic, stuck GW, miss-hits, bad prefs after Save, `!ask` hang).
+
+### Monitor note
+
+Interactive attestation ~**11 min** after monitor start (not a full ≥30 min idle-only Gateway watch). Leave `lan-monitor` running longer if you want a separate idle GW stamp for this build.
+
+---
+
 ## 2026-09-22 / 2026-09-23 — v0.7.43 TWDT + `!ask` hammer
 
 | Field | Value |

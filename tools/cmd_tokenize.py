@@ -30,6 +30,7 @@ KNOWN_CMDS: frozenset[str] = frozenset(
         "!display",
         "!clear",
         "!servo",
+        "!resetprefs",
     }
 )
 
