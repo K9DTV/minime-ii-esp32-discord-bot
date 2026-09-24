@@ -7,6 +7,8 @@
 // Layout invariants:
 //   - Brand bar height = LOGO_TOP_PAD + K9DTV_LOGO_H + LOGO_BOTTOM_GAP
 //   - Theme chip in left logo gap; layout chip in right logo gap; hit boxes set in placeChip
+//   - Controls slider/toggle hit boxes filled during draw (not from these enums);
+//     dashForceFull on layout change refreshes them before touch (see ui_controls.cpp)
 //   - Left panel [PANEL_LEFT_X, PANEL_BOTTOM_Y); right panel [PANEL_RIGHT_X, PANEL_BOTTOM_Y)
 //   - PANEL_RIGHT_X == PANEL_LEFT_X + PANEL_LEFT_W + PANEL_GAP
 

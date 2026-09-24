@@ -274,6 +274,7 @@ static void drawCtrlSlider(int16_t x, int16_t y, int16_t w, const char* label, u
   if (kx < x) kx = x;
   if (kx > x + w - 6) kx = (int16_t)(x + w - 6);
   gfx->fillRect(kx, ty - 2, 6, th + 4, p.cyan);
+  // Touch hit box: written here so paint and hit share one source. See ui_controls.cpp.
   trackX = x;
   trackY = ty;
   trackW = w;

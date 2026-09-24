@@ -18,11 +18,15 @@
   touch.cpp                        -- AXS15231B I2C touch wake
   hardware.cpp                     -- servo, NeoPixel, DS18B20, GPIO, piezo ticks
   audio.cpp                        -- I2S speaker UI ticks (wake vs button)
-  discord_rest.cpp                 -- HTTPS REST (CA bundle), sendDiscordMessage, members
+  board_info.cpp                   -- boardMemTotals / getSystemInfo (!sys)
+  discord_rest.cpp                 -- HTTPS client lifecycle, sendDiscordMessage, members
+  discord_http.cpp                 -- HTTP header/body reader (await + readHttpBodyAfterHeaders)
   discord_gateway.cpp              -- websocket, heartbeat, identify, events (filter init at connect)
   serial_log.cpp                   -- MmLog -> web UI only (no USB Serial / UART0)
   ota.cpp                          -- Wi-Fi ArduinoOTA firmware update
-  web_ui.cpp                       -- LAN page + status JSON (ArduinoJson)
+  web_ui.cpp                       -- LAN routing + log rings
+  web_render.cpp                   -- LAN HTML/JSON/assets (status page)
+  web_ui_internal.h                -- shared WebServer + ring externs for web_ui/web_render
   web_assets.h                     -- LAN CSS + boot/app JS (PROGMEM)
   k9dtv_logo_svg.h                 -- dark K9DTV logo for /logo.svg
   k9dtv_logo_bright_svg.h          -- light K9DTV logo for /logo-bright.svg

@@ -1,6 +1,10 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.79** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.80** (see `VERSION` and README).
+
+## 0.7.80
+
+- File split (under ~400 lines): `web_ui` routing vs `web_render`; `discord_http` body reader vs `discord_rest` lifecycle; `board_info` for !sys helpers. Confirm `Display · v0.7.80`.
 
 ## 0.7.79
 

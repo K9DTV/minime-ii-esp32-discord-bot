@@ -146,6 +146,9 @@ uint8_t httpsGetOpen(const char* host, const String& path, unsigned long headerT
 uint8_t httpGetOpen(WiFiClient& client, const char* host, const String& path,
                     unsigned long headerTimeoutMs, bool& outChunked, int& outContentLength);
 void setHttpOpenError(String& outReport, uint8_t err, const char* label);
+bool httpSkipHeaders(Client& client, unsigned long timeoutMs,
+                     bool& outChunked, int& outContentLength);
+void pumpNetWait(); // Gateway HB (+ drain cmds when shared HTTPS free)
 bool httpsAwaitHeaders(Client& client, unsigned long deadlineMs, bool pump, String& outStatus,
                        bool& chunked, int& contentLength,
                        float* outRetryAfterSec = nullptr);

@@ -259,13 +259,17 @@ try{var r=await fetch('/api/controls',{method:'POST',headers:{'Content-Type':'ap
 out=await r.json();}
 catch(e){}
 ctrlBusy=false;return out;}
+var ctrlDebounceT=null;
+function postControlsDebounced(params){
+if(ctrlDebounceT)clearTimeout(ctrlDebounceT);
+ctrlDebounceT=setTimeout(function(){ctrlDebounceT=null;postControls(params);},75);}
 function wireControls(){
 var b=document.getElementById('ctrl-bright');
 var v=document.getElementById('ctrl-vol');
 var bl=document.getElementById('ctrl-bright-lab');
 var vl=document.getElementById('ctrl-vol-lab');
-if(b){b.addEventListener('input',function(){setRangeUi(b,bl,b.value);postControls('bright='+encodeURIComponent(b.value));});}
-if(v){v.addEventListener('input',function(){setRangeUi(v,vl,v.value);postControls('vol='+encodeURIComponent(v.value));});}
+if(b){b.addEventListener('input',function(){setRangeUi(b,bl,b.value);postControlsDebounced('bright='+encodeURIComponent(b.value));});}
+if(v){v.addEventListener('input',function(){setRangeUi(v,vl,v.value);postControlsDebounced('vol='+encodeURIComponent(v.value));});}
 function wireTog(id,key){var el=document.getElementById(id);if(!el)return;
 el.addEventListener('click',function(){var on=el.getAttribute('aria-pressed')!=='true';
 setTog(id,on);postControls(key+'='+(on?'1':'0'));el.blur();});}

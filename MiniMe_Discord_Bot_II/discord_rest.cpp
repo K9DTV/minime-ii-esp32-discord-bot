@@ -3,84 +3,15 @@
 #include "esp_crt_bundle.h"
 #include <new>
 
+// Discord REST client lifecycle + messaging (body reader lives in discord_http.cpp).
+
 WiFiClientSecure httpsClient;
 bool httpsInUse = false;
-
-// Gateway HB always; drain cmds only when shared HTTPS is free (DeepSeek has its own TLS).
-static void pumpNetWait() {
-  pumpGateway();
-  if (!httpsInUse) drainDiscordCmds();
-}
-
-void boardMemTotals(uint32_t& memFree, uint32_t& memTotal) {
-  // Internal SRAM only — LCD/web heap bar must not hide internal exhaustion behind free PSRAM.
-  memTotal = ESP.getHeapSize();
-  memFree = ESP.getFreeHeap();
-}
-
-void boardPsramTotals(uint32_t& psFree, uint32_t& psTotal) {
-  psTotal = ESP.getPsramSize();
-  psFree = ESP.getFreePsram();
-}
-
-void uptimeDhms(unsigned long& days, unsigned long& hours, unsigned long& minutes, unsigned long& seconds) {
-  unsigned long sec = millis() / 1000;
-  days = sec / 86400;
-  hours = (sec % 86400) / 3600;
-  minutes = (sec % 3600) / 60;
-  seconds = sec % 60;
-  if (days > 9999) days = 9999;
-}
-
-String getSystemInfo() {
-  long rssi = WiFi.RSSI();
-  uint32_t freeHeap = 0, totalHeap = 0, freePs = 0, totalPs = 0;
-  boardMemTotals(freeHeap, totalHeap);
-  boardPsramTotals(freePs, totalPs);
-  unsigned long days = 0, hours = 0, minutes = 0, seconds = 0;
-  uptimeDhms(days, hours, minutes, seconds);
-  String uptimeStr = String(days) + "d " + String(hours) + "h " + String(minutes) + "m " + String(seconds) + "s";
-  String msg = "📊 **System Diagnostics:**\n"
-         "• **Uptime:** " + uptimeStr + "\n"
-         "• **Internal heap:** " + String((unsigned long)freeHeap) + " / " +
-         String((unsigned long)totalHeap) + " bytes\n";
-  if (totalPs > 0) {
-    msg += "• **PSRAM:** " + String((unsigned long)freePs) + " / " +
-           String((unsigned long)totalPs) + " bytes\n";
-  } else {
-    msg += "• **PSRAM:** none\n";
-  }
-  msg += "• **WiFi RSSI:** " + String(rssi) + " dBm\n"
-         "• **Gateway Status:** " + String((gatewayConnected && identified) ? "Connected" : "Disconnected") + "\n"
-         "• **MmLog Core0 drops:** " + String((unsigned long)mmLogDropCore0.load()) + " (ring overflow)\n";
-  {
-    uint8_t n = cmdErrorReplyCount();
-    msg += "• **Cmd errors (" + String((unsigned)n) + "/" + String((unsigned)CMD_ERR_RING_N) + "):**\n";
-    if (n == 0) {
-      msg += "  (none)\n";
-    } else {
-      // Newest first; cap so !sys still fits Discord 2000.
-      uint8_t show = n;
-      if (show > 5) show = 5;
-      for (uint8_t i = 0; i < show; i++) {
-        char row[97];
-        if (!cmdErrorReplyNewest(i, row, sizeof(row))) break;
-        msg += "  - " + truncateText(String(row), 120) + "\n";
-      }
-      if (n > show) msg += "  - … +" + String((unsigned)(n - show)) + " more (Serial / Log panel)\n";
-    }
-  }
-  msg += "• **Firmware:** https://github.com/K9DTV/minime-ii-esp32-discord-bot";
-  return msg;
-}
 
 bool sendDiscordCmdError(const String& channelId, const String& content, bool suppressEmbeds) {
   noteCmdErrorReply(content.c_str());
   return sendDiscordMessage(channelId, content, suppressEmbeds);
 }
-
-// Cap header/status lines so a broken peer cannot grow String without bound.
-static const size_t HTTP_LINE_MAX = 512;
 
 // Escape for Discord JSON content (Core 1 only; not reentrant with concurrent send).
 static size_t jsonEscape(const char* in, char* out, size_t outSize) {
@@ -112,7 +43,7 @@ static size_t jsonEscape(const char* in, char* out, size_t outSize) {
 bool sendDiscordMessage(const String& channelId, const String& content, bool suppressEmbeds) {
   unsigned long startedAt = millis();
 
-  // Truncate to Discord cap, then escape into fixed buffers (.bss — Core 1, not reentrant).
+  // Truncate to Discord cap, then escape into fixed buffers (.bss -- Core 1, not reentrant).
   static char raw[DISCORD_CONTENT_MAX + 1];
   static char esc[DISCORD_CONTENT_MAX * 2 + 4];
   static char body[DISCORD_CONTENT_MAX * 2 + 80];
@@ -236,53 +167,6 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
   return false;
 }
 
-static bool readHttpLineCapped(Client& client, String& out, unsigned long deadlineMs) {
-  out = "";
-  while (millis() <= deadlineMs) {
-    if (!client.available()) {
-      // Peer closed mid-line: partial is not a complete line.
-      if (!client.connected() && !client.available()) return false;
-      delay(1);
-      continue;
-    }
-    int b = client.read();
-    if (b < 0) continue;
-    char c = (char)b;
-    if (c == '\n') return true;
-    if (c == '\r') continue;
-    if (out.length() < HTTP_LINE_MAX) out += c;
-  }
-  return false;
-}
-
-// Skip status + headers; fill Transfer-Encoding / Content-Length for the body reader.
-static bool skipHttpHeaders(Client& client, unsigned long timeoutMs,
-                            bool& outChunked, int& outContentLength) {
-  outChunked = false;
-  outContentLength = -1;
-  unsigned long deadline = millis() + timeoutMs;
-  while (client.available() == 0) {
-    if (millis() > deadline) return false;
-    delay(1);
-  }
-  // Status line
-  String line;
-  if (!readHttpLineCapped(client, line, deadline)) return false;
-  while (millis() <= deadline && (client.connected() || client.available())) {
-    if (!readHttpLineCapped(client, line, deadline)) return false;
-    if (line.length() == 0) return true;
-    String lower = line;
-    lower.toLowerCase();
-    if (lower.startsWith("transfer-encoding:") && lower.indexOf("chunked") >= 0) {
-      outChunked = true;
-    }
-    if (lower.startsWith("content-length:")) {
-      outContentLength = lower.substring(lower.indexOf(':') + 1).toInt();
-    }
-  }
-  return false;
-}
-
 bool httpsConnect(const char* host, uint32_t timeoutMs) {
   httpsClient.stop();
   // Verify server certs. Never setInsecure -- BOT_TOKEN / API keys must not ride MITM TLS.
@@ -333,7 +217,7 @@ uint8_t httpsGetOpen(const char* host, const String& path, unsigned long headerT
   if (extraHeaders && extraHeaders[0]) req += extraHeaders;
   req += "Connection: close\r\n\r\n";
   httpsClient.print(req);
-  if (!skipHttpHeaders(httpsClient, headerTimeoutMs, outChunked, outContentLength)) {
+  if (!httpSkipHeaders(httpsClient, headerTimeoutMs, outChunked, outContentLength)) {
     httpsRelease();
     return 2;
   }
@@ -349,7 +233,7 @@ uint8_t httpGetOpen(WiFiClient& client, const char* host, const String& path,
                "Host: " + host + "\r\n"
                "User-Agent: " + String(MINIME_USER_AGENT) + "\r\n"
                "Connection: close\r\n\r\n");
-  if (!skipHttpHeaders(client, headerTimeoutMs, outChunked, outContentLength)) {
+  if (!httpSkipHeaders(client, headerTimeoutMs, outChunked, outContentLength)) {
     client.stop();
     return 2;
   }
@@ -362,320 +246,6 @@ void setHttpOpenError(String& outReport, uint8_t err, const char* label) {
   else if (err == 2) outReport += " header timeout.";
   else if (err == 3) outReport += " connect/TLS failed.";
   else outReport += " connection failed.";
-}
-
-bool httpsAwaitHeaders(Client& client, unsigned long deadlineMs, bool pump, String& outStatus,
-                       bool& chunked, int& contentLength, float* outRetryAfterSec) {
-  if (outRetryAfterSec) *outRetryAfterSec = -1.f;
-  while (client.available() == 0) {
-    if (millis() > deadlineMs) {
-      client.stop();
-      return false;
-    }
-    if (pump) {
-      pumpNetWait();
-    }
-    delay(10);
-  }
-  if (!readHttpLineCapped(client, outStatus, deadlineMs)) {
-    client.stop();
-    return false;
-  }
-  chunked = false;
-  contentLength = -1;
-  while (millis() <= deadlineMs) {
-    String line;
-    if (!readHttpLineCapped(client, line, deadlineMs)) {
-      client.stop();
-      return false;
-    }
-    if (line.length() == 0) break;
-    String lower = line;
-    lower.toLowerCase();
-    if (lower.startsWith("transfer-encoding:") && lower.indexOf("chunked") >= 0) {
-      chunked = true;
-    }
-    if (lower.startsWith("content-length:")) {
-      contentLength = lower.substring(lower.indexOf(':') + 1).toInt();
-    }
-    if (outRetryAfterSec && lower.startsWith("retry-after:")) {
-      // Discord sends seconds (int/float). Ignore HTTP-date forms (.toFloat() == 0).
-      float v = lower.substring(lower.indexOf(':') + 1).toFloat();
-      if (v > 0.f) *outRetryAfterSec = v;
-    }
-  }
-  return true;
-}
-
-bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
-                              String& outBody, unsigned long deadlineMs) {
-  outBody = "";
-  const size_t maxBody = 48000;
-  char blk[256];
-  if (chunked) {
-    uint8_t emptySizeLines = 0;
-    while (millis() < deadlineMs) {
-      while (!client.available() && client.connected() && millis() < deadlineMs) {
-        pumpNetWait();
-        delay(5);
-      }
-      if (!client.available()) {
-        // Missing final 0-chunk (or timeout). Do not treat accumulated body as success.
-        client.stop();
-        return false;
-      }
-      String sizeLine;
-      if (!readHttpLineCapped(client, sizeLine, deadlineMs)) {
-        client.stop();
-        return false;
-      }
-      // Rare bare CRLF between chunks (malformed / CDN quirk). Bound so endless CRLFs
-      // cannot spin past deadlineMs without failing. Trailer already ate the post-chunk CRLF.
-      if (sizeLine.length() == 0) {
-        if (++emptySizeLines > 8) {
-          client.stop();
-          return false;
-        }
-        continue;
-      }
-      emptySizeLines = 0;
-      int sc = sizeLine.indexOf(';');
-      if (sc >= 0) sizeLine = sizeLine.substring(0, sc);
-      long chunkSize = strtol(sizeLine.c_str(), nullptr, 16);
-      if (chunkSize <= 0) {
-        // Final 0-size chunk: complete message (empty body still false for callers).
-        return outBody.length() > 0;
-      }
-      if (outBody.length() + (size_t)chunkSize <= maxBody) {
-        outBody.reserve(outBody.length() + (size_t)chunkSize);
-      }
-      long got = 0;
-      bool hitCap = false;
-      while (got < chunkSize && millis() < deadlineMs) {
-        if (client.available()) {
-          size_t want = (size_t)(chunkSize - got);
-          if (want > sizeof(blk)) want = sizeof(blk);
-          int n = client.read((uint8_t*)blk, want);
-          if (n <= 0) {
-            pumpNetWait();
-            delay(1);
-            continue;
-          }
-          got += n;
-          if (!hitCap) {
-            if (outBody.length() + (size_t)n > maxBody) {
-              hitCap = true;
-            } else {
-              outBody.concat(blk, (unsigned int)n);
-            }
-          }
-        } else if (!client.connected()) {
-          client.stop();
-          return false; // truncated mid-chunk
-        } else {
-          pumpNetWait();
-          delay(1);
-        }
-      }
-      if (got < chunkSize) {
-        client.stop();
-        return false; // deadline mid-chunk
-      }
-      // Always consume trailing CRLF after the chunk (or abandon socket).
-      String trailer;
-      if (!readHttpLineCapped(client, trailer, deadlineMs)) {
-        client.stop();
-        return false; // partial body is not success (same class as 0.7.8 CL truncate)
-      }
-      if (hitCap) {
-        client.stop();
-        return false; // capped body is incomplete — not success
-      }
-    }
-    client.stop();
-    return false; // deadline without final 0-chunk
-  }
-  if (contentLength > 0) {
-    size_t need = (size_t)contentLength;
-    if (need > maxBody) need = maxBody;
-    outBody.reserve(need);
-    while ((int)outBody.length() < contentLength && millis() < deadlineMs) {
-      while (client.available()) {
-        size_t remain = (size_t)contentLength - outBody.length();
-        if (remain > sizeof(blk)) remain = sizeof(blk);
-        int n = client.read((uint8_t*)blk, remain);
-        if (n <= 0) break;
-        if (outBody.length() + (size_t)n > maxBody) {
-          client.stop();
-          return false; // truncated
-        }
-        outBody.concat(blk, (unsigned int)n);
-        if ((int)outBody.length() >= contentLength) break;
-      }
-      if (!client.connected() && !client.available()) break;
-      pumpNetWait();
-      delay(5);
-    }
-    if ((int)outBody.length() < contentLength) {
-      client.stop();
-      return false; // incomplete Content-Length body
-    }
-    return true;
-  }
-  // Until-close fallback (no chunked, no Content-Length). Best-effort only: peer close
-  // with a partial body still returns length>0. Callers must validate JSON / shape.
-  while (millis() < deadlineMs) {
-    while (client.available()) {
-      size_t room = maxBody - outBody.length();
-      if (room == 0) {
-        client.stop();
-        return false; // truncated
-      }
-      size_t want = room;
-      if (want > sizeof(blk)) want = sizeof(blk);
-      int n = client.read((uint8_t*)blk, want);
-      if (n <= 0) break;
-      outBody.concat(blk, (unsigned int)n);
-    }
-    if (!client.connected() && !client.available()) break;
-    pumpNetWait();
-    delay(10);
-  }
-  return outBody.length() > 0;
-}
-
-bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
-                              char* outBuf, size_t outCap, size_t& outLen,
-                              unsigned long deadlineMs) {
-  outLen = 0;
-  if (!outBuf || outCap < 2) return false;
-  outBuf[0] = '\0';
-  const size_t maxBody = outCap - 1; // leave room for NUL
-  char blk[256];
-
-  if (chunked) {
-    uint8_t emptySizeLines = 0;
-    while (millis() < deadlineMs) {
-      while (!client.available() && client.connected() && millis() < deadlineMs) {
-        pumpNetWait();
-        delay(5);
-      }
-      if (!client.available()) {
-        client.stop();
-        return false;
-      }
-      String sizeLine;
-      if (!readHttpLineCapped(client, sizeLine, deadlineMs)) {
-        client.stop();
-        return false;
-      }
-      if (sizeLine.length() == 0) {
-        if (++emptySizeLines > 8) {
-          client.stop();
-          return false;
-        }
-        continue;
-      }
-      emptySizeLines = 0;
-      int sc = sizeLine.indexOf(';');
-      if (sc >= 0) sizeLine = sizeLine.substring(0, sc);
-      long chunkSize = strtol(sizeLine.c_str(), nullptr, 16);
-      if (chunkSize <= 0) {
-        return outLen > 0;
-      }
-      long got = 0;
-      bool hitCap = false;
-      while (got < chunkSize && millis() < deadlineMs) {
-        if (client.available()) {
-          size_t want = (size_t)(chunkSize - got);
-          if (want > sizeof(blk)) want = sizeof(blk);
-          int n = client.read((uint8_t*)blk, want);
-          if (n <= 0) {
-            pumpNetWait();
-            delay(1);
-            continue;
-          }
-          got += n;
-          if (!hitCap) {
-            if (outLen + (size_t)n > maxBody) {
-              hitCap = true;
-            } else {
-              memcpy(outBuf + outLen, blk, (size_t)n);
-              outLen += (size_t)n;
-              outBuf[outLen] = '\0';
-            }
-          }
-        } else if (!client.connected()) {
-          client.stop();
-          return false;
-        } else {
-          pumpNetWait();
-          delay(1);
-        }
-      }
-      if (got < chunkSize) {
-        client.stop();
-        return false;
-      }
-      String trailer;
-      if (!readHttpLineCapped(client, trailer, deadlineMs)) {
-        client.stop();
-        return false;
-      }
-      if (hitCap) {
-        client.stop();
-        return false;
-      }
-    }
-    client.stop();
-    return false;
-  }
-  if (contentLength > 0) {
-    while ((int)outLen < contentLength && millis() < deadlineMs) {
-      while (client.available()) {
-        size_t remain = (size_t)contentLength - outLen;
-        if (remain > sizeof(blk)) remain = sizeof(blk);
-        int n = client.read((uint8_t*)blk, remain);
-        if (n <= 0) break;
-        if (outLen + (size_t)n > maxBody) {
-          client.stop();
-          return false;
-        }
-        memcpy(outBuf + outLen, blk, (size_t)n);
-        outLen += (size_t)n;
-        outBuf[outLen] = '\0';
-        if ((int)outLen >= contentLength) break;
-      }
-      if (!client.connected() && !client.available()) break;
-      pumpNetWait();
-      delay(5);
-    }
-    if ((int)outLen < contentLength) {
-      client.stop();
-      return false;
-    }
-    return true;
-  }
-  while (millis() < deadlineMs) {
-    while (client.available()) {
-      size_t room = maxBody - outLen;
-      if (room == 0) {
-        client.stop();
-        return false;
-      }
-      size_t want = room;
-      if (want > sizeof(blk)) want = sizeof(blk);
-      int n = client.read((uint8_t*)blk, want);
-      if (n <= 0) break;
-      memcpy(outBuf + outLen, blk, (size_t)n);
-      outLen += (size_t)n;
-      outBuf[outLen] = '\0';
-    }
-    if (!client.connected() && !client.available()) break;
-    pumpNetWait();
-    delay(10);
-  }
-  return outLen > 0;
 }
 
 bool discordIdLooksValid(const String& id) {
@@ -762,14 +332,14 @@ bool appendMembersFromGuild(const String& guildId, uint8_t maxToAdd) {
   filter[0]["user"]["global_name"] = true;
   filter[0]["user"]["bot"] = true;
 
-  // Heap JsonDocument — not on Core 1 setup/loop stack.
+  // Heap JsonDocument -- not on Core 1 setup/loop stack.
   static JsonDocument* memberDoc = nullptr;
   if (!memberDoc) {
     memberDoc = new (std::nothrow) JsonDocument();
   }
   if (!memberDoc) return false;
   memberDoc->clear();
-  // Parse from offset — avoid body.substring() second large String copy.
+  // Parse from offset -- avoid body.substring() second large String copy.
   DeserializationError err = deserializeJson(
       *memberDoc, body.c_str() + jsonStart, DeserializationOption::Filter(filter));
   if (err) {

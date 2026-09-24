@@ -10,6 +10,12 @@
 
 MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-S3-N16R8 + **AXS15231B** color LCD with in-cell touch). This is **not** a breadboard build and **not** MiniMe I's OLED board.
 
+### What this is not
+
+- **Not a cloud service** -- the bot runs entirely on the ESP32; Discord is remote, the app is on the module
+- **Not a Discord.js / Python bot** -- native Arduino/ESP32 firmware, not a host PC or Raspberry Pi process
+- **Not a general-purpose ESP32 Discord library** -- this is one application (LCD + LAN + commands), not a reusable SDK
+
 **Display:** panel native **320x480** (portrait); firmware paints **480x320** landscape via **GFX Library for Arduino** (`Arduino_ESP32QSPI` + `Arduino_AXS15231B` + `Arduino_Canvas`). No SSD1327 / U8g2 and no capacitive GPIO wake pad.
 
 **LCD <-> LAN web:** glass and `http://<board-ip>/` are one design — same Display / Log / Controls pages, same fields and chrome roles (LCD fixed 480×320; web scales). Logos and Cancel/Save marks on the web are SVG twins of the LCD art. Light/Dark on the glass and in the browser stay **independent** (each has its own chip).
@@ -32,7 +38,7 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 Interactive HTML (all four): [`docs/lcd-mock/all-four.html`](docs/lcd-mock/all-four.html).
 
-**Status:** Guition module firmware - **v0.7.79** (see `VERSION` / `CHANGELOG.md`). Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware **v0.7.80** — usable on the board today (Discord, LCD, LAN, Controls prefs). Still in active tuning and soak testing to harden edge cases; not a closed “final” product. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
@@ -63,15 +69,30 @@ After Wi-Fi connects, open `http://<board-ip>/` for the LAN dashboard (same Disp
 
 License: see `LICENSE` (non-commercial for original MiniMe II files only; commercial use requires express written permission).
 
-This is my second iteration of MiniMe. I have taken a much harder look at this project and am aiming for something that could be a real product — useful and reliable for people who use it.
+This is my second iteration of MiniMe. The board build is meant to be useful and reliable for day-to-day Discord + LCD use. I am still hardening (soaks, edge cases, polish) — not declaring the project closed.
 AI helped with firmware edits, multi-file layout, and GitHub updates. I owned the architecture, wiring, Discord Gateway/LCD design, commands, power/idle trade-offs, and what shipped on the board.
 
-## Ongoing project
+## Project status
 
-- **Desk case / enclosure** for the Guition module (this is already the module board, not a breadboard prototype)
-- **CI** -- four badges: **Compile** (Arduino), **Sanity** (fast host checks), **Python** (pytest + Pillow), **HTML** (LAN CSS/JS/SVG in headers). Local soak: [`docs/HIL_SOAK.md`](docs/HIL_SOAK.md) / `docs/lan-monitor.ps1`. Latest attested soak: [`docs/soak-results.md`](docs/soak-results.md).
+**Ready for daily use** on the Guition module: Discord Gateway/commands, LCD + LAN twin UI, flash Controls prefs, audio alerts, owner OTA upload path.
 
-Done recently: dual-core LCD vs Gateway, Display/Log/Controls + Light/Dark chips, LCD↔web UI parity, **flash Controls prefs** (dual-slot CRC), DM/@mention flags + alarm/`!clear`, dirty redraw, Wi-Fi ArduinoOTA (`!ota`), ArduinoJson 7, `!ask` HOL, Core0 log bridge.
+**Not closed out.** Work continues on hardening and a short roadmap (order matters):
+
+1. **Secrets on SD card** — load Wi-Fi / tokens / keys from the card at boot so credential changes do not require a firmware reflash (today: `secrets.h` at build time).
+2. **Further soak / edge-case hardening** — long runtimes, reconnect storms, heap pressure. Local soak: [`docs/HIL_SOAK.md`](docs/HIL_SOAK.md), [`docs/soak-results.md`](docs/soak-results.md). Fixed vs deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+3. **Desk case / enclosure** — last on the list (module board already; enclosure is packaging, not a breadboard prototype).
+
+**CI:** four badges — **Compile** (Arduino), **Sanity** (fast host checks), **Python** (pytest + Pillow), **HTML** (LAN CSS/JS/SVG in headers).
+
+Already in: dual-core LCD vs Gateway, Display/Log/Controls + Light/Dark chips, LCD↔web UI parity, flash Controls prefs (dual-slot CRC), DM/@mention flags + alarm/`!clear`, dirty redraw, user-initiated Wi-Fi OTA (`!ota`), ArduinoJson 7, `!ask` HOL, Core0 log bridge.
+
+### Firmware updates (OTA)
+
+There is **no cloud update service**. MiniMe II does **not** pull or receive firmware from a remote server. You (or an owner on the LAN) choose when to upload a new build — USB or Wi-Fi ArduinoOTA (`!ota` prints IP / hostname / port **3232**).
+
+**Security note (OTA):** ArduinoOTA is only a **hostname + password** on the local network. There is no signed firmware, certificate identity, or other strong authority behind that password. Any host that knows the password can upload a new image. Treat the LAN as trusted; do not expose port **3232** to an untrusted network. Prefer USB when the network is not trusted; keep `OTA_PASSWORD` strong and private.
+
+**Security note (LAN web UI):** `http://<board-ip>/` and `POST /api/controls` have no authentication. Any host on the same network can change brightness/volume/toggles and can factory-reset Controls prefs. Treat the LAN as trusted; do not expose the board to an untrusted network.
 
 ---
 
@@ -95,7 +116,7 @@ Same list Discord shows for `!help`:
 
 **Owner-only** (`OWNER_ID_STR`):
 
-- `!ota` -- Wi-Fi ArduinoOTA info (IP / hostname / port 3232)
+- `!ota` -- print Wi-Fi ArduinoOTA connection info (IP / hostname / port 3232); upload is always user-initiated (see **Firmware updates (OTA)** above)
 - `!coredump` -- last panic from flash coredump (`!coredump clear` erases)
 - `!servo <0-90>` -- servo angle (updates the `Srv` bar; optional external servo on GPIO 17)
 - `!clear` -- clear DM / mention alert flags on the LCD (stops the repeating alarm)
@@ -215,7 +236,7 @@ Discord presence still goes Idle after **5 minutes** quiet (CPU drops to **160 M
 
 ## Fill in these values
 
-Secrets live in **`MiniMe_Discord_Bot_II/secrets.h`** (gitignored; keep real secrets **outside** this workspace). No sketch source file holds Wi-Fi, tokens, or IDs.
+Secrets live in **`MiniMe_Discord_Bot_II/secrets.h`** (gitignored; keep real secrets **outside** this workspace). No sketch source file holds Wi-Fi, tokens, or IDs. **Planned:** load the same values from an **SD card** at boot so you can change credentials without rebuilding firmware.
 
 1. Copy `MiniMe_Discord_Bot_II/secrets.example.h` -> `secrets.h` (on your machine, outside the repo if that is your rule)
 2. Fill in real values and **delete** the `#define MINIME_SECRETS_IS_EXAMPLE 1` line (compile errors if it remains).
@@ -248,7 +269,7 @@ Use `#define` (not `const char*`) so every `.cpp` can include `secrets.h` withou
 | `OWNER_ID_STR` | Who can run servo / `!clear`; mention alert target |
 | `TARGET_CHANNEL_ID` | Commands (no automatic boot posts) |
 | `TARGET_CHANNEL_ID1` | Second channel where commands are allowed |
-| `OTA_HOSTNAME` / `OTA_PASSWORD` | ArduinoOTA network port |
+| `OTA_HOSTNAME` / `OTA_PASSWORD` | ArduinoOTA on the LAN (password only — see **Firmware updates (OTA)**) |
 
 IDs are **digits only**. Paste them as C strings, for example `"123456789012345678"`.
 
@@ -430,7 +451,7 @@ GitHub Actions runs **Compile**, **Sanity**, **Python**, and **HTML** on push (b
 - **RAM:** internal SRAM + **8MB OPI PSRAM**. **PSRAM -> OPI PSRAM** must be on.
 - Large Discord Gateway JSON (`GW_DOC_PSRAM` soft size) and LAN `statusDoc` use `JsonDocument` with `SpiRamAllocator` (PSRAM via `heap_caps_*`). Default `JsonDocument` is internal SRAM only.
 - Do **not** enable `heap_caps_malloc_extmem_enable` for small allocations (Wi-Fi / TLS in PSRAM can crash).
-- **Flash:** **16MB**. `partitions.csv` is dual OTA + small coredump -- **no filesystem**. First flash USB; later Wi-Fi OTA (`!ota`).
+- **Flash:** **16MB**. `partitions.csv` is dual OTA apps + small coredump — **no filesystem** yet (SD secrets are planned). First install over USB; later builds can use user-initiated Wi-Fi OTA (see **Firmware updates (OTA)**).
 
 ---
 

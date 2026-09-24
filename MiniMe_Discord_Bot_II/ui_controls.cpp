@@ -15,7 +15,11 @@ std::atomic<uint32_t> uiControlsGen{0};
 
 bool lcdLayoutControls = false;
 
-// Hit boxes filled while drawing Controls (landscape).
+// Hit boxes filled as a side effect of drawControlsLeft/Right (drawCtrlSlider /
+// drawCtrlToggle). Geometry mirrors display_layout.h + the ly/ry offsets in
+// display_draw.cpp. Safe today because entering Controls / layout change sets
+// dashForceFull before touch can land, so boxes are never stale mid-page.
+// Prefer recomputing from layout constants if paint ever becomes skippable.
 int16_t ctrlBrightTrackX = 0, ctrlBrightTrackY = 0, ctrlBrightTrackW = 0, ctrlBrightTrackH = 0;
 int16_t ctrlVolTrackX = 0, ctrlVolTrackY = 0, ctrlVolTrackW = 0, ctrlVolTrackH = 0;
 int16_t ctrlToggle0X = 0, ctrlToggle0Y = 0, ctrlToggle0W = 0, ctrlToggle0H = 0;
