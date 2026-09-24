@@ -98,7 +98,8 @@ static void cmdHelp(const CmdCtx& ctx) {
     "• `!ota` — Wi-Fi firmware update info (IP / hostname).\n"
     "• `!coredump` — Last panic from flash coredump (`!coredump clear` erases).\n"
     "• `!servo <0-90>` — Moves the servo motor to a specific angle.\n"
-    "• `!clear` — Clears DM / mention alert flags on the LCD (stops the alarm sound).";
+    "• `!clear` — Clears DM / mention alert flags on the LCD (stops the alarm sound).\n"
+    "• `!resetprefs` — Factory-reset Controls prefs in flash (bright/vol/toggles/theme).";
   showIfPosted("Help", "Command Sent", sendDiscordMessage(ctx.channelId, helpMsg));
 }
 
@@ -227,6 +228,15 @@ static void cmdClear(const CmdCtx& ctx) {
                sendDiscordMessage(ctx.channelId, "DM/mention alerts cleared"));
 }
 
+static void cmdResetPrefs(const CmdCtx& ctx) {
+  const bool ok = factoryResetSettings();
+  showTransient("Prefs", ok ? "factory reset" : "reset fail");
+  showIfPosted("resetprefs", ok ? "factory OK" : "write fail",
+               sendDiscordMessage(ctx.channelId,
+                                  ok ? "Controls prefs reset to factory defaults."
+                                     : "Prefs reset applied in RAM; flash write failed."));
+}
+
 static void cmdServo(const CmdCtx& ctx) {
   if (ctx.args.length() == 0) {
     sendDiscordMessage(ctx.channelId, "Usage: !servo <0-90>");
@@ -267,8 +277,9 @@ static const CmdEntry kCmds[] = {
   { "!time",     CMD_RECORD_USE,                     cmdTime },
   { "!ask",      CMD_CONSUMES_REST | CMD_RECORD_USE, cmdAsk },
   { "!display",  CMD_CONSUMES_REST | CMD_RECORD_USE, cmdDisplay },
-  { "!clear",    CMD_OWNER | CMD_RECORD_USE,         cmdClear },
-  { "!servo",    CMD_OWNER | CMD_RECORD_USE,         cmdServo },
+  { "!clear",      CMD_OWNER | CMD_RECORD_USE,         cmdClear },
+  { "!resetprefs", CMD_OWNER | CMD_RECORD_USE,         cmdResetPrefs },
+  { "!servo",      CMD_OWNER | CMD_RECORD_USE,         cmdServo },
 #ifdef MINIME_TEST_TWDT
   { "!hang",     CMD_OWNER,                          cmdHang },
 #endif

@@ -232,6 +232,7 @@ bool controlsLeavingIsCommit();
 void loadSettings();   // boot prefs load (mm_prefs.cpp -- ESP32-S3 onboard flash)
 bool saveSettings();
 bool recallSettings();
+bool factoryResetSettings();
 bool isSettingsDirty();
 // Panel bar fills (single source for LCD + web API percents)
 enum { DASH_SIG_HEAP_BAR_MAX = 280, DASH_SRV_BAR_MAX = 280 };

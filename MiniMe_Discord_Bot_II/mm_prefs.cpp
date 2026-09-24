@@ -31,6 +31,8 @@ struct __attribute__((packed)) Settings {
   uint32_t crc32;
 };
 
+static_assert(sizeof(Settings) <= SETTINGS_SLOT_SIZE, "Settings must fit in one prefs flash sector");
+
 static Settings settings;
 static const esp_partition_t* prefsPart = nullptr;
 
@@ -194,6 +196,40 @@ bool recallSettings() {
 
   clampSettings(settings);
   applySettingsToRuntime(settings);
+  return true;
+}
+
+bool factoryResetSettings() {
+  Settings a, b;
+  const bool okA = readSlot(0, &a) && validateSettings(&a);
+  const bool okB = readSlot(1, &b) && validateSettings(&b);
+  uint32_t seq = settings.sequence;
+  if (okA && a.sequence > seq) seq = a.sequence;
+  if (okB && b.sequence > seq) seq = b.sequence;
+
+  fillDefaults(settings);
+  settings.sequence = seq + 1;
+  {
+    const size_t len = sizeof(Settings) - sizeof(uint32_t);
+    settings.crc32 = crc32_compute((const uint8_t*)&settings, len);
+  }
+
+  uint8_t curSlot = 0;
+  if (okA && okB) curSlot = (a.sequence >= b.sequence) ? 0 : 1;
+  else if (okB && !okA) curSlot = 1;
+  const uint8_t dst = (okA || okB) ? (uint8_t)(curSlot ^ 1) : 0;
+
+  if (!writeSlot(dst, &settings)) {
+    MmLog.println(F("[prefs] factory reset write failed"));
+    applySettingsToRuntime(settings); // still apply RAM defaults
+    return false;
+  }
+
+  applySettingsToRuntime(settings);
+  MmLog.print(F("[prefs] factory reset seq="));
+  MmLog.print(settings.sequence);
+  MmLog.print(F(" slot="));
+  MmLog.println(dst);
   return true;
 }
 

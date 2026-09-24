@@ -1,6 +1,10 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.77** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.78** (see `VERSION` and README).
+
+## 0.7.78
+
+- Factory reset prefs: long-press Cancel (~3 s) or owner `!resetprefs`. Confirm `Display · v0.7.78`.
 
 ## 0.7.77
 

@@ -2,7 +2,7 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.77"
+#define MINIME_VERSION "0.7.78"
 #define MINIME_USER_AGENT "MiniMeBot/1.0"
 
 // Scratch TWDT proof only — enables owner !hang (infinite loop). Never ship with this enabled.
@@ -81,6 +81,7 @@ const unsigned long DASH_REFRESH_MS = 1000UL; // ~60ms draw+flush measured; 1s o
 
 const unsigned long DISPLAY_IDLE_MS = 300000UL; // 5 minutes after last display activity -> backlight off
 const unsigned long TOUCH_DEBOUNCE_MS = 300;
+const unsigned long PREFS_RESET_HOLD_MS = 3000UL; // long-press Cancel = factory reset
 // Backlight PWM (GPIO 1): UI 0..100 maps to duty 10..100%; sleep uses 0.
 const uint32_t LCD_BL_PWM_HZ = 5000;
 const uint8_t LCD_BL_PWM_BITS = 8;

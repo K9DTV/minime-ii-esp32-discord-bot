@@ -62,7 +62,18 @@ void pollTouchWake() {
     if (lcdTouchPoint(x, y)) touched = true;
   }
 
+  // Cancel long-press (~3 s) = factory reset; short tap on release = recall.
+  static bool cancelHoldArmed = false;
+  static bool cancelHoldReset = false;
+  static unsigned long cancelHoldStart = 0;
+
   if (!touched) {
+    if (cancelHoldArmed && !cancelHoldReset) {
+      controlsCancel();
+      audioTickButton();
+    }
+    cancelHoldArmed = false;
+    cancelHoldReset = false;
     touchWasActive = false;
     return;
   }
@@ -71,6 +82,8 @@ void pollTouchWake() {
 
   // Wake-from-sleep: backlight only (no chip toggle on the same tap).
   if (displayAsleep.load()) {
+    cancelHoldArmed = false;
+    cancelHoldReset = false;
     if (now - lastTouchWakeMillis < TOUCH_DEBOUNCE_MS) return;
     lastTouchWakeMillis = now;
     touchWasActive = true;
@@ -81,6 +94,8 @@ void pollTouchWake() {
 
   // Controls sliders: track while held (bypass debounce).
   if (lcdLayoutControls && handleControlsTouch(x, y, rising)) {
+    cancelHoldArmed = false;
+    cancelHoldReset = false;
     noteDisplayActivity();
     touchWasActive = true;
     if (rising) {
@@ -88,6 +103,32 @@ void pollTouchWake() {
       audioTickButton();
     }
     return;
+  }
+
+  // Cancel dog: hold tracking (no rising cancel).
+  if (lcdLayoutControls && lcdDogLeftHit(x, y)) {
+    noteDisplayActivity();
+    touchWasActive = true;
+    if (rising) {
+      cancelHoldArmed = true;
+      cancelHoldReset = false;
+      cancelHoldStart = now;
+      lastTouchWakeMillis = now;
+    } else if (cancelHoldArmed && !cancelHoldReset
+               && (now - cancelHoldStart) >= PREFS_RESET_HOLD_MS) {
+      cancelHoldReset = true;
+      cancelHoldArmed = false;
+      factoryResetSettings();
+      showTransient("Prefs", "factory reset");
+      audioTickButton();
+    }
+    return;
+  }
+
+  // Finger moved off Cancel without release path above: drop armed cancel.
+  if (cancelHoldArmed && !lcdDogLeftHit(x, y)) {
+    cancelHoldArmed = false;
+    cancelHoldReset = false;
   }
 
   if (now - lastTouchWakeMillis < TOUCH_DEBOUNCE_MS) return;
@@ -99,9 +140,6 @@ void pollTouchWake() {
     audioTickButton();
   } else if (rising && lcdLayoutChipHit(x, y)) {
     cycleLcdLayout(1);
-    audioTickButton();
-  } else if (rising && lcdLayoutControls && lcdDogLeftHit(x, y)) {
-    controlsCancel();
     audioTickButton();
   } else if (rising && lcdLayoutControls && lcdDogRightHit(x, y)) {
     controlsSave();

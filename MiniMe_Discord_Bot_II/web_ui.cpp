@@ -673,6 +673,8 @@ static void handleControlsPost() {
       controlsCancel();
     } else if (act == "save") {
       controlsSave();
+    } else if (act == "resetprefs") {
+      factoryResetSettings();
     } else if (act == "enter") {
       // Web opened Controls — snapshot current values.
       controlsSnapshotEnter(0);

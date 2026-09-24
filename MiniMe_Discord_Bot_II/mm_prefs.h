@@ -12,5 +12,6 @@ bool isSettingsDirty();
 void loadSettings();   // boot: read best valid slot or defaults
 bool saveSettings();   // Save: write only if dirty
 bool recallSettings(); // Cancel: re-read flash into live Controls (+ LCD theme)
+bool factoryResetSettings(); // defaults + write flash (long-press Cancel / !resetprefs)
 
 #endif
