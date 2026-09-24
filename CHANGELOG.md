@@ -1,6 +1,26 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.71** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.76** (see `VERSION` and README).
+
+## 0.7.76
+
+- Web phone: logo larger (14.7rem); MiniMe-II subtitle moves to bottom of page. Confirm flash via `Display · v0.7.76`.
+
+## 0.7.75
+
+- Boot/web speed: LCD+LAN start right after Wi-Fi (no 25s Identify gate); mark icons use `draw16bitRGBBitmap` (not per-pixel); mark SVGs load only on Controls; phone logo ~25% larger (9.4rem). Confirm flash via `Display · v0.7.75`.
+
+## 0.7.74
+
+- Web phone header fix: logo stays **/logo.svg** (no RGB565 on web); drop fixed 343px HTML size so CSS can shrink; chips stay on one row. Confirm flash via `Display · v0.7.74`.
+
+## 0.7.73
+
+- Web phone header: shrink logo so Light/Dark and Display/Log/Controls stay beside it (one row, no wrap). Desktop unchanged. Confirm flash via `Display · v0.7.73`.
+
+## 0.7.72
+
+- Display web: fixed panel size (no grow); no scrollbars; rows stay on one line with ellipsis (no overflow). Confirm flash via `Display · v0.7.72`.
 
 ## 0.7.71
 

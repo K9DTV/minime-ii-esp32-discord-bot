@@ -379,7 +379,7 @@ static void printBrand(Print& out) {
   out.print(F("<span class=\"theme-toggle-text\" id=\"theme-chip-text\">Light</span></span></button>"));
   out.print(F("<header class=\"brand\">"));
   out.print(F("<a class=\"logo-link\" href=\"https://k9dtv.com\" target=\"_blank\" rel=\"noopener\">"));
-  out.print(F("<img class=\"logo\" id=\"brand-logo\" src=\"/logo.svg\" width=\"343\" height=\"107\" alt=\"K9DTV\"></a></header>"));
+  out.print(F("<img class=\"logo\" id=\"brand-logo\" src=\"/logo.svg\" alt=\"K9DTV\"></a></header>"));
   out.print(F("<button type=\"button\" id=\"layout-toggle\" class=\"theme-chip-trigger\" aria-pressed=\"false\" aria-label=\"Cycle display log controls\">"));
   out.print(F("<img class=\"menu-chip-icon\" id=\"layout-chip-img\" src=\"/chip.svg\" width=\"64\" height=\"64\" alt=\"\" aria-hidden=\"true\">"));
   out.print(F("<span class=\"menu-chip-label\" aria-hidden=\"true\">"));
@@ -436,7 +436,7 @@ static void streamRootHtml(Print& out) {
   out.print(F("<input id=\"ctrl-vol\" type=\"range\" min=\"0\" max=\"100\" value=\"70\" aria-label=\"Volume\">"));
   out.print(F("</div></div>"));
   out.print(F("<button type=\"button\" class=\"dog-btn dog-cancel\" id=\"ctrl-cancel\" aria-label=\"Cancel\">"));
-  out.print(F("<img id=\"dog-left-img\" src=\"/mark-left.svg\" width=\"48\" height=\"32\" alt=\"\">"));
+  out.print(F("<img id=\"dog-left-img\" width=\"48\" height=\"32\" alt=\"\">"));
   out.print(F("<span class=\"dog-lab\">Cancel</span></button>"));
   out.print(F("</div></section>"));
   out.print(F("<section class=\"box box-lcd-ctrl\" id=\"box-ctrl-toggles\">"));
@@ -446,7 +446,7 @@ static void streamRootHtml(Print& out) {
   out.print(F("<button type=\"button\" class=\"tog\" id=\"ctrl-ticks\" aria-pressed=\"true\"><span class=\"lab\">Ticks</span><span class=\"st\">ON</span></button>"));
   out.print(F("<button type=\"button\" class=\"tog\" id=\"ctrl-notify\" aria-pressed=\"true\"><span class=\"lab\">Notify</span><span class=\"st\">ON</span></button>"));
   out.print(F("<button type=\"button\" class=\"dog-btn dog-save\" id=\"ctrl-save\" aria-label=\"Save\">"));
-  out.print(F("<img id=\"dog-right-img\" src=\"/mark-right.svg\" width=\"48\" height=\"32\" alt=\"\">"));
+  out.print(F("<img id=\"dog-right-img\" width=\"48\" height=\"32\" alt=\"\">"));
   out.print(F("<span class=\"dog-lab\">Save</span></button>"));
   out.print(F("</div></section>"));
   out.print(F("<div id=\"err\" class=\"err\" hidden></div>"));

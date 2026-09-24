@@ -1,6 +1,6 @@
 # MiniMe II — code review notes (pro pass)
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.71**.
+What we **fixed** vs what we **left** and why. Current: **v0.7.76**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 

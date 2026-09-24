@@ -97,6 +97,12 @@ void setup() {
   setupMiniMeOta();
   setupWebUi();
   timeClient.begin();
+  // LCD + LAN up before Discord HTTPS/Identify so boot/web clocks match "ready to use".
+  publishDashSnap();
+  startUiCore(); // Core 0 owns LCD + touch from here
+  setServoAngle(45);
+  lastDashMillis = 0;
+
   showTransient("Discord", "Loading users...");
   if (fetchGuildMembersAtStartup()) {
     String n0 = trackedUsers[0].userName[0] ? String(trackedUsers[0].userName) : "ok";
@@ -104,25 +110,11 @@ void setup() {
   } else {
     showTransient("Users", "Fetch failed");
   }
-  delay(1200); // hold user-loaded transient so it's visible
+  delay(400); // brief hold (was 1200) -- UI already live
   connectGateway();
-  // Let Hello+Identify finish before first full LCD flush (QSPI can block TLS).
-  {
-    unsigned long t0 = millis();
-    while (!identified && (millis() - t0) < 25000UL) {
-      pumpGateway();
-      pumpOta();
-      pumpWebUi();
-      yield();
-      delay(10);
-    }
-  }
-  setServoAngle(45);
-  lastDashMillis = 0;
   if (identified) showTransient("Ready", "GW identified");
   else showTransient("Ready", "GW waiting...");
-  publishDashSnap();
-  startUiCore(); // Core 0 owns LCD + touch from here
+  // Identify/resume continues in loop(); do not block setup up to 25s for Hello.
   // TWDT after long setup waits: reconfigure timeout + enable loopTask only.
   // Do not subscribe uiTask (0.7.30/0.7.34 panic path). No mid-HTTPS reset sprinkle.
   {

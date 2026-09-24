@@ -176,7 +176,7 @@ void drawBrandBar(const DashPalette& p) {
   }
 }
 
-// Controls-only footer: dog+K9 mark (no button chrome); label under dog outline.
+// Controls Cancel/Save mark: same PROGMEM RGB565 as logo path (fast blit, not per-pixel).
 static void blitMarkIcon(int16_t dx, int16_t dy, int16_t dw, int16_t dh, bool faceRight) {
   if (!gfx) return;
   const uint16_t* bits;
@@ -185,6 +185,12 @@ static void blitMarkIcon(int16_t dx, int16_t dy, int16_t dw, int16_t dh, bool fa
   } else {
     bits = lcdThemeLight ? K9_MARK_LEFT_BRIGHT_RGB565 : K9_MARK_LEFT_RGB565;
   }
+  // Dog buttons are native mark size (48x32); use QSPI bitmap path like the brand logo.
+  if (dw == K9_MARK_W && dh == K9_MARK_H) {
+    gfx->draw16bitRGBBitmap(dx, dy, (uint16_t*)bits, K9_MARK_W, K9_MARK_H);
+    return;
+  }
+  // Fallback only if layout sizes ever diverge.
   for (int16_t y = 0; y < dh; y++) {
     const int16_t srcY = (int16_t)(((int32_t)y * K9_MARK_H) / dh);
     if (srcY < 0 || srcY >= K9_MARK_H) continue;

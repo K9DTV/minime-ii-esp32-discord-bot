@@ -34,7 +34,7 @@ This UI is **not done yet** and **will change**. The mocks below are 480×320 la
 
 Interactive HTML (all four): [`docs/lcd-mock/all-four.html`](docs/lcd-mock/all-four.html).
 
-**Status:** Guition module firmware - **v0.7.71** (see `VERSION` / `CHANGELOG.md`). Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware - **v0.7.76** (see `VERSION` / `CHANGELOG.md`). Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
