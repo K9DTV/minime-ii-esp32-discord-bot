@@ -151,6 +151,10 @@ bool httpsAwaitHeaders(Client& client, unsigned long deadlineMs, bool pump, Stri
                        float* outRetryAfterSec = nullptr);
 bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
                               String& outBody, unsigned long deadlineMs);
+// Fixed-buffer body read (no String growth). outLen set on success; empty => false.
+bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
+                              char* outBuf, size_t outCap, size_t& outLen,
+                              unsigned long deadlineMs);
 bool discordIdLooksValid(const String& id);
 bool discordRestGet(const String& path, String& outBody, String& outStatus);
 String guildIdFromChannel(const String& channelId);

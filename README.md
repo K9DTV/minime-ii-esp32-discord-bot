@@ -32,7 +32,7 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 Interactive HTML (all four): [`docs/lcd-mock/all-four.html`](docs/lcd-mock/all-four.html).
 
-**Status:** Guition module firmware - **v0.7.78** (see `VERSION` / `CHANGELOG.md`). Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware - **v0.7.79** (see `VERSION` / `CHANGELOG.md`). Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
@@ -188,7 +188,7 @@ Adapted from the VFO settings *rules* (dirty / CRC / corrupt defaults), stored i
 | **Partition** | First entry in `partitions.csv`: label `prefs`, **8 KB** at `0x9000` (two **4 KB** erase sectors = slot A / slot B). Wi-Fi **NVS** follows at `0xB000` (12 KB). |
 | **What is stored** | LCD Light/Dark, brightness, volume, Sound, Ticks, Notify — plus flash overhead (signature / version / struct size / sequence / tail magic / CRC32). Browser Light/Dark stays in `localStorage` only. |
 | **Save** | Controls **Save** writes only when dirty. Writes the **other** slot with a bumped sequence. Stays on Controls. |
-| **Cancel** | Short tap recalls from flash (stays on Controls). **Long-press ~3 s** = factory reset (defaults + write). Leaving via **Menus** without Save also recalls. |
+| **Cancel** | Short tap recalls from flash (stays on Controls). If live values already match the last loaded/saved image (**not dirty**), recall early-outs (no flash read, no redraw). **Long-press ~3 s** = factory reset (defaults + write). Leaving via **Menus** without Save also recalls (same dirty early-out). |
 | **Factory reset** | Long-press Cancel, or owner `!resetprefs`. Defaults = bright/vol **100%**, toggles **ON**, Dark. |
 | **Boot** | `loadSettings()` after display setup (Wi-Fi → web → LCD uiTask order unchanged from 0.7.76). |
 | **Corrupt / missing** | → defaults (brightness/volume **100%**, toggles **ON**, Dark), then seed flash. |

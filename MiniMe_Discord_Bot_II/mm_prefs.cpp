@@ -178,6 +178,9 @@ void loadSettings() {
 }
 
 bool recallSettings() {
+  // No Controls edits vs last loaded/saved image -- skip flash I/O and redraw.
+  if (!isSettingsDirty()) return true;
+
   Settings a, b;
   bool okA = readSlot(0, &a) && validateSettings(&a);
   bool okB = readSlot(1, &b) && validateSettings(&b);

@@ -227,15 +227,28 @@ bool askDeepSeek(const String& question, String& outReport) {
     outReport = "DeepSeek API key not set. Add DEEPSEEK_API_KEY in secrets.h.";
     return false;
   }
-  String q = question;
-  q.trim();
-  if (q.length() == 0) {
+
+  // Trim/cap question into a fixed buffer (no String heap churn).
+  char q[501];
+  size_t qn = question.length();
+  if (qn > 500) qn = 500;
+  memcpy(q, question.c_str(), qn);
+  q[qn] = '\0';
+  while (qn > 0 && (q[qn - 1] == ' ' || q[qn - 1] == '\t' || q[qn - 1] == '\r' || q[qn - 1] == '\n')) {
+    q[--qn] = '\0';
+  }
+  size_t qs = 0;
+  while (q[qs] == ' ' || q[qs] == '\t' || q[qs] == '\r' || q[qs] == '\n') qs++;
+  if (qs > 0) {
+    size_t rem = qn - qs;
+    memmove(q, q + qs, rem + 1);
+    qn = rem;
+  }
+  if (qn == 0) {
     outReport = "Usage: !ask <question>";
     return false;
   }
-  if (q.length() > 500) {
-    q = q.substring(0, 500);
-  }
+
   JsonDocument req;
   req["model"] = "deepseek-chat";
   req["max_tokens"] = DEEPSEEK_MAX_TOKENS;
@@ -248,8 +261,16 @@ bool askDeepSeek(const String& question, String& outReport) {
   JsonObject user = messages.add<JsonObject>();
   user["role"] = "user";
   user["content"] = q;
-  String body;
-  serializeJson(req, body);
+
+  // Fixed .bss buffers -- Core 1 only, not concurrent with another !ask.
+  static char body[3072];
+  static char request[3584];
+  static char respBuf[8192];
+  size_t bodyLen = serializeJson(req, body, sizeof(body));
+  if (bodyLen == 0 || bodyLen >= sizeof(body)) {
+    outReport = "DeepSeek: request too large.";
+    return false;
+  }
 
   // Dedicated TLS — leaves httpsInUse free so Discord REST / !weather can drain during wait.
   static WiFiClientSecure deepSeekTls;
@@ -269,18 +290,24 @@ bool askDeepSeek(const String& question, String& outReport) {
     outReport = "DeepSeek connection failed.";
     return false;
   }
-  String request =
-    "POST /chat/completions HTTP/1.1\r\n"
-    "Host: api.deepseek.com\r\n"
-    "Authorization: Bearer " + String(DEEPSEEK_API_KEY) + "\r\n"
-    "Content-Type: application/json\r\n"
-    "Accept: application/json\r\n"
-    "Accept-Encoding: identity\r\n"
-    "User-Agent: " MINIME_USER_AGENT "\r\n"
-    "Content-Length: " + String(body.length()) + "\r\n"
-    "Connection: close\r\n\r\n" +
-    body;
-  deepSeekTls.print(request);
+  int reqLen = snprintf(request, sizeof(request),
+                        "POST /chat/completions HTTP/1.1\r\n"
+                        "Host: api.deepseek.com\r\n"
+                        "Authorization: Bearer %s\r\n"
+                        "Content-Type: application/json\r\n"
+                        "Accept: application/json\r\n"
+                        "Accept-Encoding: identity\r\n"
+                        "User-Agent: " MINIME_USER_AGENT "\r\n"
+                        "Content-Length: %u\r\n"
+                        "Connection: close\r\n\r\n"
+                        "%s",
+                        DEEPSEEK_API_KEY, (unsigned)bodyLen, body);
+  if (reqLen < 0 || (size_t)reqLen >= sizeof(request)) {
+    deepSeekTls.stop();
+    outReport = "DeepSeek: request buffer overflow.";
+    return false;
+  }
+  deepSeekTls.write((const uint8_t*)request, (size_t)reqLen);
   unsigned long deadline = millis() + 30000UL;
   String statusLine;
   bool chunked = false;
@@ -290,15 +317,16 @@ bool askDeepSeek(const String& question, String& outReport) {
     outReport = "DeepSeek timeout waiting for headers.";
     return false;
   }
-  String respBody;
-  if (!readHttpBodyAfterHeaders(deepSeekTls, chunked, contentLength, respBody, deadline)) {
+  size_t respLen = 0;
+  if (!readHttpBodyAfterHeaders(deepSeekTls, chunked, contentLength, respBuf, sizeof(respBuf),
+                                respLen, deadline)) {
     deepSeekTls.stop();
     outReport = "DeepSeek empty response. " + statusLine;
     return false;
   }
   deepSeekTls.stop();
-  int jsonStart = respBody.indexOf('{');
-  if (jsonStart < 0) {
+  const char* jsonPtr = (const char*)memchr(respBuf, '{', respLen);
+  if (!jsonPtr) {
     outReport = "DeepSeek: no JSON body. " + truncateText(statusLine, 80);
     return false;
   }
@@ -315,7 +343,7 @@ bool askDeepSeek(const String& question, String& outReport) {
   }
   deepSeekDoc->clear();
   DeserializationError err = deserializeJson(
-      *deepSeekDoc, respBody.c_str() + jsonStart, DeserializationOption::Filter(filter));
+      *deepSeekDoc, jsonPtr, DeserializationOption::Filter(filter));
   if (err) {
     outReport = "DeepSeek JSON parse error (" + String(err.c_str()) + ").";
     return false;

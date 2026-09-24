@@ -1,6 +1,11 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.78** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.79** (see `VERSION` and README).
+
+## 0.7.79
+
+- Cold-path heap: `sendDiscordMessage` builds POST via static buffers + JSON escape (no request String); `askDeepSeek` uses fixed body/request/resp buffers + `readHttpBodyAfterHeaders(char*)`.
+- Cancel: `recallSettings` early-outs when Controls are not dirty. Confirm `Display · v0.7.79`.
 
 ## 0.7.78
 

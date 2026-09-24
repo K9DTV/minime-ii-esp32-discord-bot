@@ -79,32 +79,80 @@ bool sendDiscordCmdError(const String& channelId, const String& content, bool su
   return sendDiscordMessage(channelId, content, suppressEmbeds);
 }
 
+// Cap header/status lines so a broken peer cannot grow String without bound.
+static const size_t HTTP_LINE_MAX = 512;
+
+// Escape for Discord JSON content (Core 1 only; not reentrant with concurrent send).
+static size_t jsonEscape(const char* in, char* out, size_t outSize) {
+  size_t o = 0;
+  for (size_t i = 0; in[i] && o + 2 < outSize; i++) {
+    const char c = in[i];
+    if (c == '"' || c == '\\') {
+      out[o++] = '\\';
+      out[o++] = c;
+    } else if (c == '\n') {
+      out[o++] = '\\';
+      out[o++] = 'n';
+    } else if (c == '\r') {
+      out[o++] = '\\';
+      out[o++] = 'r';
+    } else if (c == '\t') {
+      out[o++] = '\\';
+      out[o++] = 't';
+    } else if ((uint8_t)c < 0x20) {
+      // skip other controls
+    } else {
+      out[o++] = c;
+    }
+  }
+  out[o] = '\0';
+  return o;
+}
+
 bool sendDiscordMessage(const String& channelId, const String& content, bool suppressEmbeds) {
   unsigned long startedAt = millis();
-  String post = content;
-  if (post.length() > DISCORD_CONTENT_MAX) post = post.substring(0, DISCORD_CONTENT_MAX - 3) + "...";
-  JsonDocument doc;
-  doc["content"] = post;
-  doc["tts"] = false;
-  if (suppressEmbeds) doc["flags"] = 4; // SUPPRESS_EMBEDS: link stays a URL, no GitHub card
 
-  String body;
-  serializeJson(doc, body);
-  String url = "/api/v10/channels/" + channelId + "/messages";
-  String request =
-    "POST " + url + " HTTP/1.1\r\n"
-    "Host: discord.com\r\n"
-    "Authorization: Bot " + String(BOT_TOKEN) + "\r\n"
-    "Content-Type: application/json\r\n"
-    "User-Agent: " MINIME_USER_AGENT "\r\n"
-    "Content-Length: " + String(body.length()) + "\r\n"
-    "Connection: close\r\n\r\n" +
-    body;
+  // Truncate to Discord cap, then escape into fixed buffers (.bss — Core 1, not reentrant).
+  static char raw[DISCORD_CONTENT_MAX + 1];
+  static char esc[DISCORD_CONTENT_MAX * 2 + 4];
+  static char body[DISCORD_CONTENT_MAX * 2 + 80];
+  static char request[DISCORD_CONTENT_MAX * 2 + 400];
+
+  size_t n = content.length();
+  if (n > (size_t)DISCORD_CONTENT_MAX) {
+    memcpy(raw, content.c_str(), (size_t)DISCORD_CONTENT_MAX - 3);
+    raw[DISCORD_CONTENT_MAX - 3] = '.';
+    raw[DISCORD_CONTENT_MAX - 2] = '.';
+    raw[DISCORD_CONTENT_MAX - 1] = '.';
+    raw[DISCORD_CONTENT_MAX] = '\0';
+  } else {
+    memcpy(raw, content.c_str(), n);
+    raw[n] = '\0';
+  }
+  jsonEscape(raw, esc, sizeof(esc));
+
+  int bodyLen = snprintf(body, sizeof(body),
+                         "{\"content\":\"%s\",\"tts\":false%s}",
+                         esc,
+                         suppressEmbeds ? ",\"flags\":4" : "");
+  if (bodyLen < 0 || (size_t)bodyLen >= sizeof(body)) return false;
+
+  int reqLen = snprintf(request, sizeof(request),
+                        "POST /api/v10/channels/%s/messages HTTP/1.1\r\n"
+                        "Host: discord.com\r\n"
+                        "Authorization: Bot %s\r\n"
+                        "Content-Type: application/json\r\n"
+                        "User-Agent: " MINIME_USER_AGENT "\r\n"
+                        "Content-Length: %d\r\n"
+                        "Connection: close\r\n\r\n"
+                        "%s",
+                        channelId.c_str(), BOT_TOKEN, bodyLen, body);
+  if (reqLen < 0 || (size_t)reqLen >= sizeof(request)) return false;
 
   for (uint8_t attempt = 0; attempt < DISCORD_REST_MAX_ATTEMPTS; attempt++) {
     if ((millis() - startedAt) > 60000UL) return false;
     if (!httpsAcquire("discord.com")) return false;
-    httpsClient.print(request);
+    httpsClient.write((const uint8_t*)request, (size_t)reqLen);
     unsigned long deadline = millis() + 8000UL;
     String statusLine;
     bool chunked = false;
@@ -187,9 +235,6 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
   }
   return false;
 }
-
-// Cap header/status lines so a broken peer cannot grow String without bound.
-static const size_t HTTP_LINE_MAX = 512;
 
 static bool readHttpLineCapped(Client& client, String& out, unsigned long deadlineMs) {
   out = "";
@@ -497,6 +542,140 @@ bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
     delay(10);
   }
   return outBody.length() > 0;
+}
+
+bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
+                              char* outBuf, size_t outCap, size_t& outLen,
+                              unsigned long deadlineMs) {
+  outLen = 0;
+  if (!outBuf || outCap < 2) return false;
+  outBuf[0] = '\0';
+  const size_t maxBody = outCap - 1; // leave room for NUL
+  char blk[256];
+
+  if (chunked) {
+    uint8_t emptySizeLines = 0;
+    while (millis() < deadlineMs) {
+      while (!client.available() && client.connected() && millis() < deadlineMs) {
+        pumpNetWait();
+        delay(5);
+      }
+      if (!client.available()) {
+        client.stop();
+        return false;
+      }
+      String sizeLine;
+      if (!readHttpLineCapped(client, sizeLine, deadlineMs)) {
+        client.stop();
+        return false;
+      }
+      if (sizeLine.length() == 0) {
+        if (++emptySizeLines > 8) {
+          client.stop();
+          return false;
+        }
+        continue;
+      }
+      emptySizeLines = 0;
+      int sc = sizeLine.indexOf(';');
+      if (sc >= 0) sizeLine = sizeLine.substring(0, sc);
+      long chunkSize = strtol(sizeLine.c_str(), nullptr, 16);
+      if (chunkSize <= 0) {
+        return outLen > 0;
+      }
+      long got = 0;
+      bool hitCap = false;
+      while (got < chunkSize && millis() < deadlineMs) {
+        if (client.available()) {
+          size_t want = (size_t)(chunkSize - got);
+          if (want > sizeof(blk)) want = sizeof(blk);
+          int n = client.read((uint8_t*)blk, want);
+          if (n <= 0) {
+            pumpNetWait();
+            delay(1);
+            continue;
+          }
+          got += n;
+          if (!hitCap) {
+            if (outLen + (size_t)n > maxBody) {
+              hitCap = true;
+            } else {
+              memcpy(outBuf + outLen, blk, (size_t)n);
+              outLen += (size_t)n;
+              outBuf[outLen] = '\0';
+            }
+          }
+        } else if (!client.connected()) {
+          client.stop();
+          return false;
+        } else {
+          pumpNetWait();
+          delay(1);
+        }
+      }
+      if (got < chunkSize) {
+        client.stop();
+        return false;
+      }
+      String trailer;
+      if (!readHttpLineCapped(client, trailer, deadlineMs)) {
+        client.stop();
+        return false;
+      }
+      if (hitCap) {
+        client.stop();
+        return false;
+      }
+    }
+    client.stop();
+    return false;
+  }
+  if (contentLength > 0) {
+    while ((int)outLen < contentLength && millis() < deadlineMs) {
+      while (client.available()) {
+        size_t remain = (size_t)contentLength - outLen;
+        if (remain > sizeof(blk)) remain = sizeof(blk);
+        int n = client.read((uint8_t*)blk, remain);
+        if (n <= 0) break;
+        if (outLen + (size_t)n > maxBody) {
+          client.stop();
+          return false;
+        }
+        memcpy(outBuf + outLen, blk, (size_t)n);
+        outLen += (size_t)n;
+        outBuf[outLen] = '\0';
+        if ((int)outLen >= contentLength) break;
+      }
+      if (!client.connected() && !client.available()) break;
+      pumpNetWait();
+      delay(5);
+    }
+    if ((int)outLen < contentLength) {
+      client.stop();
+      return false;
+    }
+    return true;
+  }
+  while (millis() < deadlineMs) {
+    while (client.available()) {
+      size_t room = maxBody - outLen;
+      if (room == 0) {
+        client.stop();
+        return false;
+      }
+      size_t want = room;
+      if (want > sizeof(blk)) want = sizeof(blk);
+      int n = client.read((uint8_t*)blk, want);
+      if (n <= 0) break;
+      memcpy(outBuf + outLen, blk, (size_t)n);
+      outLen += (size_t)n;
+      outBuf[outLen] = '\0';
+    }
+    if (!client.connected() && !client.available()) break;
+    pumpNetWait();
+    delay(10);
+  }
+  return outLen > 0;
 }
 
 bool discordIdLooksValid(const String& id) {
