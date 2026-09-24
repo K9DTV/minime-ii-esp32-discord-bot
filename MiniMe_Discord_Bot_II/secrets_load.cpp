@@ -5,10 +5,12 @@
 #include "secrets_bufs.h"
 #include "minime_config.h"
 
-// Compile-time seed macros -- this translation unit only (not via minime.h).
+// Build-only include (this .cpp only). The board does not copy these macros into
+// the runtime buffers -- Wi-Fi / Discord / keys come from SD /secrets.h. The
+// example flag still fails the compile until it is removed from secrets.h.
 #include "secrets.h"
 #if defined(MINIME_SECRETS_IS_EXAMPLE)
-#error "Using secrets.example.h template -- copy to secrets.h, fill values, remove MINIME_SECRETS_IS_EXAMPLE"
+#error "Using secrets.example.h template -- copy to secrets.h and remove MINIME_SECRETS_IS_EXAMPLE (board reads SD /secrets.h)"
 #endif
 #ifndef WEB_UI_PASSWORD
 #define WEB_UI_PASSWORD ""
@@ -29,6 +31,10 @@ char secOtaPassword[SEC_OTA_PASS_MAX];
 char secWebUiPassword[SEC_WEB_PASS_MAX];
 bool secretsFromSd = false;
 
+static int sdKeysApplied = 0;
+static bool sawExampleTemplate = false;
+static const __FlashStringHelper* secretsLogPrev = nullptr;
+
 static void copyCap(char* dst, size_t dstMax, const char* src) {
   if (!dst || dstMax == 0) return;
   if (!src) {
@@ -39,21 +45,23 @@ static void copyCap(char* dst, size_t dstMax, const char* src) {
   dst[dstMax - 1] = '\0';
 }
 
-static void seedFromCompile() {
-  copyCap(secWifiSsid, sizeof(secWifiSsid), WIFI_SSID);
-  copyCap(secWifiPassword, sizeof(secWifiPassword), WIFI_PASSWORD);
-  copyCap(secBotToken, sizeof(secBotToken), BOT_TOKEN);
-  copyCap(secWeatherApiKey, sizeof(secWeatherApiKey), WEATHER_API_KEY);
-  copyCap(secNasaApiKey, sizeof(secNasaApiKey), NASA_API_KEY);
-  copyCap(secDeepseekApiKey, sizeof(secDeepseekApiKey), DEEPSEEK_API_KEY);
-  copyCap(secBotGuildId, sizeof(secBotGuildId), BOT_GUILD_ID);
-  copyCap(secOwnerId, sizeof(secOwnerId), OWNER_ID_STR);
-  copyCap(secTargetChannelId, sizeof(secTargetChannelId), TARGET_CHANNEL_ID);
-  copyCap(secTargetChannelId1, sizeof(secTargetChannelId1), TARGET_CHANNEL_ID1);
-  copyCap(secOtaHostname, sizeof(secOtaHostname), OTA_HOSTNAME);
-  copyCap(secOtaPassword, sizeof(secOtaPassword), OTA_PASSWORD);
-  copyCap(secWebUiPassword, sizeof(secWebUiPassword), WEB_UI_PASSWORD);
+static void clearSecrets() {
+  secWifiSsid[0] = '\0';
+  secWifiPassword[0] = '\0';
+  secBotToken[0] = '\0';
+  secWeatherApiKey[0] = '\0';
+  secNasaApiKey[0] = '\0';
+  secDeepseekApiKey[0] = '\0';
+  secBotGuildId[0] = '\0';
+  secOwnerId[0] = '\0';
+  secTargetChannelId[0] = '\0';
+  secTargetChannelId1[0] = '\0';
+  secOtaHostname[0] = '\0';
+  secOtaPassword[0] = '\0';
+  secWebUiPassword[0] = '\0';
   secretsFromSd = false;
+  sdKeysApplied = 0;
+  sawExampleTemplate = false;
 }
 
 // Drop compile macros so minime.h can alias WIFI_SSID -> secWifiSsid, etc.
@@ -75,6 +83,12 @@ static void seedFromCompile() {
 #endif
 
 #include "minime.h"
+
+static void secretsLog(const __FlashStringHelper* msg) {
+  if (secretsLogPrev == msg) return;
+  secretsLogPrev = msg;
+  MmLog.println(msg);
+}
 
 static bool applyDefine(const char* name, const char* value) {
   if (!name || !value) return false;
@@ -175,31 +189,55 @@ static bool parseDefineLine(const char* line) {
     }
     value[vi] = '\0';
   }
-  if (strcmp(name, "MINIME_SECRETS_IS_EXAMPLE") == 0) return false;
+  if (strcmp(name, "MINIME_SECRETS_IS_EXAMPLE") == 0) {
+    sawExampleTemplate = true;
+    return false;
+  }
   return applyDefine(name, value);
 }
 
+// UTF-8 BOM (common when secrets.h is saved from Notepad) would hide the first key.
+static void rewindPastBom(File& f) {
+  int b0 = f.read();
+  if (b0 < 0) return;
+  if ((unsigned char)b0 == 0xEF) {
+    int b1 = f.read();
+    int b2 = f.read();
+    if (b1 == 0xBB && b2 == 0xBF) return;
+  }
+  f.seek(0);
+}
+
 static bool loadFromSdFile() {
-  if (!sdCardPresent()) return false;
-  File f = SD.open("/secrets.h", FILE_READ);
-  if (!f) {
-    MmLog.println(F("Secrets: SD has no /secrets.h"));
+  if (!sdCardPresent()) {
+    secretsLog(F("Secrets: no SD card"));
     return false;
   }
-  char line[192];
+  File f = SD.open("/secrets.h", FILE_READ);
+  if (!f) {
+    secretsLog(F("Secrets: SD has no /secrets.h"));
+    return false;
+  }
+  secretsFromSd = true;
+  rewindPastBom(f);
+  char line[256];
   size_t li = 0;
   int applied = 0;
   while (f.available()) {
-    char c = (char)f.read();
-    if (c == '\r') continue;
-    if (c == '\n' || li + 1 >= sizeof(line)) {
+    int rc = f.read();
+    if (rc < 0) break;
+    char c = (char)rc;
+    bool end = (c == '\n' || c == '\r');
+    bool overflow = (!end && li + 1 >= sizeof(line));
+    if (end || overflow) {
       line[li] = '\0';
-      if (li > 0 && parseDefineLine(line)) applied++;
+      // Drop an over-long line whole. Parsing a chopped #define would keep a bad token.
+      if (!overflow && li > 0 && parseDefineLine(line)) applied++;
       li = 0;
-      if (c != '\n') {
+      if (overflow) {
         while (f.available()) {
-          char d = (char)f.read();
-          if (d == '\n') break;
+          int d = f.read();
+          if (d < 0 || d == '\n' || d == '\r') break;
         }
       }
       continue;
@@ -211,14 +249,15 @@ static bool loadFromSdFile() {
     if (parseDefineLine(line)) applied++;
   }
   f.close();
-  if (applied <= 0) {
-    MmLog.println(F("Secrets: /secrets.h had no usable #define lines"));
+  if (sawExampleTemplate) {
+    secretsLog(F("Secrets: /secrets.h is still the example template"));
     return false;
   }
-  secretsFromSd = true;
-  MmLog.print(F("Secrets: loaded "));
-  MmLog.print(applied);
-  MmLog.println(F(" keys from SD /secrets.h"));
+  if (applied <= 0) {
+    secretsLog(F("Secrets: /secrets.h had no usable #define lines"));
+    return false;
+  }
+  sdKeysApplied = applied;
   return true;
 }
 
@@ -231,13 +270,15 @@ static bool secretsLookUsable() {
 }
 
 bool loadSecrets() {
-  seedFromCompile();
-  if (!loadFromSdFile()) {
-    MmLog.println(F("Secrets: using compile-time secrets.h (no SD overlay)"));
-  }
+  clearSecrets();
+  if (!loadFromSdFile()) return false;
   if (!secretsLookUsable()) {
-    MmLog.println(F("Secrets: Wi-Fi SSID or BOT_TOKEN missing/placeholder"));
+    secretsLog(F("Secrets: Wi-Fi SSID or BOT_TOKEN missing/placeholder"));
     return false;
   }
+  secretsLogPrev = nullptr;
+  MmLog.print(F("Secrets: loaded "));
+  MmLog.print(sdKeysApplied);
+  MmLog.println(F(" keys from SD /secrets.h"));
   return true;
 }

@@ -36,7 +36,10 @@ bool setupDisplay() {
       lcdBus, GFX_NOT_DEFINED /* RST */, 0 /* rotation */, false /* IPS */,
       LCD_NATIVE_W, LCD_NATIVE_H);
   gfx = new Arduino_Canvas(LCD_NATIVE_W, LCD_NATIVE_H, lcdPanel, 0, 0, 0);
-  if (!gfx || !gfx->begin()) return false;
+  if (!gfx || !gfx->begin()) {
+    gfx = nullptr;
+    return false;
+  }
   gfx->setRotation(1);
   DashPalette p = dashPalette();
   gfx->fillScreen(p.bg);
@@ -49,6 +52,26 @@ bool setupDisplay() {
   ledcAttach(LCD_BL_PIN, LCD_BL_PWM_HZ, LCD_BL_PWM_BITS);
   lcdBacklightOn();
   return true;
+}
+
+void paintBootNotice(const char* line1, const char* line2, bool fault) {
+  if (!gfx) return;
+  DashPalette p = dashPalette();
+  gfx->fillScreen(p.bg);
+  gfx->setTextWrap(false);
+  gfx->setTextSize(3);
+  gfx->setTextColor(fault ? p.bad : p.cyan);
+  gfx->setCursor(20, 110);
+  gfx->print(line1 ? line1 : "");
+  gfx->setTextSize(2);
+  gfx->setTextColor(p.text);
+  gfx->setCursor(20, 156);
+  gfx->print(line2 ? line2 : "");
+  gfx->flush();
+  // Splash is not a dashboard frame. Next uiTask paint must redraw the whole glass.
+  dashForceFull.store(true);
+  dashBrandValid = false;
+  drawnSnap.valid = false;
 }
 
 void noteDisplayActivity() {

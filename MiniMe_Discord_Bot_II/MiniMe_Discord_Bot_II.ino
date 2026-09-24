@@ -2,8 +2,8 @@
  MiniMe II Discord bot (Guition JC3248W535EN / AXS15231B). Command list: Discord !help.
 
  Sketch map:
-  secrets.h / secrets.example.h  -- compile-time seed (gitignored real file)
-  secrets_bufs.h / secrets_load.cpp -- runtime buffers; boot load SD /secrets.h
+  secrets.h / secrets.example.h  -- build placeholder only (gitignored; not used at boot)
+  secrets_bufs.h / secrets_load.cpp -- runtime buffers; boot requires SD /secrets.h
   minime_config.h                -- pins, buffer sizes, timing constants
   minime.h                         -- shared declarations and globals
   cores.h / cores.cpp              -- Core 0 uiTask; DashSnap publish; Discord cmd queue
@@ -65,6 +65,39 @@
 // from that macro (redefinition error).
 static_assert(ARDUINO_LOOP_STACK_SIZE == 16384, "keep minime.h ARDUINO_LOOP_STACK_SIZE at 16 KB");
 
+static const char* secretsFaultLine() {
+  return secretsFromSd ? "bad SD file" : "need SD secrets.h";
+}
+
+// SD /secrets.h is required. Stay on the glass fault until a usable file loads
+// (hot-plug is fine). Do not continue into Wi-Fi on empty or compile-time keys.
+static void ensureSdSecrets() {
+  if (loadSecrets()) return;
+  const char* shown = secretsFaultLine();
+  showTransient("Secrets", shown);
+  paintBootNotice("Secrets", shown, true);
+  MmLog.println(F("Secrets: waiting for SD /secrets.h"));
+  unsigned long next = millis() + 5000;
+  for (;;) {
+    bool wasPresent = sdCardPresent();
+    pollSdCard();
+    unsigned long now = millis();
+    // Card just showed up -- read /secrets.h on this pass, do not wait out the 5 s.
+    if (sdCardPresent() && !wasPresent) next = now;
+    if ((long)(now - next) >= 0) {
+      next = now + 5000;
+      if (loadSecrets()) return;
+      const char* why = secretsFaultLine();
+      showTransient("Secrets", why);
+      if (strcmp(why, shown) != 0) {
+        shown = why;
+        paintBootNotice("Secrets", why, true);
+      }
+    }
+    delay(200);
+  }
+}
+
 void setup() {
   mmSerialBegin();
   gwDoc = newSpiRamJsonDoc();
@@ -101,14 +134,10 @@ void setup() {
   showTransient("Booting...", "MiniMe II Discord");
   setupPins();
   setupSdCard();
-  if (!loadSecrets()) {
-    showTransient("Secrets", secretsFromSd ? "bad SD file" : "need SD secrets.h");
-  } else if (secretsFromSd) {
-    showTransient("Secrets", "from SD card");
-  } else {
-    showTransient("Secrets", "compile-time");
-  }
-  delay(600);
+  ensureSdSecrets();
+  showTransient("Secrets", "from SD card");
+  paintBootNotice("Secrets", "from SD card", false);
+  delay(800); // splash stays up through Wi-Fi; uiTask replaces it with the dashboard
   sensors.begin();
   sensors.setWaitForConversion(false); // Core 0 uses pollTemperatureNonBlocking
   connectWiFi();

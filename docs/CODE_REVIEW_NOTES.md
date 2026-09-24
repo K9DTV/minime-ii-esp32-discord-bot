@@ -2,7 +2,7 @@
 
 See [`CHANGELOG.md`](../CHANGELOG.md) for the full per-version list; this document highlights only the durable architectural fixes.
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.86**.
+What we **fixed** vs what we **left** and why. Current: **v0.7.87**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -67,7 +67,7 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.86**.
 | Servo removed; temp pin | **0.7.82** -- no `!servo` / `Srv`; DS18B20 on rear GPIO **18** (sensor not fitted yet) |
 | SD free-space meter | **0.7.82** / **0.7.86** -- pins 10/11/12/13 on **HSPI/SPI3** only (0.7.86: never default `SPI`/FSPI -- that remuxed LCD QSPI and caused color corruption / crash after SD read) |
 | No-SD IP flash | **0.7.82** / **0.7.83** -- IP bright red **2 s on / 2 s off** when card missing |
-| SD secrets loader | **0.7.84** -- boot overlays `/secrets.h` onto runtime buffers; compile-time seed fallback |
+| SD secrets loader | **0.7.84** overlay, **0.7.87** SD `/secrets.h` required -- no compile-time credential fallback; bad/missing file holds boot on the glass |
 | LOG/Serial ring encapsulation | **0.7.85** -- web status uses `lcd*LogNewest` accessors; ring storage private to `web_ui.cpp` |
 
 ## Known tradeoffs (not deferred bugs)

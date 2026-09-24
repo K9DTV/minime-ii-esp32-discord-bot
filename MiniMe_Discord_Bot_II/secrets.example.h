@@ -1,10 +1,10 @@
 #ifndef MINIME_SECRETS_H
 #define MINIME_SECRETS_H
 
-// Copy this file to secrets.h (same folder), fill in real values, then DELETE the next line.
-// Firmware seeds from secrets.h at boot, then overlays SD card /secrets.h when present.
-// On the board: put the same filled file at the root of the SD card as secrets.h
-// (preferred -- change credentials without reflashing).
+// Build placeholder: copy this file to secrets.h (same folder) and DELETE the next line
+// so the sketch compiles. Do not put real tokens in that build file.
+// The board reads credentials only from the SD card root file /secrets.h
+// (same #define NAME "value" lines). Fill THAT copy. Change keys without reflashing.
 #define MINIME_SECRETS_IS_EXAMPLE 1
 
 // secrets.h is gitignored -- never commit real tokens or passwords.
@@ -23,7 +23,7 @@
 #define TARGET_CHANNEL_ID    "TARGET_CHANNEL_ID"    // commands only (no boot/auto posts)
 #define TARGET_CHANNEL_ID1   "TARGET_CHANNEL_ID1"   // second command channel
 
-// Wi-Fi firmware update (ArduinoOTA). Pick a real password in secrets.h.
+// Wi-Fi firmware update (ArduinoOTA). Pick a real password in the SD card secrets.h.
 #define OTA_HOSTNAME         "minime2"
 #define OTA_PASSWORD         "change-me-ota"
 

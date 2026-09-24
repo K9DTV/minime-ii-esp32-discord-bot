@@ -39,7 +39,7 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 Interactive HTML (all four): [`docs/lcd-mock/all-four.html`](docs/lcd-mock/all-four.html).
 
-**Status:** Guition module firmware **v0.7.86** -- usable on the board today (Discord, LCD, LAN, Controls prefs). Still in active tuning and soak testing to harden edge cases; not a closed "final" product. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware **v0.7.87** -- usable on the board today (Discord, LCD, LAN, Controls prefs). Still in active tuning and soak testing to harden edge cases; not a closed "final" product. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
@@ -84,7 +84,7 @@ AI helped with firmware edits, multi-file layout, and GitHub updates. I owned th
 
 **CI:** four badges -- **Compile** (Arduino), **Sanity** (fast host checks), **Python** (pytest + Pillow), **HTML** (LAN CSS/JS/SVG in headers).
 
-Already in: dual-core LCD vs Gateway, Display/Log/Controls + Light/Dark chips, LCD<->web UI parity, flash Controls prefs (dual-slot CRC), DM/@mention flags + alarm/`!clear`, dirty redraw, user-initiated Wi-Fi OTA (`!ota`), ArduinoJson 7, `!ask` HOL, Core0 log bridge, **secrets from SD** (`/secrets.h`).
+Already in: dual-core LCD vs Gateway, Display/Log/Controls + Light/Dark chips, LCD<->web UI parity, flash Controls prefs (dual-slot CRC), DM/@mention flags + alarm/`!clear`, dirty redraw, user-initiated Wi-Fi OTA (`!ota`), ArduinoJson 7, `!ask` HOL, Core0 log bridge, **secrets required from SD** (`/secrets.h`).
 
 ### Firmware updates (OTA)
 
@@ -92,7 +92,7 @@ There is **no cloud update service**. MiniMe II does **not** pull or receive fir
 
 **Security note (OTA):** ArduinoOTA is only a **hostname + password** on the local network. There is no signed firmware, certificate identity, or other strong authority behind that password. Any host that knows the password can upload a new image. Treat the LAN as trusted; do not expose port **3232** to an untrusted network. Prefer USB when the network is not trusted; keep `OTA_PASSWORD` strong and private.
 
-**Security note (LAN web UI):** With `WEB_UI_PASSWORD` empty (default), `http://<board-ip>/` and `POST /api/controls` have **no** authentication -- any host on the same network can change brightness/volume/toggles and factory-reset Controls prefs. Set a non-empty `WEB_UI_PASSWORD` in `secrets.h` to gate `/api/status` and `/api/controls` behind a LAN login (session token). Still not HTTPS or strong remote admin -- treat the LAN as trusted; do not expose the board to an untrusted network.
+**Security note (LAN web UI):** With `WEB_UI_PASSWORD` empty (default), `http://<board-ip>/` and `POST /api/controls` have **no** authentication -- any host on the same network can change brightness/volume/toggles and factory-reset Controls prefs. Set a non-empty `WEB_UI_PASSWORD` in the SD card `secrets.h` to gate `/api/status` and `/api/controls` behind a LAN login (session token). Still not HTTPS or strong remote admin -- treat the LAN as trusted; do not expose the board to an untrusted network.
 
 ---
 
@@ -245,11 +245,15 @@ Discord presence still goes Idle after **5 minutes** quiet (CPU drops to **160 M
 
 Credentials are **`#define NAME "value"`** lines in a file named **`secrets.h`**.
 
-**Preferred (runtime):** copy that file to the **root of the SD card** as `/secrets.h`. At boot the firmware mounts the card and loads Wi-Fi, Discord token, API keys, channel IDs, OTA, and `WEB_UI_PASSWORD` from it -- change credentials without reflashing.
+**Required (the board):** put the filled file at the **root of the SD card** as `/secrets.h`. At boot the firmware mounts the card (HSPI/SPI3) and loads Wi-Fi, Discord token, API keys, channel IDs, OTA, and `WEB_UI_PASSWORD` from that file only. Change credentials by editing the card and rebooting -- no reflash.
 
-**Build seed (still required):** keep a `MiniMe_Discord_Bot_II/secrets.h` on the build PC (gitignored; keep real secrets **outside** this workspace) so the sketch compiles. Boot always seeds from that compile-time file, then **overlays** any keys found on the SD card. If the SD file is missing, compile-time values are used as-is (LOG: `Secrets: using compile-time...`).
+**Build placeholder (not used at boot):** the sketch still `#include`s `MiniMe_Discord_Bot_II/secrets.h` so it compiles (gitignored; keep real secrets **outside** this workspace). Copy `secrets.example.h` to `secrets.h` and delete the `MINIME_SECRETS_IS_EXAMPLE` line. Leave the placeholder strings. Those values are **not** copied into RAM and are **not** a fallback if the SD file is missing or bad.
 
-**Missing SD card:** Display **IP** flashes bright red **2 s on / 2 s off** (LCD + web). Put the card in and reboot (or wait for remount) so `/secrets.h` can load.
+**Missing or bad SD secrets:** the glass shows **Secrets** / **need SD secrets.h** (no card or no file) or **bad SD file** (template, empty, or placeholder SSID/token). The web Serial panel says why (`Secrets: no SD card`, `Secrets: SD has no /secrets.h`, `Secrets: Wi-Fi SSID or BOT_TOKEN missing/placeholder`, ...). Boot waits until a usable file loads (insert the card; no need to power-cycle). It does not start Wi-Fi on compile-time keys.
+
+**Good SD file:** web Serial shows `Secrets: loaded N keys from SD /secrets.h` and the glass shows **Secrets** / **from SD card** (that splash stays up while Wi-Fi connects, then the dashboard replaces it).
+
+**Card removed after boot:** credentials already loaded stay in RAM. Display **IP** flashes bright red **2 s on / 2 s off** (LCD + web) while the card is absent.
 
 ### Firmware wiring (do not break)
 
@@ -268,9 +272,9 @@ Credentials are **`#define NAME "value"`** lines in a file named **`secrets.h`**
 // =============================================================================
 ```
 
-1. Copy `MiniMe_Discord_Bot_II/secrets.example.h` -> `secrets.h` (on your machine, outside the repo if that is your rule)
-2. Fill in real values and **delete** the `#define MINIME_SECRETS_IS_EXAMPLE 1` line (compile errors if it remains).
-3. Copy the same filled `secrets.h` to the **SD card root** (filename exactly `secrets.h`).
+1. Copy `MiniMe_Discord_Bot_II/secrets.example.h` -> `secrets.h` next to the sketch (gitignored). **Delete** the `#define MINIME_SECRETS_IS_EXAMPLE 1` line (compile errors if it remains). Placeholders are enough here -- this file is only so the sketch builds.
+2. Copy `secrets.example.h` again to a file you will put on the card. Fill in real values and **delete** `MINIME_SECRETS_IS_EXAMPLE` in that copy too (the board rejects the example flag).
+3. Save that filled file at the **SD card root** as `secrets.h` (filename exactly that).
 
 ```cpp
 #define WIFI_SSID            "ssid"
@@ -314,7 +318,7 @@ Boot loads LCD names from `BOT_GUILD_ID` and from the guilds of the target chann
 1. Open [Discord Developer Portal](https://discord.com/developers/applications) and sign in.
 2. **New Application** -> name it -> Create.
 3. Left sidebar: **Bot** -> **Add Bot** if needed.
-4. Under **Token**, **Reset Token** / **Copy** -> `BOT_TOKEN` in `secrets.h`.
+4. Under **Token**, **Reset Token** / **Copy** -> `BOT_TOKEN` in the SD card `secrets.h`.
 5. Enable **Privileged Gateway Intents**: Message Content, Server Members, Presence. If any are off, Discord closes the socket right after Identify (often no `READY` / `OP9` in our log -- close can look like a bare `WS_DISCONNECTED_WIFI_UP` loop).
 6. Identify intents: `INTENTS_MINIME` in `minime_config.h` (`static_assert` checks `== 37635`). Boot log: `[GW] intents=37635`.
 
@@ -334,7 +338,7 @@ This is **your Discord user ID**, not the bot's ID.
 
 1. Discord: **User Settings** -> **Advanced** -> enable **Developer Mode**.
 2. Right-click **your own avatar** -> **Copy User ID**.
-3. Paste into `OWNER_ID_STR` in `secrets.h`.
+3. Paste into `OWNER_ID_STR` in the SD card `secrets.h`.
 
 </details>
 
@@ -415,7 +419,7 @@ With this Guition panel I already have a full color Display (DM/Mention flags on
 
 SPI: **CS 10**, **MOSI 11**, **SCK 12**, **MISO 13**. Firmware mounts at boot (retries if the card is hot-plugged). Display **SD** row = remaining free in **MB** + free/total bar (LCD and web).
 
-Put credentials in a file named **`secrets.h`** on the card root (same `#define NAME "value"` lines as the build template). Boot loads that file after the SD mounts (see **Fill in these values**). Compile-time `secrets.h` remains the build seed / fallback.
+Put the filled **`secrets.h`** on the card root (same `#define NAME "value"` lines as `secrets.example.h`). Boot loads that file after the SD mounts and will not start Wi-Fi without it (see **Fill in these values**). The sketch-folder `secrets.h` is a build placeholder only.
 
 **No card detected:** **IP** line flashes bright red **2 s on / 2 s off** on both LCD and LAN web.
 
@@ -473,7 +477,7 @@ GitHub Actions runs **Compile**, **Sanity**, **Python**, and **HTML** on push (b
 
 1. Install [Arduino IDE](https://www.arduino.cc/en/software) and the **esp32** board package (Espressif).
 2. Open **only** `MiniMe_Discord_Bot_II/MiniMe_Discord_Bot_II.ino` from a folder that contains that **single** `.ino` plus the `.cpp` / `.h` files and `partitions.csv`. Arduino merges every `.ino` in the folder into one translation unit -- a leftover `Discord_Bot_MiniMe_II.ino` (or any second `.ino`) causes `redefinition of 'void connectWiFi()'` / `setup` / stack helpers. Delete extras; folder name should match the one `.ino` basename.
-3. Provide `secrets.h` (from `secrets.example.h`) with Wi-Fi, token, keys, and IDs.
+3. Provide a build `secrets.h` (from `secrets.example.h`, example line removed). Put the **filled** `secrets.h` on the SD card root -- that is what the board uses.
 4. Set **Tools** as in the table below for this **Guition N16R8** module.
 5. Libraries: GFX Library for Arduino, WebSockets, ArduinoJson, OneWire, DallasTemperature, Adafruit NeoPixel, NTPClient.
 6. Upload. Confirm with Discord `!help` and the LAN page header (`Display - v` + `MINIME_VERSION` / `VERSION`). Tap the glass to wake after backlight off.
@@ -500,7 +504,7 @@ GitHub Actions runs **Compile**, **Sanity**, **Python**, and **HTML** on push (b
 - **RAM:** internal SRAM + **8MB OPI PSRAM**. **PSRAM -> OPI PSRAM** must be on.
 - Large Discord Gateway JSON (`GW_DOC_PSRAM` soft size) and LAN `statusDoc` use `JsonDocument` with `SpiRamAllocator` (PSRAM via `heap_caps_*`). Default `JsonDocument` is internal SRAM only.
 - Do **not** enable `heap_caps_malloc_extmem_enable` for small allocations (Wi-Fi / TLS in PSRAM can crash).
-- **Flash:** **16MB**. `partitions.csv` is dual OTA apps + small coredump -- **no filesystem** yet (SD secrets are planned). First install over USB; later builds can use user-initiated Wi-Fi OTA (see **Firmware updates (OTA)**).
+- **Flash:** **16MB**. `partitions.csv` is dual OTA apps + small coredump -- **no onboard filesystem**. Credentials live on the SD card (`/secrets.h`), not in flash. First install over USB; later builds can use user-initiated Wi-Fi OTA (see **Firmware updates (OTA)**).
 
 ---
 

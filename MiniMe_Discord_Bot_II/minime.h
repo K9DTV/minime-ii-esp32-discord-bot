@@ -30,7 +30,7 @@
 #include "secrets_bufs.h"
 #include "minime_config.h"
 
-// Runtime credentials (SD /secrets.h at boot; compile-time seed fallback).
+// Runtime credentials from SD /secrets.h at boot (not compile-time secrets.h).
 // Keep familiar macro names so call sites stay WIFI_SSID / BOT_TOKEN / etc.
 #define WIFI_SSID            secWifiSsid
 #define WIFI_PASSWORD        secWifiPassword
@@ -224,6 +224,8 @@ void drawDashboard();
 void updateDisplay();
 void showTransient(const String& line1, const String& line2 = "", const String& line3 = "",
                    unsigned long durationMs = 3000); // durationMs=0 -> 3s; !display uses 6000
+// One-shot glass text before uiTask owns the panel (boot secrets splash).
+void paintBootNotice(const char* line1, const char* line2, bool fault);
 
 bool lcdThemeChipHit(uint16_t x, uint16_t y);
 bool lcdLayoutChipHit(uint16_t x, uint16_t y);
@@ -283,7 +285,7 @@ bool setupSdCard();
 void pollSdCard();       // Core 1: remount retry + free/total MB refresh
 bool sdCardPresent();
 void boardSdTotalsMb(uint32_t& freeMb, uint32_t& totalMb);
-bool loadSecrets();      // after setupSdCard: SD /secrets.h overlay (+ compile seed)
+bool loadSecrets();      // after setupSdCard: SD /secrets.h required (no compile-time keys)
 extern bool secretsFromSd;
 // Core 0 uiTask only: non-blocking DS18B20 (shared OneWire -- never call from Core 1).
 bool pollTemperatureNonBlocking(float& tempC, float& tempF);

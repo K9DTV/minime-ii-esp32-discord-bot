@@ -2,6 +2,8 @@
 
 Flash **v0.7.86** (`Display  -  v0.7.86`). Date the run in [`soak-results.md`](soak-results.md) when done.
 
+**v0.7.87 and newer:** do not score the compile-time fallback row below. SD `/secrets.h` is required; a missing file waits on the glass instead of connecting with build secrets. See [`HIL_SOAK.md`](HIL_SOAK.md).
+
 General Gateway watch: [`HIL_SOAK.md`](HIL_SOAK.md) + `docs/lan-monitor.ps1`.
 Prior Controls / `!ask` smoke: [`soak-0.7.80.md`](soak-0.7.80.md).
 Prior overnight Gateway on **v0.7.80**: **2026-09-24** in [`soak-results.md`](soak-results.md).

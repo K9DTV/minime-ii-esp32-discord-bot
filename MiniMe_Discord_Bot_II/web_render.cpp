@@ -191,7 +191,7 @@ static void streamRootHtml(Print& out) {
   out.print(F("<div id=\"auth-gate\" class=\"auth-gate\" hidden>"));
   out.print(F("<form class=\"auth-card\" id=\"auth-form\" autocomplete=\"on\">"));
   out.print(F("<h2>LAN login</h2>"));
-  out.print(F("<p>Enter the web password from secrets.h (<code>WEB_UI_PASSWORD</code>).</p>"));
+  out.print(F("<p>Enter the web password from SD card secrets.h (<code>WEB_UI_PASSWORD</code>).</p>"));
   out.print(F("<input id=\"auth-pass\" type=\"password\" name=\"password\" autocomplete=\"current-password\" placeholder=\"Password\" required>"));
   out.print(F("<button type=\"submit\">Unlock</button>"));
   out.print(F("<div class=\"auth-err\" id=\"auth-err\"></div>"));

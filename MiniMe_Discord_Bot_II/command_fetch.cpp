@@ -224,7 +224,7 @@ bool getIssPosition(String& outReport) {
 bool askDeepSeek(const String& question, String& outReport) {
   if (strlen(DEEPSEEK_API_KEY) == 0 ||
       strcmp(DEEPSEEK_API_KEY, "DEEPSEEK_API_KEY") == 0) {
-    outReport = "DeepSeek API key not set. Add DEEPSEEK_API_KEY in secrets.h.";
+    outReport = "DeepSeek API key not set. Add DEEPSEEK_API_KEY in SD /secrets.h.";
     return false;
   }
 

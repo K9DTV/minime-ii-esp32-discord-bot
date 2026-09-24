@@ -39,6 +39,8 @@ Behavior:
 4. Owner `!sys` -- `MmLog Core0 drops` should stay low unless the Core0 ring overflows
 5. Optional OTA once -- after reboot, confirm version + GW again
 
+**v0.7.87:** SD `/secrets.h` is required for Wi-Fi and the bot token. Compile-time `secrets.h` does not drive boot. Good card: Serial `Secrets: loaded N keys from SD /secrets.h` and glass splash **Secrets** / **from SD card**. Missing or bad file: glass **need SD secrets.h** or **bad SD file**, setup waits until the file is valid (no Wi-Fi on baked-in keys). The 0.7.84 "compile-time fallback still connects" check does **not** apply.
+
 **v0.7.86 batch (SD on HSPI, `/secrets.h` load, SD meter, temp GPIO 18, no servo, IP 2 s on/off, LOG accessors):** use [`soak-0.7.85.md`](soak-0.7.85.md) after flash `Display  -  v0.7.86`. Older 0.7.84-only checklist: [`soak-0.7.83.md`](soak-0.7.83.md).
 
 **v0.7.80 batch (split + fixed buffers + Controls):** use the focused playbook [`soak-0.7.80.md`](soak-0.7.80.md).

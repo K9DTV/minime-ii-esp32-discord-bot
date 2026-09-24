@@ -1,7 +1,7 @@
 #ifndef SECRETS_BUFS_H
 #define SECRETS_BUFS_H
 
-// Runtime credential buffers (filled from SD /secrets.h at boot; compile-time seed fallback).
+// Runtime credential buffers. Boot fills these from SD /secrets.h only.
 // Prefer these names via macros in minime.h (WIFI_SSID -> secWifiSsid, etc.).
 
 #include <stddef.h>
@@ -32,11 +32,12 @@ extern char secOtaHostname[SEC_OTA_HOST_MAX];
 extern char secOtaPassword[SEC_OTA_PASS_MAX];
 extern char secWebUiPassword[SEC_WEB_PASS_MAX];
 
-// true = values came from SD /secrets.h; false = compile-time seed only.
+// true = SD /secrets.h was opened (content may still be unusable).
+// false = no card, or the card has no /secrets.h.
 extern bool secretsFromSd;
 
-// Call after setupSdCard(). Always seeds compile-time defaults, then overlays SD if present.
-// Returns true if Wi-Fi SSID + bot token look usable.
+// Call after setupSdCard(). Loads SD /secrets.h only (no compile-time credential fallback).
+// Returns true if Wi-Fi SSID + bot token from that file look usable.
 bool loadSecrets();
 
 #endif

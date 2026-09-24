@@ -1,6 +1,10 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.86** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.87** (see `VERSION` and README).
+
+## 0.7.87
+
+- Boot credentials come only from SD **`/secrets.h`**. Compile-time `secrets.h` is a build placeholder (sketch still includes it) and is not copied into the runtime buffers. Missing card, missing file, example template, or placeholder SSID/token: glass **Secrets** / **need SD secrets.h** or **bad SD file**, log explains, setup waits (hot-plug ok) and does not join Wi-Fi. Good file: log `Secrets: loaded N keys from SD /secrets.h` and splash **from SD card**. Confirm `Display  -  v0.7.87`.
 
 ## 0.7.86
 
