@@ -165,14 +165,21 @@ void drawBrandBar(const DashPalette& p) {
     placeChip(chipX, chipY, lab, p, themeChipHitX, themeChipHitY, themeChipHitW, themeChipHitH);
   }
 
-  // Right gap: Display / Log / Controls (cycle).
+  // Right gap: Menus (above) + Display / Log / Controls (under); chip cycles pages.
   {
     const int16_t gapL = logoX + K9DTV_LOGO_W;
     const int16_t gapW = LCD_LANDSCAPE_W - gapL;
     const int16_t chipX = gapL + (gapW - MENU_CHIP_S) / 2;
     const char* lab = lcdLayoutControls ? "Controls" : (lcdLayoutLog ? "Log" : "Display");
+    const int16_t menusY = chipY - CHIP_LABEL_TEXT_H - 1;
+    if (menusY >= 0) prtCenter(p.muted, "Menus", chipX + MENU_CHIP_S / 2, menusY, 1);
     placeChip(chipX, chipY, lab, p,
               layoutChipHitX, layoutChipHitY, layoutChipHitW, layoutChipHitH);
+    if (menusY >= 0 && layoutChipHitY > menusY) {
+      const int16_t grow = layoutChipHitY - menusY;
+      layoutChipHitY = menusY;
+      layoutChipHitH = (int16_t)(layoutChipHitH + grow);
+    }
   }
 }
 

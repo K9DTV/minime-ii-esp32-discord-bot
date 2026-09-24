@@ -1,6 +1,10 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.76** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.77** (see `VERSION` and README).
+
+## 0.7.77
+
+- Flash Controls prefs on ESP32-S3 onboard `prefs` partition (dual 4 KB slots, dirty/CRC); Save writes; Cancel recalls; both stay on Controls. Menus label above layout chip. Factory defaults = brightness/volume **100%**, toggles ON. Boot order unchanged from 0.7.76 (Wi-Fi then web then LCD). Confirm `Display · v0.7.77` (USB erase once if partition table is new).
 
 ## 0.7.76
 

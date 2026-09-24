@@ -1,11 +1,13 @@
 #include "minime.h"
+#include "mm_prefs.h"
 
-// Runtime UI controls (RAM). Flash persist comes later (todo).
+// Runtime UI controls + onboard-flash prefs (mm_prefs.cpp).
+// Save = write if dirty; Cancel = flash recall; both stay on Controls.
 
 extern std::atomic<bool> dashForceFull;
 
 std::atomic<uint8_t> uiBrightPct{LCD_BL_PCT_DEFAULT}; // UI 0..100 -> duty 10..100%
-std::atomic<uint8_t> uiVolPct{70};    // 0..100 -> I2S peak scale
+std::atomic<uint8_t> uiVolPct{100};   // 0..100 -> I2S peak scale (factory max)
 std::atomic<bool> uiNotifyOn{true};   // DM/@mention alarm
 std::atomic<bool> uiTicksOn{true};    // touch ticks
 std::atomic<bool> uiSoundOn{true};    // master mute
@@ -21,12 +23,7 @@ int16_t ctrlToggle1X = 0, ctrlToggle1Y = 0, ctrlToggle1W = 0, ctrlToggle1H = 0;
 int16_t ctrlToggle2X = 0, ctrlToggle2Y = 0, ctrlToggle2W = 0, ctrlToggle2H = 0;
 int16_t logoHitX = 0, logoHitY = 0, logoHitW = 0, logoHitH = 0;
 
-// Snapshot when entering Controls (Cancel restores).
-static uint8_t snapBright = LCD_BL_PCT_DEFAULT;
-static uint8_t snapVol = 70;
-static bool snapNotify = true;
-static bool snapTicks = true;
-static bool snapSound = true;
+// Snapshot when entering Controls (return page only; Cancel recalls flash).
 static uint8_t controlsReturnMode = 0; // 0=Display, 1=Log
 static bool controlsLeavingCommit = false;
 
@@ -88,22 +85,12 @@ void setUiSoundOn(bool on) {
 }
 
 void controlsSnapshotEnter(uint8_t returnMode) {
-  snapBright = uiBrightPct.load();
-  snapVol = uiVolPct.load();
-  snapNotify = uiNotifyOn.load();
-  snapTicks = uiTicksOn.load();
-  snapSound = uiSoundOn.load();
   controlsReturnMode = (returnMode == 1) ? 1 : 0;
 }
 
 void controlsRestoreSnapshot() {
-  uiBrightPct.store(snapBright);
-  uiVolPct.store(snapVol);
-  uiNotifyOn.store(snapNotify);
-  uiTicksOn.store(snapTicks);
-  uiSoundOn.store(snapSound);
-  applyBacklightFromSettings();
-  bumpControls();
+  // Same as Cancel: reload last good flash image.
+  recallSettings();
 }
 
 bool controlsLeavingIsCommit() {
@@ -111,17 +98,13 @@ bool controlsLeavingIsCommit() {
 }
 
 void controlsCancel() {
-  controlsRestoreSnapshot();
-  controlsLeavingCommit = true;
-  applyLcdLayoutMode(controlsReturnMode);
-  controlsLeavingCommit = false;
+  // Recall flash; stay on Controls (Menus chip still leaves the page).
+  recallSettings();
 }
 
 void controlsSave() {
-  // Keep live values (flash persist later).
-  controlsLeavingCommit = true;
-  applyLcdLayoutMode(controlsReturnMode);
-  controlsLeavingCommit = false;
+  // Persist if dirty; stay on Controls.
+  saveSettings();
 }
 
 bool lcdLogoHit(uint16_t x, uint16_t y) {

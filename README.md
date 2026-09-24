@@ -12,13 +12,11 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 **Display:** panel native **320x480** (portrait); firmware paints **480x320** landscape via **GFX Library for Arduino** (`Arduino_ESP32QSPI` + `Arduino_AXS15231B` + `Arduino_Canvas`). No SSD1327 / U8g2 and no capacitive GPIO wake pad.
 
-**LCD <-> LAN web:** the glass dashboard and `http://<board-ip>/` are designed as a **close match** -- same Display (metrics|users) / Log (LOG|Serial) pairing and the same status fields (including internal SRAM bar + PSRAM free/total when present). Light/Dark on the glass and in the browser are **independent** (each has its own chip).
+**LCD <-> LAN web:** glass and `http://<board-ip>/` are one design — same Display / Log / Controls pages, same fields and chrome roles (LCD fixed 480×320; web scales). Logos and Cancel/Save marks on the web are SVG twins of the LCD art. Light/Dark on the glass and in the browser stay **independent** (each has its own chip).
 
-**Web UI and LCD UI still need work.** Both are a starting point — expect the left-hand window on the glass and in the browser to change as layouts and polish move. The firmware behind them is solid, well understood, and tested. A new function may land later; the main focus for now is the information shown to the user. Flash it, try Discord/`!help`, and poke the glass and the LAN page — just know the UI is early Guition work, not a finished product.
+### LCD UI preview
 
-### LCD UI preview (not final)
-
-This UI is **not done yet** and **will change**. The mocks below are 480×320 landscape from the current firmware layout (real K9DTV logo + menu chips). Dark | Light side by side.
+480×320 landscape from the current firmware (K9DTV logo + menu chips). Dark | Light side by side.
 
 **Display** (metrics | users)
 
@@ -34,7 +32,7 @@ This UI is **not done yet** and **will change**. The mocks below are 480×320 la
 
 Interactive HTML (all four): [`docs/lcd-mock/all-four.html`](docs/lcd-mock/all-four.html).
 
-**Status:** Guition module firmware - **v0.7.76** (see `VERSION` / `CHANGELOG.md`). Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware - **v0.7.77** (see `VERSION` / `CHANGELOG.md`). Pro-review fixed-vs-deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
@@ -42,6 +40,8 @@ Interactive HTML (all four): [`docs/lcd-mock/all-four.html`](docs/lcd-mock/all-f
 2. Also: ArduinoJson 7, WebSockets, OneWire, DallasTemperature, Adafruit NeoPixel, NTPClient
 
 No **JC3248W535EN-Touch-LCD**, **JPEGDecoder**, or **U8g2**.
+
+Web/LCD art headers live **in the sketch** (not Library Manager): `k9dtv_logo_svg.h`, `k9dtv_logo_bright_svg.h`, `menu_chip_svg.h` (and mark-icon SVG/RGB565 headers). CI (`tools/ci_html.py`) requires those SVG headers. LCD logo/mark bitmaps: regenerate with `tools/gen_k9dtv_logo_rgb565.py` / `tools/gen_k9_mark_icon_rgb565.py` when site art changes.
 
 **If compile fails with `LIST_HEAD` / `Arduino_ESP32QSPI` / `Arduino_AXS15231B` does not name a type:**  
 the IDE is using a **second, broken** GFX install. Arduino reports something like:
@@ -68,11 +68,10 @@ AI helped with firmware edits, multi-file layout, and GitHub updates. I owned th
 
 ## Ongoing project
 
-- **LCD + LAN web UI** -- heavy redesign ahead; what you see now is a baseline to iterate on
 - **Desk case / enclosure** for the Guition module (this is already the module board, not a breadboard prototype)
 - **CI** -- four badges: **Compile** (Arduino), **Sanity** (fast host checks), **Python** (pytest + Pillow), **HTML** (LAN CSS/JS/SVG in headers). Local soak: [`docs/HIL_SOAK.md`](docs/HIL_SOAK.md) / `docs/lan-monitor.ps1`. Latest attested soak: [`docs/soak-results.md`](docs/soak-results.md).
 
-Done recently: dual-core LCD vs Gateway, Display/Log + Light/Dark chips, DM/@mention flags, dirty redraw, Wi-Fi ArduinoOTA (`!ota`), LAN dashboard matched to the LCD layout, ArduinoJson 7, `!ask` HOL, Core0 log bridge.
+Done recently: dual-core LCD vs Gateway, Display/Log/Controls + Light/Dark chips, LCD↔web UI parity, **flash Controls prefs** (dual-slot CRC), DM/@mention flags + alarm/`!clear`, dirty redraw, Wi-Fi ArduinoOTA (`!ota`), ArduinoJson 7, `!ask` HOL, Core0 log bridge.
 
 ---
 
@@ -127,12 +126,12 @@ Everything below runs on one **ESP32-S3**. Discord stays in the cloud; MiniMe ta
 
 ![MiniMe architecture flowchart -- same layout as k9dtv.com/project-minime.html](docs/arch-flow.svg)
 
-*Same flowchart as the project page (diagram art may still show MiniMe I labels; this board is Guition + LCD).*
+*Same flowchart as the project page.*
 
 - **Gateway** -- live link for chat commands, presence, Online/Idle, heartbeats (must not stall during long HTTPS). Heartbeats start after Hello (jittered first send); a missing OP11 ACK past the Discord interval plus **15 s** grace forces disconnect (`HB_ACK_TIMEOUT`). **Identify-only** after drops (no session resume); one `beginSslWithBundle` at boot (ESP32 CA bundle -- not plain `beginSSL`/`setInsecure`), then library reconnect only.
 - **REST** -- bot posts replies and loads member names; also pulls science/weather/AI over HTTPS/HTTP. Outbound TLS uses the ESP32 **CA cert bundle** (no `setInsecure`). One shared `WiFiClientSecure`; `httpsInUse` prevents overlapping HTTPS from `stop()`ing each other. Gateway WebSocket TLS uses the same CA blob via WebSockets `beginSslWithBundle`.
 - **LCD** -- **480x320** landscape status board on the Guition panel (native **320x480**); idle blanks backlight only (Wi-Fi and Gateway stay up). Metrics + users (or LOG + Serial in Log layout). Redraw every **1 s** with dirty tracking. LAN API exposes the same fills as percents.
-- **LAN web UI** -- browser twin of the LCD layout at `http://<board-ip>/` (close match; independent Light/Dark); polls `/api/status` every **2 s** (CSS/JS in `web_assets.h`). **MmLog** feeds web LOG/Serial only (no USB Serial / UART0 log dump).
+- **LAN web UI** -- browser twin of the LCD at `http://<board-ip>/` (same layout roles; independent Light/Dark); polls `/api/status` every **2 s** (CSS/JS in `web_assets.h`). **MmLog** feeds web LOG/Serial only (no USB Serial / UART0 log dump).
 - **Touch** -- wakes the LCD and hits the IC chips (theme / layout). Does not change Discord Online/Idle.
 
 ### Dual-core (ESP32-S3)
@@ -151,7 +150,7 @@ Shared UI state is a published **DashSnap** (seqlock; Core 1 writes, Core 0 pain
 - Discord Gateway heartbeats must keep running while long HTTPS calls use the same TLS client (dual-core removes LCD/QSPI from that fight; fetch bodies pump HB via `readHttpBodyAfterHeaders`).
 - Large Gateway JSON lives in **PSRAM**; small Wi-Fi/TLS buffers must **not**.
 - Backlight can turn off while Wi-Fi and the Gateway stay up (panel sleep != chip sleep).
-- Up to **24** live presence rows + 24h command counts on one landscape panel.
+- Up to **22** live presence rows + 24h command counts on one landscape panel.
 
 ---
 
@@ -159,7 +158,7 @@ Shared UI state is a published **DashSnap** (seqlock; Core 1 writes, Core 0 pain
 
 **Panel:** Guition JC3248W535EN AXS15231B, native **320x480**, firmware canvas **480x320** landscape (`Arduino_Canvas`). Layout in `display_draw.cpp` / `dash_snap.cpp` (`drawDashboard` + `DashSnap` dirty tracking).
 
-The LAN page is meant to **match** this layout (Display = metrics|users, Log = LOG|Serial). Glass and browser Light/Dark stay independent.
+The LAN page matches this layout (Display = metrics|users, Log = LOG|Serial, Controls = sliders|toggles). Glass and browser Light/Dark stay independent.
 
 <details>
 <summary><strong>LCD panels, chips, !display, and backlight sleep</strong></summary>
@@ -168,7 +167,7 @@ The LAN page is meant to **match** this layout (Display = metrics|users, Log = L
 
 | Chip label | Left window | Right window |
 |---|---|---|
-| **Display** | Metrics (header, bars, Id/Users, DM/Mention, HTTPS, Event, Sys rows) | Users (name / status / Bot:N), up to **24** rows @ **9 px** pitch |
+| **Display** | Metrics (header, bars, Id/Users, DM/Mention, HTTPS, Event, Sys rows) | Users (name / status / Bot:N), up to **22** rows @ **9 px** pitch |
 | **Log** | LOG ring | Serial ring |
 
 Right chip is LCD-only (**independent** of the LAN Display/Log layout). Left IC chip toggles **Light / Dark** palette on the LCD only (**independent** of the LAN web theme).
@@ -178,6 +177,20 @@ Header band: K9DTV logo (`k9dtv_logo_rgb565.h` -- dark + bright RGB565) + two me
 Empty user slots show `---`. Names from startup REST member fetch (nick -> global name -> username). Presence from the Gateway. Command counts reset every 24 hours.
 
 DM to the bot and @mention of `OWNER_ID_STR` set **DM** / **Mention** flags on the left panel and start a two-note I2S **alarm every 3 s**; owner `!clear` clears the flags and stops the sound.
+
+### Controls flash prefs (`prefs` partition)
+
+Adapted from the VFO settings *rules* (dirty / CRC / corrupt defaults), stored in **ESP32-S3 onboard flash** via `esp_partition` — not a 47L16. Code: `mm_prefs.cpp`.
+
+| Item | Behavior |
+|---|---|
+| **Partition** | First entry in `partitions.csv`: label `prefs`, **8 KB** at `0x9000` (two **4 KB** erase sectors = slot A / slot B). Wi-Fi **NVS** follows at `0xB000` (12 KB). |
+| **What is stored** | LCD Light/Dark, brightness, volume, Sound, Ticks, Notify — plus flash overhead (signature / version / struct size / sequence / tail magic / CRC32). Browser Light/Dark stays in `localStorage` only. |
+| **Save** | Controls **Save** writes only when dirty. Writes the **other** slot with a bumped sequence. Stays on Controls. |
+| **Cancel** | Controls **Cancel** recalls from flash. Stays on Controls. Leaving via the **Menus** chip without Save also recalls. |
+| **Boot** | `loadSettings()` after display setup (Wi-Fi → web → LCD uiTask order unchanged from 0.7.76). |
+| **Corrupt / missing** | → defaults (brightness/volume **100%**, toggles **ON**, Dark), then seed flash. |
+| **First flash after this change** | Partition table moved — full USB erase/upload once. |
 
 ### `!display`
 

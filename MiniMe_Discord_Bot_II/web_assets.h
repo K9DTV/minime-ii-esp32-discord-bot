@@ -12,10 +12,11 @@ html[data-theme="light"]{color-scheme:light;--k9-space:#dde2ea;--k9-panel:#f3f5f
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--k9-mono);font-size:14px}
 main{max-width:56rem;margin:0 auto;padding:1rem}
 .top{margin:0 0 1rem;display:flex;flex-direction:column;align-items:center;gap:.45rem}
-.top-row{display:flex;align-items:center;justify-content:center;gap:.75rem;width:100%;position:relative;padding-bottom:1.15rem}
+.top-row{display:flex;align-items:center;justify-content:center;gap:.75rem;width:100%;position:relative;padding-top:1rem;padding-bottom:1.15rem}
 .theme-chip-trigger{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;margin:0;padding:0;border:none;background:transparent;cursor:pointer;line-height:0;-webkit-tap-highlight-color:transparent;flex:0 0 auto;align-self:center}
 .theme-chip-trigger .menu-chip-icon{width:2.75rem;height:2.75rem;display:block;flex-shrink:0}
 .theme-chip-trigger .menu-chip-label{position:absolute;top:calc(100% + .08rem);left:50%;transform:translateX(-50%);display:inline-flex;flex-direction:row;align-items:center;justify-content:center;gap:.22em;font-family:var(--k9-ui);font-size:.58rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--k9-muted);line-height:1;white-space:nowrap}
+.theme-chip-trigger .menu-chip-menus{position:absolute;bottom:calc(100% + .08rem);left:50%;transform:translateX(-50%);font-family:var(--k9-ui);font-size:.58rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--k9-muted);line-height:1;white-space:nowrap;pointer-events:none}
 .theme-chip-trigger .theme-toggle-glyph{font-size:.85em;line-height:1;font-weight:400;letter-spacing:0;text-transform:none}
 .theme-chip-trigger:focus{outline:none}
 .theme-chip-trigger:focus:not(:focus-visible){outline:none}
@@ -194,17 +195,13 @@ var lb=document.getElementById('layout-toggle');
 if(lb)lb.addEventListener('click',function(){cycleLayout(1);lb.blur();});
 var bc=document.getElementById('ctrl-cancel');
 if(bc)bc.addEventListener('click',function(){
-ctrlBtnLeave=true;
-postControls('action=cancel').then(function(){
-applyLayout('display',true);
-ctrlBtnLeave=false;
+postControls('action=cancel').then(function(j){
+if(j){lastCtrl={bright:j.bright,vol:j.vol,notify:j.notify,ticks:j.ticks,sound:j.sound};syncControlsForm(lastCtrl);}
 });bc.blur();});
 var bs=document.getElementById('ctrl-save');
 if(bs)bs.addEventListener('click',function(){
-ctrlBtnLeave=true;
-postControls('action=save').then(function(){
-applyLayout('display',true);
-ctrlBtnLeave=false;
+postControls('action=save').then(function(j){
+if(j){lastCtrl={bright:j.bright,vol:j.vol,notify:j.notify,ticks:j.ticks,sound:j.sound};syncControlsForm(lastCtrl);}
 });bs.blur();});
 function esc(s){return String(s==null||s===undefined?'':s).replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));}
 function bar(pct){pct=Math.max(0,Math.min(100,+pct||0));return '<span class="bar"><i style="width:'+pct+'%"></i></span>';}
@@ -234,14 +231,16 @@ var b=document.getElementById('ctrl-bright');
 var v=document.getElementById('ctrl-vol');
 var bl=document.getElementById('ctrl-bright-lab');
 var vl=document.getElementById('ctrl-vol-lab');
-if(b&&document.activeElement!==b)setRangeUi(b,bl,j.bright!=null?j.bright:80);
-if(v&&document.activeElement!==v)setRangeUi(v,vl,j.vol!=null?j.vol:70);
+if(b&&document.activeElement!==b)setRangeUi(b,bl,j.bright!=null?j.bright:100);
+if(v&&document.activeElement!==v)setRangeUi(v,vl,j.vol!=null?j.vol:100);
 setTog('ctrl-notify',!!j.notify);setTog('ctrl-ticks',!!j.ticks);setTog('ctrl-sound',!!j.sound);}
 async function postControls(params){
 ctrlBusy=true;
-try{await fetch('/api/controls',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:params});}
+var out=null;
+try{var r=await fetch('/api/controls',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:params});
+out=await r.json();}
 catch(e){}
-ctrlBusy=false;}
+ctrlBusy=false;return out;}
 function wireControls(){
 var b=document.getElementById('ctrl-bright');
 var v=document.getElementById('ctrl-vol');

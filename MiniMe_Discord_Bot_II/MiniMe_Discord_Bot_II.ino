@@ -14,6 +14,7 @@
   display_draw.cpp                 -- palette, panels, drawDashboard
   display_internal.h               -- private LCD types shared by the four files above
   ui_controls.cpp                  -- Controls page: bright/vol/toggles
+  mm_prefs.cpp / mm_prefs.h      -- ESP32-S3 onboard flash prefs (Save/Cancel)
   touch.cpp                        -- AXS15231B I2C touch wake
   hardware.cpp                     -- servo, NeoPixel, DS18B20, GPIO, piezo ticks
   audio.cpp                        -- I2S speaker UI ticks (wake vs button)
@@ -47,6 +48,7 @@
 
 #include "minime.h"
 #include "cores.h"
+#include "mm_prefs.h"
 #include <esp_task_wdt.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -81,6 +83,7 @@ void setup() {
   if (!setupDisplay()) {
     // No panel -- still run Discord / web; transients are no-ops until begin works.
   }
+  loadSettings(); // prefs partition: LCD theme + Controls (or defaults if corrupt)
   setupTouch();
   lastDisplayActivityMillis = millis();
 #if MM_USB_CDC_ON_BOOT

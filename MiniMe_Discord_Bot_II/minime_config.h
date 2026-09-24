@@ -2,7 +2,7 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.76"
+#define MINIME_VERSION "0.7.77"
 #define MINIME_USER_AGENT "MiniMeBot/1.0"
 
 // Scratch TWDT proof only — enables owner !hang (infinite loop). Never ship with this enabled.
@@ -85,7 +85,7 @@ const unsigned long TOUCH_DEBOUNCE_MS = 300;
 const uint32_t LCD_BL_PWM_HZ = 5000;
 const uint8_t LCD_BL_PWM_BITS = 8;
 const uint8_t LCD_BL_PCT_MIN = 10; // floor duty when UI shows 0%
-const uint8_t LCD_BL_PCT_DEFAULT = 80; // UI percent (maps to ~82% duty)
+const uint8_t LCD_BL_PCT_DEFAULT = 100; // factory / corrupt-fallback: max
 const uint32_t LCD_BL_DUTY_AWAKE = 204; // legacy default (= 80% of 255)
 // DM / @mention sticky alert: I2S alarm chirp while flags set (owner !clear stops).
 const unsigned long ALERT_SOUND_PERIOD_MS = 3000UL;
