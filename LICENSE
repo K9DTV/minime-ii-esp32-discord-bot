@@ -1,12 +1,12 @@
 Copyright (c) 2026 James, K9DTV
 
-Non-Commercial License — original material only
+Non-Commercial License -- original material only
 
 This license applies only to original MiniMe II material in this repository,
 including:
 
   - MiniMe_Discord_Bot_II/ sketch sources (.ino, headers, .cpp modules,
-    secrets.example.h, partitions, and related assets), as original source —
+    secrets.example.h, partitions, and related assets), as original source --
     not as a claim over libraries they #include
   - README.md, CHANGELOG.md, VERSION, LICENSE
   - docs/ and other original documentation
@@ -31,8 +31,8 @@ following conditions:
 1. The above copyright notice and this permission notice shall be included in
    all copies or substantial portions of the Software.
 
-2. Commercial use of the Software — including sale, licensing for a fee, use
-   in a commercial product or service, or any other commercial purpose — is
+2. Commercial use of the Software -- including sale, licensing for a fee, use
+   in a commercial product or service, or any other commercial purpose -- is
    not permitted without the copyright holder's prior express written
    permission.
 

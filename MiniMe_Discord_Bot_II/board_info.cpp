@@ -29,21 +29,21 @@ String getSystemInfo() {
   uptimeDhms(days, hours, minutes, seconds);
   String uptimeStr = String(days) + "d " + String(hours) + "h " + String(minutes) + "m " + String(seconds) + "s";
   String msg = "📊 **System Diagnostics:**\n"
-         "• **Uptime:** " + uptimeStr + "\n"
-         "• **Internal heap:** " + String((unsigned long)freeHeap) + " / " +
+         "- **Uptime:** " + uptimeStr + "\n"
+         "- **Internal heap:** " + String((unsigned long)freeHeap) + " / " +
          String((unsigned long)totalHeap) + " bytes\n";
   if (totalPs > 0) {
-    msg += "• **PSRAM:** " + String((unsigned long)freePs) + " / " +
+    msg += "- **PSRAM:** " + String((unsigned long)freePs) + " / " +
            String((unsigned long)totalPs) + " bytes\n";
   } else {
-    msg += "• **PSRAM:** none\n";
+    msg += "- **PSRAM:** none\n";
   }
-  msg += "• **WiFi RSSI:** " + String(rssi) + " dBm\n"
-         "• **Gateway Status:** " + String((gatewayConnected && identified) ? "Connected" : "Disconnected") + "\n"
-         "• **MmLog Core0 drops:** " + String((unsigned long)mmLogDropCore0.load()) + " (ring overflow)\n";
+  msg += "- **WiFi RSSI:** " + String(rssi) + " dBm\n"
+         "- **Gateway Status:** " + String((gatewayConnected && identified) ? "Connected" : "Disconnected") + "\n"
+         "- **MmLog Core0 drops:** " + String((unsigned long)mmLogDropCore0.load()) + " (ring overflow)\n";
   {
     uint8_t n = cmdErrorReplyCount();
-    msg += "• **Cmd errors (" + String((unsigned)n) + "/" + String((unsigned)CMD_ERR_RING_N) + "):**\n";
+    msg += "- **Cmd errors (" + String((unsigned)n) + "/" + String((unsigned)CMD_ERR_RING_N) + "):**\n";
     if (n == 0) {
       msg += "  (none)\n";
     } else {
@@ -55,9 +55,9 @@ String getSystemInfo() {
         if (!cmdErrorReplyNewest(i, row, sizeof(row))) break;
         msg += "  - " + truncateText(String(row), 120) + "\n";
       }
-      if (n > show) msg += "  - … +" + String((unsigned)(n - show)) + " more (Serial / Log panel)\n";
+      if (n > show) msg += "  - ... +" + String((unsigned)(n - show)) + " more (Serial / Log panel)\n";
     }
   }
-  msg += "• **Firmware:** https://github.com/K9DTV/minime-ii-esp32-discord-bot";
+  msg += "- **Firmware:** https://github.com/K9DTV/minime-ii-esp32-discord-bot";
   return msg;
 }

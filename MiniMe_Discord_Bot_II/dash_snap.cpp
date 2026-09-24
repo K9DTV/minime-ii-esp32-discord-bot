@@ -48,7 +48,11 @@ static void captureSnap(DashSnap& s) {
   s.rssi = WiFi.RSSI();
   boardMemTotals(s.memFree, s.memTotal);
   boardPsramTotals(s.psFree, s.psTotal);
-  s.servoDeg = lastServoDeg;
+  pollSdCard();
+  s.sdPresent = sdCardPresent();
+  boardSdTotalsMb(s.sdFreeMb, s.sdTotalMb);
+  // 2 s on / 2 s off when SD missing (IP bright red).
+  s.ipFlashOn = !s.sdPresent && (((millis() / SD_IP_FLASH_HALF_MS) & 1u) != 0u);
   {
     float tc = 0, tf = 0;
     bool had = false, fresh = false;
@@ -107,7 +111,7 @@ void publishDashSnap() {
   if (lastPubMs != 0 && (now - lastPubMs) < DASH_REFRESH_MS) return;
   lastPubMs = now;
 
-  static DashSnap tmp; // static: ~4 KB — keep off Core 1 loop stack
+  static DashSnap tmp; // static: ~4 KB -- keep off Core 1 loop stack
   captureSnap(tmp);
   uint32_t s = snapSeq;
   snapSeq = s + 1; // odd = writer in progress
@@ -142,7 +146,10 @@ bool snapLeftEqual(const DashSnap& a, const DashSnap& b) {
       && a.rssi == b.rssi
       && a.memFree == b.memFree && a.memTotal == b.memTotal
       && a.psFree == b.psFree && a.psTotal == b.psTotal
-      && a.servoDeg == b.servoDeg && a.tempC10 == b.tempC10
+      && a.sdPresent == b.sdPresent
+      && a.sdFreeMb == b.sdFreeMb && a.sdTotalMb == b.sdTotalMb
+      && a.ipFlashOn == b.ipFlashOn
+      && a.tempC10 == b.tempC10
       && a.identified == b.identified && a.nActive == b.nActive
       && a.dm == b.dm && a.mention == b.mention && a.httpsBusy == b.httpsBusy
       && strcmp(a.event, b.event) == 0

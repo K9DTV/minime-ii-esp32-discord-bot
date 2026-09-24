@@ -11,7 +11,7 @@ static const uint32_t I2S_RATE = 16000;
 static i2s_chan_handle_t i2sTx = nullptr;
 static bool audioReady = false;
 
-// Saved alert beep (was the louder sustained tone) — wire to DM/@mention when ready.
+// Saved alert beep (was the louder sustained tone) -- wire to DM/@mention when ready.
 static const uint32_t ALERT_HZ = 1000;
 static const uint32_t ALERT_MS = 45;
 static const int16_t ALERT_PEAK = 22000;
@@ -82,7 +82,7 @@ static void i2sPadSilence() {
   i2sWriteStereo(z, 64);
 }
 
-// Sustained beep with soft edges (alert / notification — not touch UI).
+// Sustained beep with soft edges (alert / notification -- not touch UI).
 static void playBeepMs(uint32_t hz, uint32_t ms, int16_t peak) {
   if (!audioReady || !i2sTx || peak < 1) return;
 
@@ -122,7 +122,7 @@ static void playTickClick(uint32_t hz, uint32_t ms, int16_t peak) {
   const size_t frames = (size_t)((I2S_RATE * (uint64_t)ms) / 1000UL);
   if (frames < 1) return;
 
-  // ~2.5 ms decay constant — energy dies fast so it does not sing.
+  // ~2.5 ms decay constant -- energy dies fast so it does not sing.
   const float tau = (float)I2S_RATE * 0.0025f;
   int16_t buf[64 * 2];
   size_t done = 0;
@@ -144,25 +144,25 @@ static void playTickClick(uint32_t hz, uint32_t ms, int16_t peak) {
 }
 
 void audioTickWake() {
-  // Soft lower tick — any touch while backlight is asleep.
+  // Soft lower tick -- any touch while backlight is asleep.
   if (!uiSoundOn.load() || !uiTicksOn.load()) return;
   playTickClick(1600, 10, scalePeak(7000));
 }
 
 void audioTickButton() {
-  // Slightly brighter tick — theme / layout / logo / controls while awake.
+  // Slightly brighter tick -- theme / layout / logo / controls while awake.
   if (!uiSoundOn.load() || !uiTicksOn.load()) return;
   playTickClick(2400, 12, scalePeak(8500));
 }
 
 void audioAlertBeep() {
-  // Saved louder sustained tone (single beep) — available for other cues.
+  // Saved louder sustained tone (single beep) -- available for other cues.
   if (!uiSoundOn.load()) return;
   playBeepMs(ALERT_HZ, ALERT_MS, scalePeak(ALERT_PEAK));
 }
 
 void audioAlarmBeep() {
-  // Distinct from UI ticks and from audioAlertBeep — two-note alarm chirp.
+  // Distinct from UI ticks and from audioAlertBeep -- two-note alarm chirp.
   if (!uiSoundOn.load() || !uiNotifyOn.load()) return;
   playBeepMs(880, 70, scalePeak(17000));
   delay(35);

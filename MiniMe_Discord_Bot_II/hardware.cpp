@@ -4,36 +4,16 @@ OneWire oneWire(PIN_DS18B20);
 DallasTemperature sensors(&oneWire);
 Adafruit_NeoPixel pixels(1, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
 
-// Arduino-ESP32 3.x LEDC API (no driver/ledc.h)
-static const int SERVO_LEDC_BITS = 14;
-static const double SERVO_LEDC_HZ = 50.0;
-
-void setupServo() {
-  ledcAttach(PIN_SERVO, SERVO_LEDC_HZ, SERVO_LEDC_BITS);
-}
-
-void setServoAngle(int angleDeg) {
-  if (angleDeg < 0) angleDeg = 0;
-  if (angleDeg > 90) angleDeg = 90;
-  lastServoDeg = angleDeg;
-  int pulseUs = 500 + (1500 * angleDeg / 90);
-  uint32_t max_duty = (1UL << SERVO_LEDC_BITS) - 1UL;
-  uint32_t duty = (pulseUs * max_duty) / 20000UL;
-  ledcWrite(PIN_SERVO, duty);
-}
-
 void setupPins() {
   pinMode(RGB_LED_PIN, OUTPUT);
   digitalWrite(RGB_LED_PIN, LOW);
   pixels.begin();
   pixels.show();
   pinMode(PIN_DS18B20, INPUT_PULLUP);
-  setupServo();
-  setServoAngle(45);
   setupAudio();
 }
 
-// Core 0 uiTask only. Shared DallasTemperature/OneWire — never call from Core 1
+// Core 0 uiTask only. Shared DallasTemperature/OneWire -- never call from Core 1
 // (would race poll mid-conversion and corrupt the bus).
 bool pollTemperatureNonBlocking(float& tempC, float& tempF) {
   static bool waiting = false;
@@ -53,7 +33,7 @@ bool pollTemperatureNonBlocking(float& tempC, float& tempF) {
   waiting = false;
   float c = sensors.getTempCByIndex(0);
   if (c == DEVICE_DISCONNECTED_C) {
-    // Route via MmLog -> Core0 bridge (Serial panel shows [C0] …). Rate-limit spam.
+    // Route via MmLog -> Core0 bridge (Serial panel shows [C0] ...). Rate-limit spam.
     static unsigned long lastDiscLogMs = 0;
     unsigned long now = millis();
     if (lastDiscLogMs == 0 || (now - lastDiscLogMs) >= 60000UL) {

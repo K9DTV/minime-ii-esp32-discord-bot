@@ -5,7 +5,7 @@
 
 static JsonDocument* deepSeekDoc = nullptr;
 
-// Body read with Gateway HB pumps (HTTP or HTTPS Client& — both run on Core 1).
+// Body read with Gateway HB pumps (HTTP or HTTPS Client& -- both run on Core 1).
 // empty body => false (readHttpBodyAfterHeaders); these APIs never return empty on success.
 static bool readOpenBodyPumped(Client& client, bool chunked, int contentLength,
                                String& outBody, unsigned long timeoutMs) {
@@ -41,9 +41,9 @@ bool getWeather(const String& zip, String& outReport) {
   int humidity = doc["main"]["humidity"] | 0;
   String cond = doc["weather"][0]["description"] | "Unknown";
   outReport = "☁️ **Weather Report (" + city + " - " + zip + "):**\n" +
-              "• **Condition:** " + cond + "\n" +
-              "• **Temperature:** " + String(tempF, 1) + "°F (" + String(tempC, 1) + "°C)\n" +
-              "• **Humidity:** " + String(humidity) + "%";
+              "- **Condition:** " + cond + "\n" +
+              "- **Temperature:** " + String(tempF, 1) + " degF (" + String(tempC, 1) + " degC)\n" +
+              "- **Humidity:** " + String(humidity) + "%";
   return true;
 }
 
@@ -185,7 +185,7 @@ bool getApod(String& outReport) {
   String url = doc["url"] | "";
   outReport = "🌌 **NASA APOD";
   if (date.length()) outReport += " (" + date + ")";
-  outReport += ":**\n• **" + title + "**\n" + truncateText(expl, 350);
+  outReport += ":**\n- **" + title + "**\n" + truncateText(expl, 350);
   if (url.length()) outReport += "\n" + url;
   return true;
 }
@@ -216,8 +216,8 @@ bool getIssPosition(String& outReport) {
   String lat = doc["iss_position"]["latitude"] | "?";
   String lon = doc["iss_position"]["longitude"] | "?";
   outReport = "🌍 **ISS now:**\n"
-              "• **Latitude:** " + lat + "\n"
-              "• **Longitude:** " + lon;
+              "- **Latitude:** " + lat + "\n"
+              "- **Longitude:** " + lon;
   return true;
 }
 
@@ -272,7 +272,7 @@ bool askDeepSeek(const String& question, String& outReport) {
     return false;
   }
 
-  // Dedicated TLS — leaves httpsInUse free so Discord REST / !weather can drain during wait.
+  // Dedicated TLS -- leaves httpsInUse free so Discord REST / !weather can drain during wait.
   static WiFiClientSecure deepSeekTls;
   deepSeekTls.stop();
 #if defined(ESP_ARDUINO_VERSION) && (ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 3, 12))

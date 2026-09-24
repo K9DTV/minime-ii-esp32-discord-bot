@@ -2,10 +2,10 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.80"
+#define MINIME_VERSION "0.7.86"
 #define MINIME_USER_AGENT "MiniMeBot/1.0"
 
-// Scratch TWDT proof only — enables owner !hang (infinite loop). Never ship with this enabled.
+// Scratch TWDT proof only -- enables owner !hang (infinite loop). Never ship with this enabled.
 // Uncomment for one flash, run !hang, wait ~90s, reboot, !coredump, then comment out again.
 // #define MINIME_TEST_TWDT
 
@@ -23,8 +23,11 @@ const size_t DEEPSEEK_JSON_DOC = 24576; // soft size hint for !ask (AJ7 grows; w
 // ====== GPIO CONFIG (Guition JC3248W535EN / AXS15231B) ======
 // Display QSPI (Arduino_ESP32QSPI + Arduino_AXS15231B): CS 45, SCK 47, D0 21, D1 48, D2 40, D3 39
 // Touch I2C (same AXS15231B): SDA 4, SCL 8, INT 3. Backlight: GPIO 1.
-// NeoPixel/servo remapped off QSPI pins (48/47). Change if you rewire.
+// NeoPixel remapped off QSPI pins. Change if you rewire.
 // I2S speaker (NS4168): DOUT 41, BCLK 42, LRCLK 2.
+// SD SPI (on-module slot): CS 10, MOSI 11, SCK 12, MISO 13 -- firmware uses HSPI/SPI3 only
+// (never default FSPI; that shares the LCD QSPI host and corrupts the panel).
+// DS18B20 on rear 4-pin header GPIO 18 (with GND / 3.3V).
 const int LCD_BL_PIN  = 1;
 const int LCD_CS_PIN  = 45;
 const int LCD_SCK_PIN = 47;
@@ -39,8 +42,11 @@ const int TOUCH_SCL_PIN = 8;
 const int TOUCH_INT_PIN = 3;
 const uint8_t TOUCH_I2C_ADDR = 0x3B;
 const int RGB_LED_PIN = 16;
-const int PIN_SERVO   = 17;
-const int PIN_DS18B20 = 10;
+const int PIN_DS18B20 = 18;
+const int PIN_SD_CS   = 10;
+const int PIN_SD_MOSI = 11;
+const int PIN_SD_SCK  = 12;
+const int PIN_SD_MISO = 13;
 const int I2S_DOUT_PIN  = 41;
 const int I2S_BCLK_PIN  = 42;
 const int I2S_LRCLK_PIN = 2; // WS / LRC
@@ -57,7 +63,7 @@ const unsigned long BOT_PRESENCE_IDLE_MS = 300000UL; // 5 minutes quiet -> Idle
 // Stops false zombies when OP11 is late (ESP32 TLS / Wi-Fi jitter).
 const unsigned long GW_HB_ACK_GRACE_MS = 15000UL;
 const uint32_t CPU_MHZ_ACTIVE = 240; // Online / OTA / commands
-const uint32_t CPU_MHZ_IDLE = 160;   // Discord Idle presence (not 80 — that correlated with resets)
+const uint32_t CPU_MHZ_IDLE = 160;   // Discord Idle presence (not 80 -- that correlated with resets)
 // Task WDT: Arduino feeds between loop() calls only. Timeout must fit the longest
 // single loop iteration (!ask ~15s handshake + 30s body; Discord 429 wait up to 60s).
 // Soft Discord guard remains GW HB ack; TWDT is a stuck-loop backstop (not primary).
@@ -78,6 +84,8 @@ static_assert(INTENTS_MINIME == 37635u, "intents value drifted from Discord docs
 
 // ====== DISPLAY STATE (480x320 landscape via Arduino_GFX AXS15231B canvas) ======
 const unsigned long DASH_REFRESH_MS = 1000UL; // ~60ms draw+flush measured; 1s ok for Gateway HB
+// No-SD IP alert: bright red 2 s on / 2 s off (50% of a 4 s period).
+const unsigned long SD_IP_FLASH_HALF_MS = 2000UL;
 
 const unsigned long DISPLAY_IDLE_MS = 300000UL; // 5 minutes after last display activity -> backlight off
 const unsigned long TOUCH_DEBOUNCE_MS = 300;

@@ -11,7 +11,7 @@ MAX_BODY = 48000
 class FakeClient:
     """Minimal Client stand-in: byte buffer + connected flag.
 
-    Fully-buffered; deadline behavior is not modeled — only truncation semantics.
+    Fully-buffered; deadline behavior is not modeled -- only truncation semantics.
     """
 
     def __init__(self, data: bytes = b"", connected: bool = True) -> None:
@@ -52,7 +52,7 @@ class FakeClient:
 def read_http_line_capped(client: FakeClient, deadline_ok: bool = True) -> Optional[str]:
     """Mirror readHttpLineCapped. deadline_ok=False forces timeout fail.
 
-    FakeClient is fully-buffered; deadline behavior is not modeled — only truncation semantics.
+    FakeClient is fully-buffered; deadline behavior is not modeled -- only truncation semantics.
     """
     if not deadline_ok:
         return None

@@ -83,23 +83,22 @@ static void cmdHelp(const CmdCtx& ctx) {
   String helpMsg =
     "🤖 **MiniMe Bot Commands**\n\n"
     "**👤 Public Commands:**\n"
-    "• `!apod` — NASA Astronomy Picture of the Day.\n"
-    "• `!ask <question>` — Asks DeepSeek (text AI reply in chat).\n"
-    "• `!display <text>` — Writes custom text to the LCD screen.\n"
-    "• `!help` — Shows this command list.\n"
-    "• `!iss` — Current International Space Station position.\n"
-    "• `!news` — Space and high-tech science headlines.\n"
-    "• `!physics` — Latest arXiv physics papers.\n"
-    "• `!sys` — System diagnostics (uptime, internal heap, PSRAM, RSSI, gateway, firmware URL).\n"
-    "• `!temp` — Reads the current indoor temperature sensor.\n"
-    "• `!time` — Displays the current bot time.\n"
-    "• `!weather <zip>` — Fetches the weather report for a US ZIP code.\n\n"
+    "- `!apod` -- NASA Astronomy Picture of the Day.\n"
+    "- `!ask <question>` -- Asks DeepSeek (text AI reply in chat).\n"
+    "- `!display <text>` -- Writes custom text to the LCD screen.\n"
+    "- `!help` -- Shows this command list.\n"
+    "- `!iss` -- Current International Space Station position.\n"
+    "- `!news` -- Space and high-tech science headlines.\n"
+    "- `!physics` -- Latest arXiv physics papers.\n"
+    "- `!sys` -- System diagnostics (uptime, internal heap, PSRAM, RSSI, gateway, firmware URL).\n"
+    "- `!temp` -- Reads the current indoor temperature sensor.\n"
+    "- `!time` -- Displays the current bot time.\n"
+    "- `!weather <zip>` -- Fetches the weather report for a US ZIP code.\n\n"
     "**👑 Owner-Only Commands:**\n"
-    "• `!ota` — Wi-Fi firmware update info (IP / hostname).\n"
-    "• `!coredump` — Last panic from flash coredump (`!coredump clear` erases).\n"
-    "• `!servo <0-90>` — Moves the servo motor to a specific angle.\n"
-    "• `!clear` — Clears DM / mention alert flags on the LCD (stops the alarm sound).\n"
-    "• `!resetprefs` — Factory-reset Controls prefs in flash (bright/vol/toggles/theme).";
+    "- `!ota` -- Wi-Fi firmware update info (IP / hostname).\n"
+    "- `!coredump` -- Last panic from flash coredump (`!coredump clear` erases).\n"
+    "- `!clear` -- Clears DM / mention alert flags on the LCD (stops the alarm sound).\n"
+    "- `!resetprefs` -- Factory-reset Controls prefs in flash (bright/vol/toggles/theme).";
   showIfPosted("Help", "Command Sent", sendDiscordMessage(ctx.channelId, helpMsg));
 }
 
@@ -147,7 +146,7 @@ static void cmdTemp(const CmdCtx& ctx) {
   bool had = false, fresh = false;
   dashTempSnapshot(c, f, had, fresh);
   if (fresh) {
-    String msg = "Current Temp: " + String(c, 1) + "°C / " + String(f, 1) + "°F";
+    String msg = "Current Temp: " + String(c, 1) + " degC / " + String(f, 1) + " degF";
     showIfPosted("Temp", String(f, 1) + "F/" + String(c, 1) + "C",
                  sendDiscordMessage(ctx.channelId, msg));
   } else if (had) {
@@ -237,21 +236,6 @@ static void cmdResetPrefs(const CmdCtx& ctx) {
                                      : "Prefs reset applied in RAM; flash write failed."));
 }
 
-static void cmdServo(const CmdCtx& ctx) {
-  if (ctx.args.length() == 0) {
-    sendDiscordMessage(ctx.channelId, "Usage: !servo <0-90>");
-    return;
-  }
-  int angle = ctx.args.toInt();
-  if (angle < 0 || angle > 90) {
-    sendDiscordMessage(ctx.channelId, "Angle out of range. Allowed: 0-90 degrees.");
-    return;
-  }
-  setServoAngle(angle);
-  String msg = "Servo set to " + String(angle) + " degrees.";
-  showIfPosted("Servo", String(angle) + " deg", sendDiscordMessage(ctx.channelId, msg));
-}
-
 #ifdef MINIME_TEST_TWDT
 // Scratch only: never returns so Core 1 loop() stops feeding TWDT (~90 s panic).
 static void cmdHang(const CmdCtx&) {
@@ -279,7 +263,6 @@ static const CmdEntry kCmds[] = {
   { "!display",  CMD_CONSUMES_REST | CMD_RECORD_USE, cmdDisplay },
   { "!clear",      CMD_OWNER | CMD_RECORD_USE,         cmdClear },
   { "!resetprefs", CMD_OWNER | CMD_RECORD_USE,         cmdResetPrefs },
-  { "!servo",      CMD_OWNER | CMD_RECORD_USE,         cmdServo },
 #ifdef MINIME_TEST_TWDT
   { "!hang",     CMD_OWNER,                          cmdHang },
 #endif

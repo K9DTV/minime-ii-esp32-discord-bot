@@ -70,7 +70,7 @@ void pollTouchWake() {
   if (!touched) {
     if (cancelHoldArmed && !cancelHoldReset) {
       controlsCancel();
-      audioTickButton();
+      // Tick already played on press (rising).
     }
     cancelHoldArmed = false;
     cancelHoldReset = false;
@@ -105,7 +105,7 @@ void pollTouchWake() {
     return;
   }
 
-  // Cancel dog: hold tracking (no rising cancel).
+  // Cancel dog: tick on press; hold ~3 s = factory reset; short release = recall.
   if (lcdLayoutControls && lcdDogLeftHit(x, y)) {
     noteDisplayActivity();
     touchWasActive = true;
@@ -114,13 +114,14 @@ void pollTouchWake() {
       cancelHoldReset = false;
       cancelHoldStart = now;
       lastTouchWakeMillis = now;
+      audioTickButton();
     } else if (cancelHoldArmed && !cancelHoldReset
                && (now - cancelHoldStart) >= PREFS_RESET_HOLD_MS) {
       cancelHoldReset = true;
       cancelHoldArmed = false;
       factoryResetSettings();
       showTransient("Prefs", "factory reset");
-      audioTickButton();
+      audioTickButton(); // second tick confirms factory reset fired
     }
     return;
   }

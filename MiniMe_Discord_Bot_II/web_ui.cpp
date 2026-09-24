@@ -1,7 +1,7 @@
 #include "web_ui_internal.h"
 #include <string.h>
 
-// Display = metrics | users; Log = LOG | Serial (LOG left, Serial right — matches LCD).
+// Display = metrics | users; Log = LOG | Serial (LOG left, Serial right -- matches LCD).
 // Serial: all MmLog lines except FULL LOG dump body.
 // LOG: body between [GW] === FULL LOG === and === END LOG === (drop/reconnect ring snapshot).
 // Headers themselves are stripped; each FULL LOG start clears the LOG panel.
@@ -10,23 +10,113 @@
 WebServer webServer(WEB_UI_PORT);
 static bool webUiReady = false;
 
+// Session token when WEB_UI_PASSWORD is set (hex of 16 random bytes + NUL).
+static char webSessionToken[33] = {0};
+
+bool webUiAuthEnabled() {
+  return WEB_UI_PASSWORD[0] != '\0';
+}
+
+static void webAuthMintToken() {
+  for (int i = 0; i < 16; i++) {
+    uint8_t b = (uint8_t)(esp_random() & 0xFF);
+    static const char* hex = "0123456789abcdef";
+    webSessionToken[i * 2] = hex[b >> 4];
+    webSessionToken[i * 2 + 1] = hex[b & 0x0F];
+  }
+  webSessionToken[32] = '\0';
+}
+
+static bool webAuthPassEq(const char* got) {
+  const char* exp = WEB_UI_PASSWORD;
+  if (!got) got = "";
+  size_t n = strlen(exp);
+  size_t m = strlen(got);
+  size_t lim = (n > m) ? n : m;
+  if (lim == 0) return n == m;
+  uint8_t diff = (uint8_t)(n ^ m);
+  for (size_t i = 0; i < lim; i++) {
+    char a = (i < n) ? exp[i] : 0;
+    char b = (i < m) ? got[i] : 0;
+    diff |= (uint8_t)(a ^ b);
+  }
+  return diff == 0;
+}
+
+static bool webAuthTokenMatches(const String& tok) {
+  if (!webSessionToken[0] || tok.length() != 32) return false;
+  uint8_t diff = 0;
+  for (int i = 0; i < 32; i++) {
+    diff |= (uint8_t)((uint8_t)tok.charAt(i) ^ (uint8_t)webSessionToken[i]);
+  }
+  return diff == 0;
+}
+
+bool webUiAuthOk() {
+  if (!webUiAuthEnabled()) return true;
+  if (webServer.hasHeader("X-MiniMe-Token") && webAuthTokenMatches(webServer.header("X-MiniMe-Token"))) {
+    return true;
+  }
+  if (webServer.hasHeader("Cookie")) {
+    String c = webServer.header("Cookie");
+    int idx = c.indexOf("mm_tok=");
+    if (idx >= 0) {
+      String t = c.substring(idx + 7);
+      int semi = t.indexOf(';');
+      if (semi >= 0) t = t.substring(0, semi);
+      t.trim();
+      if (webAuthTokenMatches(t)) return true;
+    }
+  }
+  return false;
+}
+
+void webUiSendUnauthorized() {
+  webUiSendNoCacheHeaders();
+  webServer.send(401, "application/json", "{\"err\":\"auth\",\"needAuth\":true}");
+}
+
+void webUiHandleLogin() {
+  webUiSendNoCacheHeaders();
+  if (!webUiAuthEnabled()) {
+    webServer.send(200, "application/json", "{\"ok\":1,\"auth\":false,\"token\":\"\"}");
+    return;
+  }
+  String pass;
+  if (webServer.hasArg("pass")) pass = webServer.arg("pass");
+  else if (webServer.hasArg("password")) pass = webServer.arg("password");
+  if (!webAuthPassEq(pass.c_str())) {
+    delay(150); // mild brute-force slowdown
+    webServer.send(401, "application/json", "{\"err\":\"badpass\",\"needAuth\":true}");
+    return;
+  }
+  webAuthMintToken();
+  String cookie = String("mm_tok=") + webSessionToken + "; Path=/; SameSite=Strict";
+  webServer.sendHeader("Set-Cookie", cookie);
+  char buf[80];
+  snprintf(buf, sizeof(buf), "{\"ok\":1,\"auth\":true,\"token\":\"%s\"}", webSessionToken);
+  webServer.send(200, "application/json", buf);
+}
+
 static const size_t WEB_FULL_MAX_BYTES = 20480UL; // logical text bytes (not RAM); slots are fixed 97B each
 // RAM: webFullLines[55][97] + webSerialLines[55][97] ~10.7KB internal SRAM.
 static_assert(WEB_FULL_N >= 1 && WEB_FULL_N <= 255, "WEB_FULL_N must fit uint8_t head/count");
 static_assert(WEB_SERIAL_N >= 1 && WEB_SERIAL_N <= 255, "WEB_SERIAL_N must fit uint8_t head/count");
 
-char webFullLines[WEB_FULL_N][WEB_LOG_COLS + 1];
-uint8_t webFullHead = 0;
-uint8_t webFullCount = 0;
+// LOG + Serial rings live only in this file. Callers use lcdFullLogCount / lcdFullLogNewest
+// (and Serial twins) -- do not expose head/count/arrays via web_ui_internal.h.
+static char webFullLines[WEB_FULL_N][WEB_LOG_COLS + 1];
+static uint8_t webFullHead = 0;
+static uint8_t webFullCount = 0;
 static size_t webFullBytes = 0;
 static bool webInFullLog = false;
 static uint32_t webLogGenCounter = 0;
 
-char webSerialLines[WEB_SERIAL_N][WEB_LOG_COLS + 1];
-uint8_t webSerialHead = 0;
+static char webSerialLines[WEB_SERIAL_N][WEB_LOG_COLS + 1];
+static uint8_t webSerialHead = 0;
 std::atomic<uint32_t> mmLogDropCore0{0};
 
-uint8_t webSerialCount = 0;
+static uint8_t webSerialCount = 0;
 
 // Core 0 -> Core 1 log bridge: webLogFeed cannot touch Serial rings from Core 0 (races handleStatus).
 // Lines land in this ring; drainCore0Logs() on Core 1 prints via MmLog.
@@ -270,6 +360,10 @@ void webLogFeed(const uint8_t* buffer, size_t size) {
 
 static void handleControlsPost() {
   webUiSendNoCacheHeaders();
+  if (!webUiAuthOk()) {
+    webUiSendUnauthorized();
+    return;
+  }
   if (webServer.hasArg("action")) {
     const String act = webServer.arg("action");
     if (act == "cancel") {
@@ -279,7 +373,7 @@ static void handleControlsPost() {
     } else if (act == "resetprefs") {
       factoryResetSettings();
     } else if (act == "enter") {
-      // Web opened Controls — snapshot current values.
+      // Web opened Controls -- snapshot current values.
       controlsSnapshotEnter(0);
     }
   }
@@ -336,6 +430,8 @@ void setupWebUi() {
     }
     mmSpiRamJsonAlloc().deallocate(probe);
   }
+  static const char* collectHdrs[] = {"X-MiniMe-Token", "Cookie"};
+  webServer.collectHeaders(collectHdrs, 2);
   webServer.on("/", HTTP_GET, webUiHandleRoot);
   webServer.on("/ui.css", HTTP_GET, webUiHandleUiCss);
   webServer.on("/ui.js", HTTP_GET, webUiHandleUiJs);
@@ -351,12 +447,15 @@ void setupWebUi() {
   webServer.on("/mark-right-bright.svg", HTTP_GET, webUiHandleMarkRightBright);
   webServer.on("/api/status", HTTP_GET, webUiHandleStatus);
   webServer.on("/api/controls", HTTP_POST, handleControlsPost);
+  webServer.on("/api/login", HTTP_POST, webUiHandleLogin);
   webServer.begin();
   webUiReady = true;
   MmLog.print("[WEB] http://");
   MmLog.print(WiFi.localIP().toString());
   MmLog.print(":");
-  MmLog.println(WEB_UI_PORT);
+  MmLog.print(WEB_UI_PORT);
+  if (webUiAuthEnabled()) MmLog.println(F(" (auth on)"));
+  else MmLog.println(F(" (auth off)"));
 }
 
 void pumpWebUi() {

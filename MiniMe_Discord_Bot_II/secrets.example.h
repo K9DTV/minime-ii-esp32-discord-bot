@@ -2,11 +2,13 @@
 #define MINIME_SECRETS_H
 
 // Copy this file to secrets.h (same folder), fill in real values, then DELETE the next line.
-// Firmware includes secrets.h only; if this flag remains, compile fails on purpose.
+// Firmware seeds from secrets.h at boot, then overlays SD card /secrets.h when present.
+// On the board: put the same filled file at the root of the SD card as secrets.h
+// (preferred -- change credentials without reflashing).
 #define MINIME_SECRETS_IS_EXAMPLE 1
 
 // secrets.h is gitignored -- never commit real tokens or passwords.
-// Use #define (not const char*) so multi-file Arduino builds link cleanly.
+// Use #define NAME "value" lines (same form on SD). Runtime parser reads those lines.
 
 #define WIFI_SSID            "ssid"
 #define WIFI_PASSWORD        "password"
@@ -24,5 +26,8 @@
 // Wi-Fi firmware update (ArduinoOTA). Pick a real password in secrets.h.
 #define OTA_HOSTNAME         "minime2"
 #define OTA_PASSWORD         "change-me-ota"
+
+// LAN web UI password. Empty "" = no auth (open on the LAN). Non-empty = gate /api/status + /api/controls.
+#define WEB_UI_PASSWORD      ""
 
 #endif

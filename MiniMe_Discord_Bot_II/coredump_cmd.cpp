@@ -81,7 +81,7 @@ static bool formatSummaryReport(String& out) {
     reason[0] = '\0';
     if (esp_core_dump_get_panic_reason(reason, sizeof(reason)) == ESP_OK && reason[0]) {
       out = String("**Coredump:** summary failed (`") + esp_err_to_name(err) +
-            "`)\n• **Panic:** " + reason;
+            "`)\n- **Panic:** " + reason;
       return true;
     }
     out = String("**Coredump:** summary failed (`") + esp_err_to_name(err) + "`).";
@@ -90,17 +90,17 @@ static bool formatSummaryReport(String& out) {
 
   out.reserve(900);
   out = "**Coredump** (last panic)\n";
-  out += "• **Task:** `";
+  out += "- **Task:** `";
   out += sum->exc_task[0] ? sum->exc_task : "?";
-  out += "`\n• **PC:** ";
+  out += "`\n- **PC:** ";
   appendHex32(out, sum->exc_pc);
-  out += "\n• **TCB:** ";
+  out += "\n- **TCB:** ";
   appendHex32(out, sum->exc_tcb);
 
   char reason[160];
   reason[0] = '\0';
   if (esp_core_dump_get_panic_reason(reason, sizeof(reason)) == ESP_OK && reason[0]) {
-    out += "\n• **Panic:** ";
+    out += "\n- **Panic:** ";
     out += reason;
   }
 
@@ -108,7 +108,7 @@ static bool formatSummaryReport(String& out) {
   {
     uint32_t cause = sum->ex_info.exc_cause;
     const char* cname = xtensaCauseName(cause);
-    out += "\n• **ExcCause:** ";
+    out += "\n- **ExcCause:** ";
     if (cname) {
       out += cname;
       out += " (";
@@ -117,13 +117,13 @@ static bool formatSummaryReport(String& out) {
     } else {
       out += String(cause);
     }
-    out += "\n• **ExcVAddr:** ";
+    out += "\n- **ExcVAddr:** ";
     appendHex32(out, sum->ex_info.exc_vaddr);
   }
 #endif
 
   if (sum->app_elf_sha256[0]) {
-    out += "\n• **App SHA:** `";
+    out += "\n- **App SHA:** `";
     // Truncate for Discord; SHA field is already hex string + NUL in IDF.
     char sha[17];
     strncpy(sha, (const char*)sum->app_elf_sha256, 16);
@@ -134,7 +134,7 @@ static bool formatSummaryReport(String& out) {
 
   const esp_core_dump_bt_info_t& bt = sum->exc_bt_info;
   if (bt.depth > 0) {
-    out += "\n• **BT";
+    out += "\n- **BT";
     if (bt.corrupted) out += " (corrupted)";
     out += ":** ";
     uint32_t n = bt.depth;
@@ -148,7 +148,7 @@ static bool formatSummaryReport(String& out) {
 
   size_t addr = 0, sz = 0;
   if (esp_core_dump_image_get(&addr, &sz) == ESP_OK) {
-    out += "\n• **Flash:** ";
+    out += "\n- **Flash:** ";
     appendHex32(out, (uint32_t)addr);
     out += " / ";
     out += String((unsigned long)sz);
@@ -185,7 +185,7 @@ bool formatCoreDumpReport(String& outReport) {
               "sdkconfig (`CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=0`). "
               "Partition exists but panics will not write a dump; summary API unavailable.";
   if (!partitionLooksBlank(part)) {
-    outReport += "\n_Note: partition is not blank — raw dump bytes present but unreadable "
+    outReport += "\n_Note: partition is not blank -- raw dump bytes present but unreadable "
                  "without flash coredump support in the core build._";
   }
   return false;

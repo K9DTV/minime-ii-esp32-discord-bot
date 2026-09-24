@@ -29,7 +29,6 @@ KNOWN_CMDS: frozenset[str] = frozenset(
         "!ask",
         "!display",
         "!clear",
-        "!servo",
         "!resetprefs",
     }
 )
@@ -126,7 +125,7 @@ def consumes_rest_from_cpp(path: Path = COMMANDS_CPP) -> set[str]:
 
 def known_cmds_from_cpp(path: Path = COMMANDS_CPP) -> set[str]:
     text = _production_cpp_text(path)
-    # Rows inside kCmds[] only — names on lines with CMD_ flags.
+    # Rows inside kCmds[] only -- names on lines with CMD_ flags.
     found: set[str] = set()
     in_table = False
     for line in text.splitlines():

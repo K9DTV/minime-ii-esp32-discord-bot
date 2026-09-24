@@ -4,7 +4,6 @@ Arduino_DataBus* lcdBus = nullptr;
 Arduino_GFX* lcdPanel = nullptr;
 Arduino_Canvas* gfx = nullptr;
 
-int lastServoDeg = 45;
 bool lcdThemeLight = false;
 bool lcdLayoutLog = false; // false = left metrics + right users; true = left LOG + right Serial
 
@@ -59,7 +58,7 @@ void noteDisplayActivity() {
     lcdBacklightOn();
     lastDashMillis = 0;
     dashForceFull.store(true);
-    // Paint only from Core 0 uiTask (do not drawDashboard here — Core 1 may call this).
+    // Paint only from Core 0 uiTask (do not drawDashboard here -- Core 1 may call this).
   }
 }
 
@@ -163,13 +162,6 @@ int dashHeapBarW(uint32_t memFree, uint32_t memTotal) {
   return w;
 }
 
-int dashSrvBarW(int servoDeg) {
-  int w = (servoDeg * DASH_SRV_BAR_MAX) / 90;
-  if (w < 0) w = 0;
-  if (w > DASH_SRV_BAR_MAX) w = DASH_SRV_BAR_MAX;
-  return w;
-}
-
 int dashBarPct(int fill, int maxFill) {
   if (maxFill <= 0) return 0;
   int p = (fill * 100) / maxFill;
@@ -205,6 +197,7 @@ void updateDisplay() {
   if (uiOverlayExpireIfDue(now)) {
     lastDashMillis = 0;
   }
+  // Normal 1 s refresh is enough for 2 s on / 2 s off IP flash phase changes.
   if (lastDashMillis == 0 || now - lastDashMillis >= DASH_REFRESH_MS) {
     lastDashMillis = now;
     // Users / logs / metrics from Core 1 publishDashSnap(); temp from Core 0 above.

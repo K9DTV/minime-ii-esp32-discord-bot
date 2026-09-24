@@ -155,7 +155,7 @@ void drawBrandBar(const DashPalette& p) {
 
   const int16_t chipY = LOGO_TOP_PAD + (K9DTV_LOGO_H - MENU_CHIP_S) / 2;
 
-  // Left gap: Light/Dark (LCD only — web theme is independent).
+  // Left gap: Light/Dark (LCD only -- web theme is independent).
   {
     const int16_t gapW = logoX;
     const int16_t chipX = (gapW - MENU_CHIP_S) / 2;
@@ -341,10 +341,10 @@ static void drawMetricMline(int16_t x, int16_t y, int16_t right, const char* lab
   prtCol(p.text, value ? value : "", valX, y, 1);
   int16_t vw = textW(value ? value : "", 1);
   if (degreeSuffix && vw > 0) {
-    // GFX default font has no degree glyph — small circle like °
+    // GFX default font has no degree glyph -- small circle like  deg
     gfx->drawCircle(valX + vw + 3, y + 1, 2, p.text);
   }
-  // Fixed bar start (web .mline 3.2rem | 7ch | 1fr) — do not shove bar for long values.
+  // Fixed bar start (web .mline 3.2rem | 7ch | 1fr) -- do not shove bar for long values.
   int16_t barX = x + MLINE_BAR_MIN_X;
   int16_t barW = (int16_t)(right - barX - 2);
   if (barW < MLINE_BAR_MIN_W) barW = MLINE_BAR_MIN_W;
@@ -360,6 +360,19 @@ static void drawMetricMline(int16_t x, int16_t y, int16_t right, const char* lab
 static void drawSysRow(int16_t x, int16_t y, const char* k, const char* v, const DashPalette& p) {
   prtCol(p.muted, k, x, y, 1);
   prtCol(p.text, v ? v : "", x + SYS_VALUE_X, y, 1);
+}
+
+// Bright red (RGB565) for missing-SD IP flash -- not palette bad/orange.
+static const uint16_t IP_FLASH_RED = 0xF800;
+
+static void drawIpSysRow(int16_t x, int16_t y, const DashSnap& s, const DashPalette& p) {
+  prtCol(p.muted, "IP", x, y, 1);
+  uint16_t vc = p.text;
+  if (!s.sdPresent) {
+    // 2 s on / 2 s off: bright red on, blank off (same phase as s.ipFlashOn).
+    vc = s.ipFlashOn ? IP_FLASH_RED : p.panel;
+  }
+  prtCol(vc, s.ip, x + SYS_VALUE_X, y, 1);
 }
 
 static void drawLogLines(int16_t sx, int16_t sy, int16_t bottom, const DashPalette& p,
@@ -403,7 +416,7 @@ void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   }
 
   // Same order + formatting as web_assets.h #metrics:
-  // MiniMe-II|GW|time, Bot|date, Sig dBm, PSRAM/SRAM freeK, Srv deg,
+  // MiniMe-II|GW|time, Bot|date, Sig dBm, PSRAM/SRAM freeK, SD freeM,
   // Up/T, Id/Users, DM/Mention, HTTPS, Event, IP, OTA, Ver, CPU, Write, Period, LCD.
   prtCol(p.text, "MiniMe-II", cx, y, 1);
   const char* gwLabel = (s.gw < 0) ? "GW:Bad" : (s.gw > 0 ? "GW:Good" : "GW:Wait");
@@ -442,8 +455,15 @@ void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   y += ROW_PITCH;
   {
     char sb[12];
-    snprintf(sb, sizeof(sb), "%d", s.servoDeg);
-    drawMetricMline(cx, y, right, "Srv", sb, dashSrvBarW(s.servoDeg), p, true);
+    int fill = 0;
+    if (s.sdPresent && s.sdTotalMb > 0) {
+      snprintf(sb, sizeof(sb), "%luM", (unsigned long)s.sdFreeMb);
+      fill = dashHeapBarW(s.sdFreeMb, s.sdTotalMb);
+    } else {
+      snprintf(sb, sizeof(sb), "--");
+      fill = 0;
+    }
+    drawMetricMline(cx, y, right, "SD", sb, fill, p);
   }
   y += ROW_PITCH_LOOSE;
 
@@ -519,7 +539,7 @@ void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   snprintf(periodBuf, sizeof(periodBuf), "%lu ms", (unsigned long)DASH_REFRESH_MS);
   const char* lcdState = displayAsleep.load() ? "asleep" : "awake";
 
-  drawSysRow(cx, y, "IP", s.ip, p); y += ROW_PITCH;
+  drawIpSysRow(cx, y, s, p); y += ROW_PITCH;
   drawSysRow(cx, y, "OTA", otaHost, p); y += ROW_PITCH;
   drawSysRow(cx, y, "Ver", MINIME_VERSION, p); y += ROW_PITCH;
   drawSysRow(cx, y, "CPU", cpuBuf, p); y += ROW_PITCH;
@@ -565,7 +585,7 @@ void drawDashboard() {
   if (!gfx) return;
   unsigned long t0 = millis();
 
-  static DashSnap nowSnap; // static: ~4 KB — keep off uiTask stack
+  static DashSnap nowSnap; // static: ~4 KB -- keep off uiTask stack
   loadPublishedSnap(nowSnap);
   // Live chip toggles / Core 0 temp may be ahead of the last Core 1 publish.
   nowSnap.themeLight = lcdThemeLight;
@@ -577,6 +597,16 @@ void drawDashboard() {
     bool had = false, fresh = false;
     dashTempSnapshot(tc, tf, had, fresh);
     nowSnap.tempC10 = fresh ? (int)(tc * 10.0f) : -9990;
+  }
+  // Live SD present + IP flash phase (2 s on / 2 s off when card missing).
+  nowSnap.sdPresent = sdCardPresent();
+  if (nowSnap.sdPresent) {
+    boardSdTotalsMb(nowSnap.sdFreeMb, nowSnap.sdTotalMb);
+    nowSnap.ipFlashOn = false;
+  } else {
+    nowSnap.sdFreeMb = 0;
+    nowSnap.sdTotalMb = 0;
+    nowSnap.ipFlashOn = ((millis() / SD_IP_FLASH_HALF_MS) & 1u) != 0u;
   }
   if (!nowSnap.valid) {
     lastDashDrawMs = 0;
@@ -594,7 +624,7 @@ void drawDashboard() {
   bool needRight = needBrand || !drawnSnap.valid || !snapRightEqual(drawnSnap, nowSnap);
 
   if (!needBrand && !needLeft && !needRight) {
-    // Nothing visible changed — skip canvas work and QSPI flush.
+    // Nothing visible changed -- skip canvas work and QSPI flush.
     lastDashDrawMs = 0;
     lastDashFlushMs = 0;
     return;
@@ -623,7 +653,7 @@ void drawDashboard() {
   }
   yield();
 
-  // Gateway stays on Core 1 — never pumpGateway mid-draw.
+  // Gateway stays on Core 1 -- never pumpGateway mid-draw.
   unsigned long tFlush = millis();
   gfx->flush();
   lastDashFlushMs = millis() - tFlush;

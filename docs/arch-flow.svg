@@ -57,7 +57,7 @@
   <text class="t" x="340" y="253"><tspan x="340" dy="0">Touch GPIO 4 +</tspan><tspan x="340" dy="13">USB VBUS compensate</tspan></text>
   <line class="line" x1="428" y1="260" x2="446" y2="260"/>
   <rect class="box" x="448" y="236" width="168" height="48" rx="5"/>
-  <text class="t" x="532" y="253"><tspan x="532" dy="0">GPIO servo NeoPixel</tspan><tspan x="532" dy="13">DS18B20</tspan></text>
+  <text class="t" x="532" y="253"><tspan x="532" dy="0">GPIO SD NeoPixel</tspan><tspan x="532" dy="13">DS18B20</tspan></text>
 
   <!-- Center drop to LAN -->
   <line class="line" x1="340" y1="284" x2="340" y2="304"/>

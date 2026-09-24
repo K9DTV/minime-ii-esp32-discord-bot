@@ -2,7 +2,8 @@
  MiniMe II Discord bot (Guition JC3248W535EN / AXS15231B). Command list: Discord !help.
 
  Sketch map:
-  secrets.h / secrets.example.h  -- Wi-Fi, tokens, IDs (gitignored)
+  secrets.h / secrets.example.h  -- compile-time seed (gitignored real file)
+  secrets_bufs.h / secrets_load.cpp -- runtime buffers; boot load SD /secrets.h
   minime_config.h                -- pins, buffer sizes, timing constants
   minime.h                         -- shared declarations and globals
   cores.h / cores.cpp              -- Core 0 uiTask; DashSnap publish; Discord cmd queue
@@ -16,7 +17,8 @@
   ui_controls.cpp                  -- Controls page: bright/vol/toggles
   mm_prefs.cpp / mm_prefs.h      -- ESP32-S3 onboard flash prefs (Save/Cancel)
   touch.cpp                        -- AXS15231B I2C touch wake
-  hardware.cpp                     -- servo, NeoPixel, DS18B20, GPIO, piezo ticks
+  hardware.cpp                     -- NeoPixel, DS18B20, GPIO
+  sd_card.cpp                      -- SD SPI mount, free/total MB, hot-plug retry
   audio.cpp                        -- I2S speaker UI ticks (wake vs button)
   board_info.cpp                   -- boardMemTotals / getSystemInfo (!sys)
   discord_rest.cpp                 -- HTTPS client lifecycle, sendDiscordMessage, members
@@ -59,7 +61,7 @@
 #include <new>
 
 // Loop stack: ARDUINO_LOOP_STACK_SIZE in minime.h (before Arduino.h) is the 3.x hook.
-// Do not also define getArduinoLoopTaskStackSize() here — core 3.3+ already provides it
+// Do not also define getArduinoLoopTaskStackSize() here -- core 3.3+ already provides it
 // from that macro (redefinition error).
 static_assert(ARDUINO_LOOP_STACK_SIZE == 16384, "keep minime.h ARDUINO_LOOP_STACK_SIZE at 16 KB");
 
@@ -98,6 +100,15 @@ void setup() {
   delay(800); // hold boot transient so it's visible
   showTransient("Booting...", "MiniMe II Discord");
   setupPins();
+  setupSdCard();
+  if (!loadSecrets()) {
+    showTransient("Secrets", secretsFromSd ? "bad SD file" : "need SD secrets.h");
+  } else if (secretsFromSd) {
+    showTransient("Secrets", "from SD card");
+  } else {
+    showTransient("Secrets", "compile-time");
+  }
+  delay(600);
   sensors.begin();
   sensors.setWaitForConversion(false); // Core 0 uses pollTemperatureNonBlocking
   connectWiFi();
@@ -107,7 +118,6 @@ void setup() {
   // LCD + LAN up before Discord HTTPS/Identify so boot/web clocks match "ready to use".
   publishDashSnap();
   startUiCore(); // Core 0 owns LCD + touch from here
-  setServoAngle(45);
   lastDashMillis = 0;
 
   showTransient("Discord", "Loading users...");
@@ -159,7 +169,7 @@ void loop() {
   pumpOta();
   pumpWebUi();
   drainCore0Logs();
-  // While flashing, do not run Discord / UI publish (starves OTA → timeouts / odd replies like '864')
+  // While flashing, do not run Discord / UI publish (starves OTA -> timeouts / odd replies like '864')
   if (otaIsBusy()) {
     return;
   }

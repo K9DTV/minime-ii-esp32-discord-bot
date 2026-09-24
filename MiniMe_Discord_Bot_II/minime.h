@@ -18,6 +18,8 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <Adafruit_NeoPixel.h>
+#include <SD.h>
+#include <SPI.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
 #include <atomic>
@@ -25,14 +27,27 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "secrets.h"
-#if defined(MINIME_SECRETS_IS_EXAMPLE)
-#error "Using secrets.example.h template — copy to secrets.h, fill values, remove MINIME_SECRETS_IS_EXAMPLE"
-#endif
+#include "secrets_bufs.h"
 #include "minime_config.h"
 
+// Runtime credentials (SD /secrets.h at boot; compile-time seed fallback).
+// Keep familiar macro names so call sites stay WIFI_SSID / BOT_TOKEN / etc.
+#define WIFI_SSID            secWifiSsid
+#define WIFI_PASSWORD        secWifiPassword
+#define BOT_TOKEN            secBotToken
+#define WEATHER_API_KEY      secWeatherApiKey
+#define NASA_API_KEY         secNasaApiKey
+#define DEEPSEEK_API_KEY     secDeepseekApiKey
+#define BOT_GUILD_ID         secBotGuildId
+#define OWNER_ID_STR         secOwnerId
+#define TARGET_CHANNEL_ID    secTargetChannelId
+#define TARGET_CHANNEL_ID1   secTargetChannelId1
+#define OTA_HOSTNAME         secOtaHostname
+#define OTA_PASSWORD         secOtaPassword
+#define WEB_UI_PASSWORD      secWebUiPassword
+
 // Large JSON arenas prefer PSRAM (ArduinoJson 7). Do not use default JsonDocument for
-// Gateway / status / DeepSeek — default allocator is internal SRAM only.
+// Gateway / status / DeepSeek -- default allocator is internal SRAM only.
 struct SpiRamAllocator : ArduinoJson::Allocator {
   void* allocate(size_t size) override {
     void* p = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -173,7 +188,6 @@ void uptimeDhms(unsigned long& days, unsigned long& hours, unsigned long& minute
 
 // ====== DISPLAY (Arduino_GFX: ESP32QSPI + AXS15231B + Canvas) ======
 extern Arduino_Canvas* gfx;
-extern int lastServoDeg;
 enum { UI_TRANSIENT_COLS = 40, UI_EVENT_COLS = 37 };
 extern char transientLine1[UI_TRANSIENT_COLS];
 extern char transientLine2[UI_TRANSIENT_COLS];
@@ -242,10 +256,9 @@ bool recallSettings();
 bool factoryResetSettings();
 bool isSettingsDirty();
 // Panel bar fills (single source for LCD + web API percents)
-enum { DASH_SIG_HEAP_BAR_MAX = 280, DASH_SRV_BAR_MAX = 280 };
+enum { DASH_SIG_HEAP_BAR_MAX = 280 };
 int dashSigBarW(long rssi);
 int dashHeapBarW(uint32_t memFree, uint32_t memTotal);
-int dashSrvBarW(int servoDeg);
 int dashBarPct(int fill, int maxFill);
 
 // ====== TOUCH (AXS15231B I2C wake only; no Discord Online) ======
@@ -259,15 +272,20 @@ extern OneWire oneWire;
 extern DallasTemperature sensors;
 extern Adafruit_NeoPixel pixels;
 void setupPins();
-void setupServo();
 void setupAudio();
 void audioTickWake();    // asleep: any touch wakes + short tick
 void audioTickButton();  // awake: theme/layout chip only (short tick)
 void audioAlertBeep();   // single sustained beep (saved tone; available for other uses)
 void audioAlarmBeep();   // repeating DM/@mention alarm chirp (two-note)
 void pollAudioAlerts();  // Core 0: while alertDm|alertMention, alarm every ALERT_SOUND_PERIOD_MS
-void setServoAngle(int angleDeg);
-// Core 0 uiTask only: non-blocking DS18B20 (shared OneWire — never call from Core 1).
+// SD SPI slot (CS 10 / MOSI 11 / SCK 12 / MISO 13). Boot loads /secrets.h for keys.
+bool setupSdCard();
+void pollSdCard();       // Core 1: remount retry + free/total MB refresh
+bool sdCardPresent();
+void boardSdTotalsMb(uint32_t& freeMb, uint32_t& totalMb);
+bool loadSecrets();      // after setupSdCard: SD /secrets.h overlay (+ compile seed)
+extern bool secretsFromSd;
+// Core 0 uiTask only: non-blocking DS18B20 (shared OneWire -- never call from Core 1).
 bool pollTemperatureNonBlocking(float& tempC, float& tempF);
 void setLedRgb(uint8_t r, uint8_t g, uint8_t b);
 bool parseRgbTriplet(const String& args, uint8_t& r, uint8_t& g, uint8_t& b);

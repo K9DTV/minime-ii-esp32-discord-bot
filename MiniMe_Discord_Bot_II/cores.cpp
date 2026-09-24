@@ -13,7 +13,7 @@ static uint8_t cmdHead = 0;
 static uint8_t cmdTail = 0;
 static uint8_t cmdCount = 0;
 
-// Clears drainCmdsBusy on every return path (not on panic — noted in CODE_REVIEW_NOTES).
+// Clears drainCmdsBusy on every return path (not on panic -- noted in CODE_REVIEW_NOTES).
 struct DrainBusyGuard {
   bool& flag;
   explicit DrainBusyGuard(bool& f) : flag(f) { flag = true; }
@@ -56,7 +56,7 @@ void drainDiscordCmds() {
   DrainBusyGuard guard(drainCmdsBusy);
   // At most 2 jobs per call. DeepSeek uses a dedicated TLS client, so httpsInUse stays
   // false during !ask and Discord/other HTTPS cmds can run. While shared httpsClient is
-  // held, skip drain here (caller also gates) — avoids mid-fetch "busy" Discord spam.
+  // held, skip drain here (caller also gates) -- avoids mid-fetch "busy" Discord spam.
   for (uint8_t n = 0; n < 2; n++) {
     if (httpsInUse) break;
     DiscordCmdJob job;

@@ -12,7 +12,7 @@ char lastEventLine[UI_EVENT_COLS] = "";
 std::atomic<bool> alertDm{false};
 std::atomic<bool> alertMention{false};
 
-// Cross-core UI overlay (Core 1 writers / Core 0 + web readers). Char buffers — no String alloc in critical.
+// Cross-core UI overlay (Core 1 writers / Core 0 + web readers). Char buffers -- no String alloc in critical.
 static portMUX_TYPE uiOverlayMux = portMUX_INITIALIZER_UNLOCKED;
 static portMUX_TYPE tempMux = portMUX_INITIALIZER_UNLOCKED;
 
@@ -96,7 +96,7 @@ void showTransient(const String& line1, const String& line2, const String& line3
   displayCopyCapped(transientLine2, sizeof(transientLine2), t2);
   displayCopyCapped(transientLine3, sizeof(transientLine3), t3);
   transientUntilMs = until;
-  // Do not write lastEventLine here — Event is sticky via noteLastEvent / Gateway only.
+  // Do not write lastEventLine here -- Event is sticky via noteLastEvent / Gateway only.
   // Web msg2 still shows the transient while untilMs; msg1/Event stay the last real event.
   portEXIT_CRITICAL(&uiOverlayMux);
   noteDisplayActivity();

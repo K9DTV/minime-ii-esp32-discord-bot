@@ -46,11 +46,11 @@ static unsigned long gwLastDisconnectMillis = 0;
 static bool gwFastIdentifyPending = false;
 static bool hbAckPending = false;
 static unsigned long hbSentMillis = 0;
-// Nested pumpGateway (re-entry while gatewayWS.loop runs): skip — do not re-enter loop().
+// Nested pumpGateway (re-entry while gatewayWS.loop runs): skip -- do not re-enter loop().
 static bool gwPumping = false;
 static bool gwDeferPresenceOnline = false;
 
-// ArduinoJson filter for all Gateway TEXT frames. Built once in connectGateway — not on first message.
+// ArduinoJson filter for all Gateway TEXT frames. Built once in connectGateway -- not on first message.
 static JsonDocument gwFilter;
 static bool gwFilterReady = false;
 
@@ -161,12 +161,12 @@ static void gwSetReconnectIntervalMs(unsigned long ms) {
 static void gwBeginDropEpisode(const char* reason) {
   gwClearSession(reason);
   gwFastIdentifyPending = true;
-  gwReconnectFailCount = 0; // new drop episode — next backoff(false) starts at fast tries
+  gwReconnectFailCount = 0; // new drop episode -- next backoff(false) starts at fast tries
 }
 
 void gwSerialService() {
   unsigned long now = millis();
-  // Alive pulse (60 s) — Serial panel only (outside FULL LOG markers).
+  // Alive pulse (60 s) -- Serial panel only (outside FULL LOG markers).
   static unsigned long gwLastAliveMillis = 0;
   if (gwLastAliveMillis == 0) gwLastAliveMillis = now;
   if (now - gwLastAliveMillis >= 60000UL) {
@@ -249,7 +249,7 @@ static void ensureWifiForGateway() {
 
 static void bindGatewayHost(const char* host) {
   if (!host || !host[0]) host = "gateway.discord.gg";
-  // beginSSL() with no CA calls setInsecure() inside WebSockets — BOT_TOKEN would ride
+  // beginSSL() with no CA calls setInsecure() inside WebSockets -- BOT_TOKEN would ride
   // unverified TLS. beginSslWithBundle uses the same ESP32 Mozilla CA blob as REST.
 #if defined(ESP_ARDUINO_VERSION) && (ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 4))
   extern const uint8_t rootca_crt_bundle_start[] asm("_binary_x509_crt_bundle_start");
@@ -489,7 +489,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       gwLogAppend(discAt);
       noteLastEvent(wifiUp ? "GW drop" : "GW wifi down");
 
-      // Identify-only after drops. Do not beginSslWithBundle again — library reconnects to BIND_HOST.
+      // Identify-only after drops. Do not beginSslWithBundle again -- library reconnects to BIND_HOST.
       // Wifi up: few fast tries, then climb (3/7/12..40s). Wifi down: same climb (no fast flood).
       if (wifiUp) {
         if (!gwFastIdentifyPending) {
@@ -680,7 +680,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
             }
           }
 
-          // HTTPS/commands run from Core 1 loop via drainDiscordCmds — not inline here.
+          // HTTPS/commands run from Core 1 loop via drainDiscordCmds -- not inline here.
           if (!enqueueDiscordCmd(content, authorId, authorName, channelId, isDM)) {
             gwLogAppend("CMDQ full");
           }

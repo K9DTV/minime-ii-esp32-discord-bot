@@ -75,9 +75,9 @@ def test_strip_punct_on_cmd_word() -> None:
 
 
 def test_midline_strip_punct_on_short_arg() -> None:
-    r = tokenize("go !servo 45.")
-    assert r.ok and r.cmd == "!servo"
-    assert r.args == "45"
+    r = tokenize("go !clear.")
+    assert r.ok and r.cmd == "!clear"
+    assert r.args == ""
 
 
 def test_unknown_bang_still_tokenizes() -> None:

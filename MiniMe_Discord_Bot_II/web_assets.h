@@ -10,9 +10,9 @@ html{color-scheme:dark}
 html[data-theme="light"]{color-scheme:light;--k9-space:#dde2ea;--k9-panel:#f3f5f8;--k9-panel-hover:#e8ecf2;--k9-card:#ffffff;--k9-text:#0f172a;--k9-muted:#334155;--k9-orange:#9a3412;--k9-cyan:#005f73;--k9-border:#8b95a5;--k9-green:#14532d;--box-head:#e8ecf2;--row-line:#c5ced9;--bar-track:#ffffff;--msg-border:#94a3b8}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--k9-mono);font-size:14px}
-main{max-width:56rem;margin:0 auto;padding:1rem}
-.top{margin:0 0 1rem;display:flex;flex-direction:column;align-items:center;gap:.45rem}
-.top-row{display:flex;align-items:center;justify-content:center;gap:.75rem;width:100%;position:relative;padding-top:1rem;padding-bottom:1.15rem}
+main{max-width:56rem;margin:0 auto;padding:1rem;display:flex;flex-direction:column;min-height:100dvh;min-height:100vh}
+.top{margin:0;display:contents}
+.top-row{order:1;display:flex;align-items:center;justify-content:center;gap:.75rem;width:100%;position:relative;padding-top:1rem;padding-bottom:1.15rem;flex:0 0 auto}
 .theme-chip-trigger{display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;margin:0;padding:0;border:none;background:transparent;cursor:pointer;line-height:0;-webkit-tap-highlight-color:transparent;flex:0 0 auto;align-self:center}
 .theme-chip-trigger .menu-chip-icon{width:2.75rem;height:2.75rem;display:block;flex-shrink:0}
 .theme-chip-trigger .menu-chip-label{position:absolute;top:calc(100% + .08rem);left:50%;transform:translateX(-50%);display:inline-flex;flex-direction:row;align-items:center;justify-content:center;gap:.22em;font-family:var(--k9-ui);font-size:.58rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--k9-muted);line-height:1;white-space:nowrap}
@@ -25,9 +25,9 @@ main{max-width:56rem;margin:0 auto;padding:1rem}
 .brand{display:inline-block;text-align:center;flex:0 1 auto;line-height:0}
 .brand a.logo-link{display:inline-block;line-height:0}
 .brand .logo{width:min(100%,18rem);height:auto;display:block;margin:0 auto}
-.top .sub{margin:0;font-size:.78rem;letter-spacing:.06em;color:var(--muted);text-transform:none;text-align:center}
+.top .sub{order:3;margin:auto 0 .75rem;padding-top:.75rem;font-size:.78rem;letter-spacing:.06em;color:var(--muted);text-transform:none;text-align:center;flex:0 0 auto}
 /* Match LCD pages: Display = metrics|users; Log = LOG|Serial; Controls = sliders|toggles. */
-.layout{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"metrics users";grid-template-rows:26rem;gap:.75rem;align-items:stretch;height:26rem;min-height:26rem;max-height:26rem}
+.layout{order:2;display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"metrics users";grid-template-rows:26rem;gap:.75rem;align-items:stretch;height:26rem;min-height:26rem;max-height:26rem;flex:0 0 auto}
 html[data-layout="log"] .layout{grid-template-areas:"logfile serial"}
 html[data-layout="controls"] .layout{grid-template-areas:"ctrl-sliders ctrl-toggles"}
 html[data-layout="log"] #box-metrics,html[data-layout="log"] #box-users,html[data-layout="log"] #box-ctrl-sliders,html[data-layout="log"] #box-ctrl-toggles{display:none}
@@ -57,6 +57,8 @@ html[data-layout="controls"] #box-ctrl-sliders,html[data-layout="controls"] #box
 .sysrows{margin:.35rem 0 0;padding-top:.3rem;border-top:1px solid var(--line);display:grid;grid-template-columns:3.6rem minmax(0,1fr);gap:.08rem .35rem;width:100%;max-width:100%;min-width:0}
 .sysrows .k{color:var(--label);font-size:.72rem;white-space:nowrap;overflow:hidden}
 .sysrows .v{font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;word-break:normal}
+.sysrows .v.ip-flash{color:#ff2020;animation:ipSdFlash 4s steps(1,end) infinite}
+@keyframes ipSdFlash{0%,49.999%{color:#ff2020;opacity:1}50%,100%{color:#ff2020;opacity:0}}
 .users{padding:.4rem .5rem;flex:1;min-height:0;overflow:hidden}
 .urole{display:grid;grid-template-columns:minmax(0,1fr) 4rem 3.2rem;gap:.25rem;font-size:.72rem;color:var(--muted);margin:0 0 .15rem;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
 .urow{display:grid;grid-template-columns:minmax(0,1fr) 4rem 3.2rem;gap:.25rem;padding:.08rem 0;border-bottom:1px solid var(--row-line);font-size:.82rem;line-height:1.1;min-width:0}
@@ -90,15 +92,19 @@ html[data-layout="controls"] #box-ctrl-sliders,html[data-layout="controls"] #box
 .dog-btn .dog-lab{font-family:var(--k9-mono);font-size:.85rem;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted);line-height:1}
 .dog-btn:focus{outline:none}
 .dog-btn:focus-visible{outline:2px solid var(--k9-cyan);outline-offset:3px}
+.auth-gate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.72);padding:1rem}
+.auth-gate[hidden]{display:none!important}
+.auth-card{width:min(100%,18rem);padding:1rem 1.1rem;border:1px solid var(--line);border-radius:.45rem;background:var(--panel);display:flex;flex-direction:column;gap:.55rem}
+.auth-card h2{margin:0;font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.auth-card p{margin:0;font-size:.78rem;color:var(--muted);line-height:1.35}
+.auth-card input{width:100%;padding:.45rem .55rem;border:1px solid var(--line);border-radius:.25rem;background:var(--bar-track);color:var(--text);font:inherit;box-sizing:border-box}
+.auth-card button{margin:0;padding:.45rem .7rem;border:1px solid var(--cyan);border-radius:.25rem;background:transparent;color:var(--cyan);font:inherit;cursor:pointer}
+.auth-card .auth-err{color:var(--bad);font-size:.78rem;min-height:1em}
 @media (max-width:720px){
 .layout{grid-template-columns:1fr;grid-template-areas:"metrics" "users";grid-template-rows:none;height:auto;min-height:0;max-height:none}
 html[data-layout="log"] .layout{grid-template-areas:"logfile" "serial"}
 html[data-layout="controls"] .layout{grid-template-areas:"ctrl-sliders" "ctrl-toggles"}
-main{display:flex;flex-direction:column;min-height:100dvh;min-height:100vh}
-.top{display:contents}
-.top-row{order:1;flex-wrap:nowrap;justify-content:center;align-items:center;gap:.4rem;width:100%;padding-bottom:1rem}
-.layout{order:2}
-.top .sub{order:3;margin:auto 0 .75rem;padding-top:.75rem}
+.top-row{flex-wrap:nowrap;justify-content:center;align-items:center;gap:.4rem;width:100%;padding-bottom:1rem}
 .brand{flex:0 1 auto;min-width:0}
 .brand .logo{width:auto;max-width:14.7rem;height:auto;display:block;margin:0 auto}
 .theme-chip-trigger{flex:0 0 auto}
@@ -121,10 +127,23 @@ else document.documentElement.removeAttribute('data-layout');}catch(e){}})();
 )JS";
 
 static const char WEB_UI_JS[] PROGMEM = R"JS(
-var THEME_KEY='k9-theme';var LAYOUT_KEY='mm-layout';
+var THEME_KEY='k9-theme';var LAYOUT_KEY='mm-layout';var AUTH_KEY='mm-web-token';
 var ctrlBusy=false;var lastCtrl={};
 var LAYOUT_ORDER=['display','log','controls'];
 var ctrlBtnLeave=false;
+function authToken(){try{return localStorage.getItem(AUTH_KEY)||'';}catch(e){return '';}}
+function setAuthToken(t){try{if(t)localStorage.setItem(AUTH_KEY,t);else localStorage.removeItem(AUTH_KEY);}catch(e){}}
+function authHeaders(extra){
+var h=extra?Object.assign({},extra):{};
+var t=authToken();
+if(t)h['X-MiniMe-Token']=t;
+return h;}
+function showAuthGate(show,msg){
+var g=document.getElementById('auth-gate');
+var er=document.getElementById('auth-err');
+if(er)er.textContent=msg||'';
+if(g){if(show)g.removeAttribute('hidden');else g.setAttribute('hidden','');}
+}
 function themeNow(){return document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';}
 function layoutNow(){var L=document.documentElement.getAttribute('data-layout');return L==='log'||L==='controls'?L:'display';}
 function chipSrc(){return themeNow()==='light'?'/chip-bright.svg':'/chip.svg';}
@@ -224,12 +243,13 @@ if(j){lastCtrl={bright:j.bright,vol:j.vol,notify:j.notify,ticks:j.ticks,sound:j.
 function esc(s){return String(s==null||s===undefined?'':s).replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));}
 function bar(pct){pct=Math.max(0,Math.min(100,+pct||0));return '<span class="bar"><i style="width:'+pct+'%"></i></span>';}
 function mline(lab,n,pct){return '<div class="mline"><span class="k">'+lab+'</span><span class="n">'+n+'</span>'+bar(pct)+'</div>';}
-function srow(k,v){return '<span class="k">'+esc(k)+'</span><span class="v">'+v+'</span>';}
+function srow(k,v,cls){return '<span class="k">'+esc(k)+'</span><span class="v'+(cls?(' '+cls):'')+'">'+v+'</span>';}
 function linesHtml(lines){
 var a=(lines||[]).filter(function(l){return !!l;});
 if(!a.length)return '<div class="empty">Waiting...</div>';
 return a.map(function(l){return '<div>'+esc(l)+'</div>';}).join('');}
 function fmtK(n){n=+n||0;return Math.floor(n/1024)+'K';}
+function fmtM(n){n=+n||0;return Math.floor(n)+'M';}
 function setTog(id,on){var b=document.getElementById(id);if(!b)return;
 b.setAttribute('aria-pressed',on?'true':'false');
 var st=b.querySelector('.st');if(st)st.textContent=on?'ON':'off';}
@@ -255,7 +275,8 @@ setTog('ctrl-notify',!!j.notify);setTog('ctrl-ticks',!!j.ticks);setTog('ctrl-sou
 async function postControls(params){
 ctrlBusy=true;
 var out=null;
-try{var r=await fetch('/api/controls',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:params});
+try{var r=await fetch('/api/controls',{method:'POST',headers:authHeaders({'Content-Type':'application/x-www-form-urlencoded'}),body:params});
+if(r.status===401){setAuthToken('');showAuthGate(true,'Login required');ctrlBusy=false;return null;}
 out=await r.json();}
 catch(e){}
 ctrlBusy=false;return out;}
@@ -294,7 +315,7 @@ if(metrics)metrics.innerHTML=
 mline('Sig',esc(j.rssi)+' dBm',j.sigPct)+
 (j.psramTotal?mline('PSRAM',fmtK(j.psramFree),j.psramPct):'')+
 mline('SRAM',fmtK(j.heapFree),j.heapPct)+
-mline('Srv',esc(j.servo)+'\u00b0',j.srvPct)+
+mline('SD',j.sdOk?fmtM(j.sdFreeMb):'--',j.sdOk?j.sdPct:0)+
 '<div class="metric" style="color:var(--cyan)">Up '+esc(j.uptime)+'  T '+temp+'</div>'+
 '<div class="metric"><span class="'+idC+'">Id:'+(j.identified?'yes':'no')+'</span></div>'+
 '<div class="metric">Users:'+esc(j.usersActive)+'/'+esc(j.usersMax)+'</div>'+
@@ -302,7 +323,7 @@ mline('Srv',esc(j.servo)+'\u00b0',j.srvPct)+
 '<div class="metric"><span class="'+httpsC+'">HTTPS:'+(j.httpsBusy?'busy':'idle')+'</span></div>'+
 '<div class="metric"><span class="k">Event:</span> '+esc(j.lastEvent||'-')+'</div>'+
 '<div class="sysrows">'+
-srow('IP',esc(j.ip))+srow('OTA',esc(j.ota))+srow('Ver',esc(j.ver))+srow('CPU',esc(j.cpuMhz)+' MHz')+
+srow('IP',esc(j.ip),j.sdOk?'':'ip-flash')+srow('OTA',esc(j.ota))+srow('Ver',esc(j.ver))+srow('CPU',esc(j.cpuMhz)+' MHz')+
 srow('Write',esc(j.dashFlushMs)+' / '+esc(j.dashDrawMs)+' ms')+
 srow('Period',esc(j.dashRefreshMs)+' ms')+srow('LCD',esc(j.lcd))+
 '</div>'+msg;
@@ -318,10 +339,28 @@ if(lf){lf.innerHTML=linesHtml(fl);lf.scrollTop=lf.scrollHeight;}
 if(sf){sf.innerHTML=linesHtml(ser);sf.scrollTop=sf.scrollHeight;}
 document.getElementById('err').hidden=true;}
 async function tick(){var e=document.getElementById('err');var j;try{
-var r=await fetch('/api/status?t='+Date.now());var t=await r.text();
+var r=await fetch('/api/status?t='+Date.now(),{headers:authHeaders()});var t=await r.text();
+if(r.status===401){showAuthGate(true,'');e.hidden=true;return;}
 if(!r.ok){e.textContent='status HTTP '+r.status;e.hidden=false;return;}
+showAuthGate(false);
 j=JSON.parse(t);}catch(ex){e.textContent='status: '+(ex&&ex.message?ex.message:ex);e.hidden=false;return;}
 try{render(j);}catch(ex){e.textContent='render: '+(ex&&ex.message?ex.message:ex);e.hidden=false;}}
+var af=document.getElementById('auth-form');
+if(af)af.addEventListener('submit',function(ev){
+ev.preventDefault();
+var p=document.getElementById('auth-pass');
+var pass=p?p.value:'';
+var er=document.getElementById('auth-err');
+fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'pass='+encodeURIComponent(pass)})
+.then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+.then(function(x){
+if(!x.ok||!x.j||!x.j.ok){if(er)er.textContent='Wrong password';return;}
+setAuthToken(x.j.token||'');
+showAuthGate(false);
+if(p)p.value='';
+tick();
+}).catch(function(){if(er)er.textContent='Login failed';});
+});
 tick();setInterval(tick,typeof POLL_MS==='number'?POLL_MS:2000);
 )JS";
 

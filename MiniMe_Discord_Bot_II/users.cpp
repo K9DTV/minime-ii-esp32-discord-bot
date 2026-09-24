@@ -122,7 +122,7 @@ void recordUserUse(const String& userId, const String& userName) {
     copyTruncField(trackedUsers[idx].userName, sizeof(trackedUsers[idx].userName),
                    userName.c_str());
   }
-  // Do not force status=On — Discord PRESENCE_UPDATE owns Online/Idle/DND/Off.
+  // Do not force status=On -- Discord PRESENCE_UPDATE owns Online/Idle/DND/Off.
   trackedUsers[idx].useCount24h++;
   noteDisplayActivity();
 }

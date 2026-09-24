@@ -11,9 +11,120 @@ ROOT = Path(__file__).resolve().parents[1]
 SKETCH = ROOT / "MiniMe_Discord_Bot_II"
 fails: list[str] = []
 
+# Full ASCII required (README/docs mojibake prevention).
+ASCII_ONLY_SUFFIXES = frozenset(
+    {
+        ".md",
+        ".txt",
+        ".yml",
+        ".yaml",
+        ".html",
+        ".css",
+        ".csv",
+        ".json",
+        ".ps1",
+        ".toml",
+        ".ini",
+        ".cfg",
+    }
+)
+ASCII_ONLY_NAMES = frozenset({"VERSION", "LICENSE", "CHANGELOG", "README", "Dockerfile"})
+
+# Source / tooling: ban punctuation that commonly mojibakes; allow Discord emoji etc.
+MOJIBAKE_CODEPOINTS = frozenset(
+    {
+        0x00A0,  # nbsp
+        0x00B7,  # middle dot (Display  -  v)
+        0x00D7,  # multiply sign
+        0x2011,  # non-breaking hyphen (Wi-Fi)
+        0x2013,  # en dash
+        0x2014,  # em dash
+        0x2018,  # '
+        0x2019,  # '
+        0x201C,  # "
+        0x201D,  # "
+        0x2022,  # bullet
+        0x2026,  # ...
+        0x2192,  # ->
+        0x2260,  # !=
+        0x2264,  # <=
+        0x2265,  # >=
+    }
+)
+SOURCE_SUFFIXES = frozenset(
+    {".h", ".hpp", ".c", ".cpp", ".ino", ".py", ".svg", ".js", ".cmake", ".example"}
+)
+
 
 def fail(msg: str) -> None:
     fails.append(msg)
+
+
+def is_ascii_only_path(rel: str) -> bool:
+    name = Path(rel).name
+    if name in ASCII_ONLY_NAMES:
+        return True
+    return Path(rel).suffix.lower() in ASCII_ONLY_SUFFIXES
+
+
+def is_source_path(rel: str) -> bool:
+    name = Path(rel).name
+    if name.endswith(".example") or name.endswith(".example.h"):
+        return True
+    return Path(rel).suffix.lower() in SOURCE_SUFFIXES
+
+
+def describe_offenders(text: str, pred) -> list[str]:
+    out: list[str] = []
+    for i, ch in enumerate(text):
+        if pred(ord(ch)):
+            out.append(f"U+{ord(ch):04X}@{i}")
+            if len(out) >= 5:
+                break
+    return out
+
+
+def check_text_encoding(tracked_paths: list[str]) -> None:
+    bad: list[str] = []
+    for rel in tracked_paths:
+        path = ROOT / rel
+        if not path.is_file():
+            continue
+        ascii_only = is_ascii_only_path(rel)
+        source = is_source_path(rel)
+        if not ascii_only and not source:
+            continue
+        try:
+            data = path.read_bytes()
+        except OSError as e:
+            fail(f"encoding check: cannot read {rel}: {e}")
+            continue
+        if not data:
+            continue
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError as e:
+            bad.append(f"{rel}: not valid UTF-8 ({e})")
+            continue
+        if ascii_only:
+            offenders = describe_offenders(text, lambda o: o > 127)
+            if offenders:
+                bad.append(f"{rel}: non-ASCII ({', '.join(offenders)})")
+        else:
+            offenders = describe_offenders(text, lambda o: o in MOJIBAKE_CODEPOINTS)
+            if offenders:
+                bad.append(f"{rel}: mojibake punctuation ({', '.join(offenders)})")
+    if bad:
+        show = bad[:40]
+        more = len(bad) - len(show)
+        msg = (
+            "encoding: docs/config must be ASCII; "
+            "source must not use em-dash/smart-quotes/arrows/etc.: "
+            + "; ".join(show)
+        )
+        if more > 0:
+            msg += f"; ...and {more} more"
+        fail(msg)
 
 
 def main() -> int:
@@ -56,8 +167,7 @@ def main() -> int:
     if "secrets.h" not in gitignore:
         fail(".gitignore must ignore secrets.h")
 
-    # Real secrets may exist locally; must never be committed anywhere in the tree.
-    # secrets.example.h is the only allowed tracked secrets*.h template.
+    tracked_paths: list[str] = []
     try:
         listed = subprocess.check_output(
             ["git", "ls-files", "-z"],
@@ -77,6 +187,59 @@ def main() -> int:
             fail("secrets file(s) tracked by git (must not commit): " + ", ".join(bad_secrets))
     except (OSError, subprocess.CalledProcessError):
         pass
+
+    if tracked_paths:
+        check_text_encoding(tracked_paths)
+        # Also scan untracked text under the tree (new docs before first commit).
+        walk: list[str] = []
+        for pat in (
+            "**/*.md",
+            "**/*.txt",
+            "**/*.py",
+            "**/*.yml",
+            "**/*.yaml",
+            "**/*.h",
+            "**/*.cpp",
+            "**/*.ino",
+            "**/*.html",
+            "**/*.css",
+            "**/*.js",
+            "**/*.svg",
+            "**/*.ps1",
+            "**/*.csv",
+            "**/*.json",
+        ):
+            for p in ROOT.glob(pat):
+                if ".git" in p.parts or "__pycache__" in p.parts or ".pytest_cache" in p.parts:
+                    continue
+                walk.append(str(p.relative_to(ROOT)).replace("\\", "/"))
+        extra = [r for r in sorted(set(walk)) if r not in set(tracked_paths)]
+        if extra:
+            check_text_encoding(extra)
+    else:
+        walk: list[str] = []
+        for pat in (
+            "**/*.md",
+            "**/*.txt",
+            "**/*.py",
+            "**/*.yml",
+            "**/*.yaml",
+            "**/*.h",
+            "**/*.cpp",
+            "**/*.ino",
+            "**/*.html",
+            "**/*.css",
+            "**/*.js",
+            "**/*.svg",
+            "**/*.ps1",
+            "**/*.csv",
+            "**/*.json",
+        ):
+            for p in ROOT.glob(pat):
+                if ".git" in p.parts or "__pycache__" in p.parts or ".pytest_cache" in p.parts:
+                    continue
+                walk.append(str(p.relative_to(ROOT)).replace("\\", "/"))
+        check_text_encoding(sorted(set(walk)))
 
     forbidden = ("StaticJsonDocument", "DynamicJsonDocument", "BasicJsonDocument")
     for path in list(SKETCH.glob("*.cpp")) + list(SKETCH.glob("*.h")) + list(SKETCH.glob("*.ino")):

@@ -1,7 +1,7 @@
 #ifndef K9DTV_LOGO_SPIN_BRIGHT_SVG_H
 #define K9DTV_LOGO_SPIN_BRIGHT_SVG_H
 
-// From k9dtv.com assets/k9dtv-logo-k9-spin-bright.svg — Controls page brand (web).
+// From k9dtv.com assets/k9dtv-logo-k9-spin-bright.svg -- Controls page brand (web).
 static const char K9DTV_LOGO_SPIN_BRIGHT_SVG[] PROGMEM = R"SVG(<svg xmlns="http://www.w3.org/2000/svg" viewBox="127 50 343 107" width="343" height="107" role="img" aria-label="K9DTV">
   <rect x="127" y="50" width="343" height="107" fill="none"/>
   <rect x="145.49" y="58" width="316.51" height="91" rx="10" fill="#ffffff" stroke="#0e8499" stroke-width="2"/>

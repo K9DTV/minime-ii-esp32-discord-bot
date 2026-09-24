@@ -15,7 +15,7 @@
 static void dashFields(char* timeStr, size_t timeLen,
                        char* dateStr, size_t dateLen,
                        char* upStr, size_t upLen,
-                       int& sigPct, int& heapPct, int& srvPct,
+                       int& sigPct, int& heapPct, int& sdPct,
                        long& rssi, uint32_t& memFree, uint32_t& memTotal,
                        char* msg1, size_t msg1Len,
                        char* msg2, size_t msg2Len) {
@@ -24,7 +24,7 @@ static void dashFields(char* timeStr, size_t timeLen,
   formatLocalDateStr(dateStr, dateLen);
   formatUptimeStr(upStr, upLen);
 
-  // Percents from LCD bar fills (dashSigBarW / dashHeapBarW / dashSrvBarW).
+  // Percents from LCD bar fills (dashSigBarW / dashHeapBarW).
   rssi = WiFi.RSSI();
   sigPct = dashBarPct(dashSigBarW(rssi), DASH_SIG_HEAP_BAR_MAX);
 
@@ -32,7 +32,15 @@ static void dashFields(char* timeStr, size_t timeLen,
   memTotal = 0;
   boardMemTotals(memFree, memTotal);
   heapPct = dashBarPct(dashHeapBarW(memFree, memTotal), DASH_SIG_HEAP_BAR_MAX);
-  srvPct = dashBarPct(dashSrvBarW(lastServoDeg), DASH_SRV_BAR_MAX);
+  {
+    uint32_t sdFree = 0, sdTotal = 0;
+    if (sdCardPresent()) {
+      boardSdTotalsMb(sdFree, sdTotal);
+      sdPct = dashBarPct(dashHeapBarW(sdFree, sdTotal), DASH_SIG_HEAP_BAR_MAX);
+    } else {
+      sdPct = 0;
+    }
+  }
 
   if (msg1 && msg1Len) {
     uiOverlayCopyEvent(msg1, msg1Len);
@@ -141,7 +149,7 @@ static void streamRootHtml(Print& out) {
   printBrand(out);
 
   out.print(F("<div class=\"layout\">"));
-  out.print(F("<section class=\"box\" id=\"box-metrics\"><h2>Display · v"));
+  out.print(F("<section class=\"box\" id=\"box-metrics\"><h2>Display  -  v"));
   out.print(MINIME_VERSION);
   out.print(F("</h2>"));
   out.print(F("<div id=\"metrics\" class=\"dash muted\">Loading...</div></section>"));
@@ -180,6 +188,14 @@ static void streamRootHtml(Print& out) {
   out.print(F("<span class=\"dog-lab\">Save</span></button>"));
   out.print(F("</div></section>"));
   out.print(F("<div id=\"err\" class=\"err\" hidden></div>"));
+  out.print(F("<div id=\"auth-gate\" class=\"auth-gate\" hidden>"));
+  out.print(F("<form class=\"auth-card\" id=\"auth-form\" autocomplete=\"on\">"));
+  out.print(F("<h2>LAN login</h2>"));
+  out.print(F("<p>Enter the web password from secrets.h (<code>WEB_UI_PASSWORD</code>).</p>"));
+  out.print(F("<input id=\"auth-pass\" type=\"password\" name=\"password\" autocomplete=\"current-password\" placeholder=\"Password\" required>"));
+  out.print(F("<button type=\"submit\">Unlock</button>"));
+  out.print(F("<div class=\"auth-err\" id=\"auth-err\"></div>"));
+  out.print(F("</form></div>"));
   out.print(F("</div></main><script>var POLL_MS="));
   char pollBuf[16];
   snprintf(pollBuf, sizeof(pollBuf), "%lu", (unsigned long)WEB_STATUS_POLL_MS);
@@ -187,16 +203,6 @@ static void streamRootHtml(Print& out) {
   out.print(F(";</script><script src=\"/ui.js?v="));
   out.print(MINIME_VERSION);
   out.print(F("\"></script></body></html>"));
-}
-
-template <size_t N>
-static void appendRingToJsonArray(JsonArray arr, const char (&lines)[N][WEB_LOG_COLS + 1],
-                                  uint8_t head, uint8_t count) {
-  uint8_t start = (uint8_t)((head + N - count) % N);
-  for (uint8_t i = 0; i < count; i++) {
-    uint8_t idx = (uint8_t)((start + i) % N);
-    arr.add(lines[idx]);
-  }
 }
 
 static int roundTempHalfAway(float v) {
@@ -218,6 +224,10 @@ void webUiHandleRoot() {
 
 void webUiHandleStatus() {
   webUiSendNoCacheHeaders();
+  if (!webUiAuthOk()) {
+    webUiSendUnauthorized();
+    return;
+  }
   if (!statusDoc) {
     webServer.send(500, "application/json", "{\"err\":\"statusDoc\"}");
     return;
@@ -225,11 +235,11 @@ void webUiHandleStatus() {
 
   // Stack buffers must stay live until serializeJson finishes (AJ7 may store const char* by ptr).
   char timeStr[12], dateStr[24], upStr[28], msg1[40], msg2[128], ipBuf[16], eventBuf[UI_EVENT_COLS];
-  int sigPct = 0, heapPct = 0, srvPct = 0;
+  int sigPct = 0, heapPct = 0, sdPct = 0;
   long rssi = 0;
   uint32_t memFree = 0, memTotal = 0;
   dashFields(timeStr, sizeof(timeStr), dateStr, sizeof(dateStr), upStr, sizeof(upStr),
-             sigPct, heapPct, srvPct, rssi, memFree, memTotal,
+             sigPct, heapPct, sdPct, rssi, memFree, memTotal,
              msg1, sizeof(msg1), msg2, sizeof(msg2));
   uiOverlayCopyEvent(eventBuf, sizeof(eventBuf));
 
@@ -264,8 +274,15 @@ void webUiHandleStatus() {
       : 0;
   }
   doc["cpuMhz"] = (unsigned)getCpuFrequencyMhz();
-  doc["servo"] = lastServoDeg;
-  doc["srvPct"] = srvPct;
+  {
+    const bool sdOk = sdCardPresent();
+    uint32_t sdFree = 0, sdTotal = 0;
+    if (sdOk) boardSdTotalsMb(sdFree, sdTotal);
+    doc["sdOk"] = sdOk;
+    doc["sdFreeMb"] = sdFree;
+    doc["sdTotalMb"] = sdTotal;
+    doc["sdPct"] = sdPct;
+  }
   {
     IPAddress ip = WiFi.localIP();
     snprintf(ipBuf, sizeof(ipBuf), "%u.%u.%u.%u",
@@ -316,9 +333,27 @@ void webUiHandleStatus() {
   doc["usersMax"] = MAX_TRACKED_USERS;
 
   JsonArray fulllog = doc["fulllog"].to<JsonArray>();
-  appendRingToJsonArray(fulllog, webFullLines, webFullHead, webFullCount);
+  {
+    // Oldest-first (same order as the old ring walk). Accessors are newest-first.
+    // lineBuf is char[] so AJ7 copies into the doc (const char* would dangle).
+    const uint8_t nFull = lcdFullLogCount();
+    char lineBuf[WEB_LOG_COLS + 1];
+    for (uint8_t i = nFull; i > 0; i--) {
+      if (lcdFullLogNewest((uint8_t)(i - 1), lineBuf, sizeof(lineBuf))) {
+        fulllog.add(lineBuf);
+      }
+    }
+  }
   JsonArray serialArr = doc["serial"].to<JsonArray>();
-  appendRingToJsonArray(serialArr, webSerialLines, webSerialHead, webSerialCount);
+  {
+    const uint8_t nSerial = lcdSerialCount();
+    char lineBuf[WEB_LOG_COLS + 1];
+    for (uint8_t i = nSerial; i > 0; i--) {
+      if (lcdSerialNewest((uint8_t)(i - 1), lineBuf, sizeof(lineBuf))) {
+        serialArr.add(lineBuf);
+      }
+    }
+  }
 
   size_t need = measureJson(doc);
   if (need == 0 || need >= STATUS_DOC_BYTES) {

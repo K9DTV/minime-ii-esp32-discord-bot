@@ -34,7 +34,7 @@ enum {
   PANEL_RIGHT_X = 242, // PANEL_LEFT_X + PANEL_LEFT_W + PANEL_GAP
   PANEL_RIGHT_W = 234,
   PANEL_BOTTOM_Y_FULL = 318, // bottom of both panels
-  // Controls dogs live inside each panel (Cancel=left, Save=right) — no strip below
+  // Controls dogs live inside each panel (Cancel=left, Save=right) -- no strip below
   FOOTER_H = 0,
   PANEL_BOTTOM_Y_CTRL = 318, // same as FULL (legacy name)
   PANEL_CORNER_R = 4,

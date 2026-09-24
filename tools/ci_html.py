@@ -81,6 +81,8 @@ def main() -> int:
             "layout-toggle",
             "/api/status",
             "postControlsDebounced",
+            "AUTH_KEY",
+            "/api/login",
         ):
             if needle not in app_js:
                 fail(f"WEB_UI_JS missing {needle}")
@@ -99,13 +101,14 @@ def main() -> int:
             "brand-logo",
             "WEB_UI_CSS",
             "WEB_UI_JS",
+            "auth-gate",
         ):
             if needle not in rt:
                 fail(f"web_render.cpp missing {needle}")
 
     if ui.is_file():
         ut = ui.read_text(encoding="utf-8", errors="replace")
-        for needle in ("setupWebUi", "pumpWebUi", "/api/controls", "webUiHandleRoot"):
+        for needle in ("setupWebUi", "pumpWebUi", "/api/controls", "webUiHandleRoot", "/api/login"):
             if needle not in ut:
                 fail(f"web_ui.cpp missing {needle}")
 
@@ -116,7 +119,7 @@ def main() -> int:
             continue
         t = p.read_text(encoding="utf-8", errors="replace")
         if 'R"SVG(' not in t or "<svg" not in t.lower():
-            fail(f"{name}: expected R\"SVG(…)<svg…")
+            fail(f"{name}: expected R\"SVG(...)<svg...")
 
     if fails:
         print("ci_html FAILED:")

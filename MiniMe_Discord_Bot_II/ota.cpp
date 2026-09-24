@@ -74,12 +74,12 @@ void pumpOta() {
 
 String otaStatusText() {
   String s = "**MiniMe Wi-Fi OTA**\n";
-  s += "• **IP:** `";
+  s += "- **IP:** `";
   s += WiFi.localIP().toString();
   s += "`\n";
-  s += "• **Hostname:** `";
+  s += "- **Hostname:** `";
   s += OTA_HOSTNAME;
   s += ".local`\n";
-  s += "• **Port:** 3232 (ArduinoOTA)";
+  s += "- **Port:** 3232 (ArduinoOTA)";
   return s;
 }

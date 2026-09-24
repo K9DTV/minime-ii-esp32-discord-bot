@@ -31,7 +31,9 @@ struct DashSnap {
   long rssi;
   uint32_t memFree, memTotal;
   uint32_t psFree, psTotal; // 0/0 if no PSRAM
-  int servoDeg;
+  bool sdPresent;
+  uint32_t sdFreeMb, sdTotalMb; // 0/0 if no card
+  bool ipFlashOn; // no-SD: 2 s on / 2 s off bright-red IP (dirty redraw)
   int tempC10; // -9990 = error
   bool identified;
   uint8_t nActive;

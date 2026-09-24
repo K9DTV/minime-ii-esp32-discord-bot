@@ -39,7 +39,7 @@ bool isPacificDaylightTime(unsigned long utcEpoch) {
 }
 
 void updateLocalTime() {
-  // NTPClient::update() is cheap inside its 60 s interval. DST offset recompute is not —
+  // NTPClient::update() is cheap inside its 60 s interval. DST offset recompute is not --
   // avoid setTimeOffset(0)/re-derive on every 1 Hz captureSnap / web poll.
   static unsigned long lastOffsetMs = 0;
   unsigned long now = millis();

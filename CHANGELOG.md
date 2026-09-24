@@ -1,329 +1,356 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.80** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.86** (see `VERSION` and README).
+
+## 0.7.86
+
+- SD uses dedicated **HSPI (SPI3)** -- never default `SPI`/FSPI. Post-display `SPI.begin()` was remuxing the AXS15231B QSPI host (SD read -> IP red -> crash / wrong colors). Confirm `Display  -  v0.7.86`.
+
+## 0.7.85
+
+- LOG/Serial JSON uses `lcdFullLogNewest` / `lcdSerialNewest` accessors only; ring arrays + head/count are private to `web_ui.cpp` (no `appendRingToJsonArray`). Confirm `Display - v0.7.85`.
+
+## 0.7.84
+
+- Boot loads credentials from SD **`/secrets.h`** (`#define NAME "value"` lines) into runtime buffers; compile-time `secrets.h` is the seed/fallback. Confirm `Display - v0.7.84` and LOG `Secrets: loaded N keys from SD`.
+
+## 0.7.83
+
+- No-SD **IP** flash timing: **2 s on / 2 s off** (was 250 ms). LCD + web. Confirm `Display  -  v0.7.83`.
+
+## 0.7.82
+
+- Removed servo (`!servo`, GPIO 17 LEDC, `Srv` meter). DS18B20 moved to rear **4-pin GPIO 18**.
+- SD SPI slot (CS 10 / MOSI 11 / SCK 12 / MISO 13): free space **MB** bar replaces Srv on LCD + web (same free/total fill idea as SRAM). Credential file on the card is named **`secrets.h`** (boot still uses compile-time `secrets.h` until SD load lands).
+- No SD card: **IP** line flashes bright red (timing corrected in 0.7.83). Confirm `Display  -  v0.7.82` then reflash 0.7.83 for flash rate.
+
+## 0.7.81
+
+- Optional LAN web auth: set `WEB_UI_PASSWORD` in `secrets.h` to gate `/api/status` + `/api/controls` (login overlay + session token). Empty password = open (unchanged). Confirm `Display  -  v0.7.81`.
+- Cancel dog ticks on press (not only on release). Confirm with Controls Cancel tap.
 
 ## 0.7.80
 
-- File split (under ~400 lines): `web_ui` routing vs `web_render`; `discord_http` body reader vs `discord_rest` lifecycle; `board_info` for !sys helpers. Confirm `Display · v0.7.80`.
+- File split (under ~400 lines): `web_ui` routing vs `web_render`; `discord_http` body reader vs `discord_rest` lifecycle; `board_info` for !sys helpers. Confirm `Display  -  v0.7.80`.
 
 ## 0.7.79
 
 - Cold-path heap: `sendDiscordMessage` builds POST via static buffers + JSON escape (no request String); `askDeepSeek` uses fixed body/request/resp buffers + `readHttpBodyAfterHeaders(char*)`.
-- Cancel: `recallSettings` early-outs when Controls are not dirty. Confirm `Display · v0.7.79`.
+- Cancel: `recallSettings` early-outs when Controls are not dirty. Confirm `Display  -  v0.7.79`.
 
 ## 0.7.78
 
-- Factory reset prefs: long-press Cancel (~3 s) or owner `!resetprefs`. Confirm `Display · v0.7.78`.
+- Factory reset prefs: long-press Cancel (~3 s) or owner `!resetprefs`. Confirm `Display  -  v0.7.78`.
 
 ## 0.7.77
 
-- Flash Controls prefs on ESP32-S3 onboard `prefs` partition (dual 4 KB slots, dirty/CRC); Save writes; Cancel recalls; both stay on Controls. Menus label above layout chip. Factory defaults = brightness/volume **100%**, toggles ON. Boot order unchanged from 0.7.76 (Wi-Fi then web then LCD). Confirm `Display · v0.7.77` (USB erase once if partition table is new).
+- Flash Controls prefs on ESP32-S3 onboard `prefs` partition (dual 4 KB slots, dirty/CRC); Save writes; Cancel recalls; both stay on Controls. Menus label above layout chip. Factory defaults = brightness/volume **100%**, toggles ON. Boot order unchanged from 0.7.76 (Wi-Fi then web then LCD). Confirm `Display  -  v0.7.77` (USB erase once if partition table is new).
 
 ## 0.7.76
 
-- Web phone: logo larger (14.7rem); MiniMe-II subtitle moves to bottom of page. Confirm flash via `Display · v0.7.76`.
+- Web phone: logo larger (14.7rem); MiniMe-II subtitle moves to bottom of page. Confirm flash via `Display  -  v0.7.76`.
 
 ## 0.7.75
 
-- Boot/web speed: LCD+LAN start right after Wi-Fi (no 25s Identify gate); mark icons use `draw16bitRGBBitmap` (not per-pixel); mark SVGs load only on Controls; phone logo ~25% larger (9.4rem). Confirm flash via `Display · v0.7.75`.
+- Boot/web speed: LCD+LAN start right after Wi-Fi (no 25s Identify gate); mark icons use `draw16bitRGBBitmap` (not per-pixel); mark SVGs load only on Controls; phone logo ~25% larger (9.4rem). Confirm flash via `Display  -  v0.7.75`.
 
 ## 0.7.74
 
-- Web phone header fix: logo stays **/logo.svg** (no RGB565 on web); drop fixed 343px HTML size so CSS can shrink; chips stay on one row. Confirm flash via `Display · v0.7.74`.
+- Web phone header fix: logo stays **/logo.svg** (no RGB565 on web); drop fixed 343px HTML size so CSS can shrink; chips stay on one row. Confirm flash via `Display  -  v0.7.74`.
 
 ## 0.7.73
 
-- Web phone header: shrink logo so Light/Dark and Display/Log/Controls stay beside it (one row, no wrap). Desktop unchanged. Confirm flash via `Display · v0.7.73`.
+- Web phone header: shrink logo so Light/Dark and Display/Log/Controls stay beside it (one row, no wrap). Desktop unchanged. Confirm flash via `Display  -  v0.7.73`.
 
 ## 0.7.72
 
-- Display web: fixed panel size (no grow); no scrollbars; rows stay on one line with ellipsis (no overflow). Confirm flash via `Display · v0.7.72`.
+- Display web: fixed panel size (no grow); no scrollbars; rows stay on one line with ellipsis (no overflow). Confirm flash via `Display  -  v0.7.72`.
 
 ## 0.7.71
 
-- Web perf: CSS/JS served via `/ui.css` + `/ui.js` (`send_P`, cached) instead of inlining huge PROGMEM into every `/`. Controls still LCD twin + mark SVGs. Confirm flash via `Display · v0.7.71`.
+- Web perf: CSS/JS served via `/ui.css` + `/ui.js` (`send_P`, cached) instead of inlining huge PROGMEM into every `/`. Controls still LCD twin + mark SVGs. Confirm flash via `Display  -  v0.7.71`.
 
 ## 0.7.70
 
-- Web Controls page = scaled LCD twin (cyan titles, track+fill+knob sliders, toggles, Cancel left / Save right). Only diffs: scale + mark SVGs. LCD unchanged. Confirm flash via `Display · v0.7.70`.
+- Web Controls page = scaled LCD twin (cyan titles, track+fill+knob sliders, toggles, Cancel left / Save right). Only diffs: scale + mark SVGs. LCD unchanged. Confirm flash via `Display  -  v0.7.70`.
 
 ## 0.7.69
 
-- Web Controls rolled back to first-intro layout (Brightness/Volume + Sound/Ticks/Notify). LCD Controls/Cancel/Save unchanged. Mark artwork kept. Confirm flash via `Display · v0.7.69`.
+- Web Controls rolled back to first-intro layout (Brightness/Volume + Sound/Ticks/Notify). LCD Controls/Cancel/Save unchanged. Mark artwork kept. Confirm flash via `Display  -  v0.7.69`.
 
 ## 0.7.68
 
-- Web Controls rebuilt to mirror LCD: cyan in-panel titles (no header bar), track+fill+knob sliders, toggles, Cancel flush left / Save flush right. Confirm flash via `Display · v0.7.68`.
+- Web Controls rebuilt to mirror LCD: cyan in-panel titles (no header bar), track+fill+knob sliders, toggles, Cancel flush left / Save flush right. Confirm flash via `Display  -  v0.7.68`.
 
 ## 0.7.67
 
-- Controls: Cancel flush left / Save flush right; web Brightness/Volume match LCD (label + track/fill/knob); parity rule = scaled LCD twin, SVGs only for logos/buttons. Confirm flash via `Display · v0.7.67`.
+- Controls: Cancel flush left / Save flush right; web Brightness/Volume match LCD (label + track/fill/knob); parity rule = scaled LCD twin, SVGs only for logos/buttons. Confirm flash via `Display  -  v0.7.67`.
 
 ## 0.7.66
 
-- Controls: Cancel inside Controls panel, Save inside Toggles (LCD + web); web dogs use mark-icon SVGs. Confirm flash via `Display · v0.7.66`.
+- Controls: Cancel inside Controls panel, Save inside Toggles (LCD + web); web dogs use mark-icon SVGs. Confirm flash via `Display  -  v0.7.66`.
 
 ## 0.7.65
 
-- Rule: LCD formatting is source of truth; web mirrors and scales. Controls dogs: web uses mark-icon SVGs (`/mark-left.svg` / `/mark-right.svg`) at LCD aspect. Confirm flash via `Display · v0.7.65`.
+- Rule: LCD formatting is source of truth; web mirrors and scales. Controls dogs: web uses mark-icon SVGs (`/mark-left.svg` / `/mark-right.svg`) at LCD aspect. Confirm flash via `Display  -  v0.7.65`.
 
 ## 0.7.64
 
-- Controls dogs: no button chrome; Cancel/Save under dog outline; Save K9 centered on dog (LTR). Dropped unused k9_small_* headers + tools temp artifacts. Confirm flash via `Display · v0.7.64`.
+- Controls dogs: no button chrome; Cancel/Save under dog outline; Save K9 centered on dog (LTR). Dropped unused k9_small_* headers + tools temp artifacts. Confirm flash via `Display  -  v0.7.64`.
 
 ## 0.7.63
 
-- Controls Cancel/Save: LCD uses same mark-icon RGB565 as web (left/right; K9 LTR); labels under dog outline, no extra button chrome. Confirm flash via `Display · v0.7.63`.
+- Controls Cancel/Save: LCD uses same mark-icon RGB565 as web (left/right; K9 LTR); labels under dog outline, no extra button chrome. Confirm flash via `Display  -  v0.7.63`.
 
 ## 0.7.62
 
-- Controls: Cancel/Save dogs only on Settings (k9-mark-icon); spin logo on Controls; chip still cycles pages. Confirm flash via `Display · v0.7.62`.
+- Controls: Cancel/Save dogs only on Settings (k9-mark-icon); spin logo on Controls; chip still cycles pages. Confirm flash via `Display  -  v0.7.62`.
 
 ## 0.7.61
 
-- Nav: logo is brand only; right IC cycles **Display / Log / Controls**; bottom K9 dog buttons (k9dtv.com K9-small) prev/next. Confirm flash via `Display · v0.7.61`.
+- Nav: logo is brand only; right IC cycles **Display / Log / Controls**; bottom K9 dog buttons (k9dtv.com K9-small) prev/next. Confirm flash via `Display  -  v0.7.61`.
 
 ## 0.7.60
 
-- Controls polish: Brightness UI **0–100%** (PWM floor **10%**); taller toggles Sound/Ticks/Notify; Home under logo on Controls. Confirm flash via `Display · v0.7.60`.
+- Controls polish: Brightness UI **0-100%** (PWM floor **10%**); taller toggles Sound/Ticks/Notify; Home under logo on Controls. Confirm flash via `Display  -  v0.7.60`.
 
 ## 0.7.59
 
-- Controls page (LCD + web): logo opens; Brightness slider GPIO1 **20–100%**; Volume slider I2S **0–100%**; toggles Notify / Ticks / Sound. Layout chip exits Controls. Confirm flash via `Display · v0.7.59`.
+- Controls page (LCD + web): logo opens; Brightness slider GPIO1 **20-100%**; Volume slider I2S **0-100%**; toggles Notify / Ticks / Sound. Layout chip exits Controls. Confirm flash via `Display  -  v0.7.59`.
 
 ## 0.7.58
 
-- LCD backlight PWM: **5 kHz**, **80%** duty when awake. Confirm flash via `Display · v0.7.58`.
+- LCD backlight PWM: **5 kHz**, **80%** duty when awake. Confirm flash via `Display  -  v0.7.58`.
 
 ## 0.7.57
 
-- LCD backlight: GPIO 1 LEDC PWM **120 Hz**, **50%** duty when awake (0 when asleep). Confirm flash via `Display · v0.7.57`.
+- LCD backlight: GPIO 1 LEDC PWM **120 Hz**, **50%** duty when awake (0 when asleep). Confirm flash via `Display  -  v0.7.57`.
 
 ## 0.7.56
 
-- DM / @mention: two-note I2S **alarm** every **3 s** while sticky flags are set; owner `!clear` stops it (`pollAudioAlerts` on Core 0). Touch stays short ticks. Confirm flash via `Display · v0.7.56`.
+- DM / @mention: two-note I2S **alarm** every **3 s** while sticky flags are set; owner `!clear` stops it (`pollAudioAlerts` on Core 0). Touch stays short ticks. Confirm flash via `Display  -  v0.7.56`.
 
 ## 0.7.55
 
-- Touch UI: short decaying **ticks** (not beeps). Saved louder sustained tone as `audioAlertBeep()` for DM/@mention later (not wired yet). Confirm flash via `Display · v0.7.55`.
+- Touch UI: short decaying **ticks** (not beeps). Saved louder sustained tone as `audioAlertBeep()` for DM/@mention later (not wired yet). Confirm flash via `Display  -  v0.7.55`.
 
 ## 0.7.54
 
-- I2S touch ticks shorter/softer (wake ~22 ms / peak 9k; button ~28 ms / peak 11k). Confirm flash via `Display · v0.7.54`.
+- I2S touch ticks shorter/softer (wake ~22 ms / peak 9k; button ~28 ms / peak 11k). Confirm flash via `Display  -  v0.7.54`.
 
 ## 0.7.53
 
-- Touch ticks retargeted to **on-module I2S speaker** (DOUT **41**, BCLK **42**, LRCLK **2** → NS4168). Dropped GPIO-18 LEDC piezo path. Short enveloped sine clicks (wake vs button). Confirm flash via `Display · v0.7.53`. If still quiet: NS4168 CTRL pull-up hardware note in README.
+- Touch ticks retargeted to **on-module I2S speaker** (DOUT **41**, BCLK **42**, LRCLK **2** -> NS4168). Dropped GPIO-18 LEDC piezo path. Short enveloped sine clicks (wake vs button). Confirm flash via `Display  -  v0.7.53`. If still quiet: NS4168 CTRL pull-up hardware note in README.
 
 ## 0.7.52
 
-- Touch UI ticks (optional piezo on **GPIO 18**): soft lower click on any wake-from-sleep touch; higher confirm click on Light/Dark or Display/Log chip while awake; silent for other awake taps. `audio.cpp` + `PIN_BUZZER`. Confirm flash via `Display · v0.7.52`.
+- Touch UI ticks (optional piezo on **GPIO 18**): soft lower click on any wake-from-sleep touch; higher confirm click on Light/Dark or Display/Log chip while awake; silent for other awake taps. `audio.cpp` + `PIN_BUZZER`. Confirm flash via `Display  -  v0.7.52`.
 
 ## 0.7.51
 
 - Log pairing restored: **LOG left / Serial right** on LCD and web (0.7.50 had them swapped).
-- Display metrics formatting aligned LCD↔web: `Sig` + `dBm`, `Srv` + degree, temp `°F/°C`, PSRAM/SRAM show **remaining free in K** (not raw free/total bytes), fixed bar column like web `.mline`. Confirm flash via `Display · v0.7.51`.
+- Display metrics formatting aligned LCD?web: `Sig` + `dBm`, `Srv` + degree, temp ` degF/ degC`, PSRAM/SRAM show **remaining free in K** (not raw free/total bytes), fixed bar column like web `.mline`. Confirm flash via `Display  -  v0.7.51`.
 
 ## 0.7.50
 
-- LCD/web Display metrics: same field order and labels (add web `Ver`, three-state `GW:Good|Wait|Bad`, Sig/Srv number format match). Users: `MAX_TRACKED_USERS` 24→22; web Users font larger with same row padding; LCD keeps `USER_PITCH=9`. Log layout: Serial left / LOG right on LCD and web; both rings **55** lines (`DASH_LOG_ROWS` / `WEB_*_N`); web Log/Serial panels capped to Display panel height with scrollbars. Confirm flash via `Display · v0.7.50`.
+- LCD/web Display metrics: same field order and labels (add web `Ver`, three-state `GW:Good|Wait|Bad`, Sig/Srv number format match). Users: `MAX_TRACKED_USERS` 24->22; web Users font larger with same row padding; LCD keeps `USER_PITCH=9`. Log layout: Serial left / LOG right on LCD and web; both rings **55** lines (`DASH_LOG_ROWS` / `WEB_*_N`); web Log/Serial panels capped to Display panel height with scrollbars. Confirm flash via `Display  -  v0.7.50`.
 
 ## 0.7.49
 
-- `display_layout.h`: every LCD landscape x/y in one place (chips, panels, rows, chip hit pads) with layout invariants comment — same idea as Gateway reconnect invariants. `display_draw.cpp` / `display_internal.h` consume it. Paint behavior unchanged. Confirm flash via `Display · v0.7.49`.
+- `display_layout.h`: every LCD landscape x/y in one place (chips, panels, rows, chip hit pads) with layout invariants comment -- same idea as Gateway reconnect invariants. `display_draw.cpp` / `display_internal.h` consume it. Paint behavior unchanged. Confirm flash via `Display  -  v0.7.49`.
 
 ## 0.7.48
 
-- Scratch TWDT proof: optional `#define MINIME_TEST_TWDT` enables owner `!hang` (infinite `delay` loop so Core 1 stops feeding the 90 s loop TWDT). Procedure in [`docs/soak-results.md`](docs/soak-results.md). Keep define **off** for normal flashes. Confirm flash via `Display · v0.7.48`.
+- Scratch TWDT proof: optional `#define MINIME_TEST_TWDT` enables owner `!hang` (infinite `delay` loop so Core 1 stops feeding the 90 s loop TWDT). Procedure in [`docs/soak-results.md`](docs/soak-results.md). Keep define **off** for normal flashes. Confirm flash via `Display  -  v0.7.48`.
 
 ## 0.7.47
 
-- Rename `gwArmFastIdentify` -> `gwBeginDropEpisode` (clears session + resets fail count; interval is backoff-owned). Document reconnect state invariants above the climb constants. Confirm flash via `Display · v0.7.47`.
+- Rename `gwArmFastIdentify` -> `gwBeginDropEpisode` (clears session + resets fail count; interval is backoff-owned). Document reconnect state invariants above the climb constants. Confirm flash via `Display  -  v0.7.47`.
 
 ## 0.7.46
 
-- Gateway reconnect climb: after a drop, **3** fast tries (200 ms), then **3 s → 7 s → 12 s**, then +8 s steps capped at **40 s** (was forever-capped at 5 s / sticky 200 ms on wifi-up). Resets on READY/RESUMED. Confirm flash via `Display · v0.7.46`.
+- Gateway reconnect climb: after a drop, **3** fast tries (200 ms), then **3 s -> 7 s -> 12 s**, then +8 s steps capped at **40 s** (was forever-capped at 5 s / sticky 200 ms on wifi-up). Resets on READY/RESUMED. Confirm flash via `Display  -  v0.7.46`.
 
 ## 0.7.45
 
-- CI Python: `tools/test_cmd_tokenize.py` (tokenize / `CMD_CONSUMES_REST`, sync-checked against `commands.cpp`) and `tools/test_body_reader.py` (FakeClient mirror of `readHttpBodyAfterHeaders` — incomplete CL / missing 0-chunk / mid-chunk / cap => false). Host mirrors: `cmd_tokenize.py`, `http_body_reader.py`. Confirm flash via `Display · v0.7.45`.
+- CI Python: `tools/test_cmd_tokenize.py` (tokenize / `CMD_CONSUMES_REST`, sync-checked against `commands.cpp`) and `tools/test_body_reader.py` (FakeClient mirror of `readHttpBodyAfterHeaders` -- incomplete CL / missing 0-chunk / mid-chunk / cap => false). Host mirrors: `cmd_tokenize.py`, `http_body_reader.py`. Confirm flash via `Display  -  v0.7.45`.
 
 ## 0.7.44
 
-- `commands.cpp`: dispatch table (`kCmds`) with `CMD_CONSUMES_REST` / `CMD_OWNER` / `CMD_RECORD_USE` — tokenize mid-line rest rule and owner/record gates share one table; handlers are thin `cmd*` functions. `tokenizeCommand` returns the `CmdEntry*` so dispatch does not re-scan. Behavior unchanged: owner gate still runs before `recordUserUse`; unknown commands still reply + transient without recording; usage errors inside handlers still run after `recordUserUse` for `CMD_RECORD_USE` cmds (same as pre-refactor). Confirm flash via `Display · v0.7.44`.
+- `commands.cpp`: dispatch table (`kCmds`) with `CMD_CONSUMES_REST` / `CMD_OWNER` / `CMD_RECORD_USE` -- tokenize mid-line rest rule and owner/record gates share one table; handlers are thin `cmd*` functions. `tokenizeCommand` returns the `CmdEntry*` so dispatch does not re-scan. Behavior unchanged: owner gate still runs before `recordUserUse`; unknown commands still reply + transient without recording; usage errors inside handlers still run after `recordUserUse` for `CMD_RECORD_USE` cmds (same as pre-refactor). Confirm flash via `Display  -  v0.7.44`.
 
 ## 0.7.43
 
-- TWDT try (different from 0.7.30/0.7.34): after setup, `esp_task_wdt_reconfigure` to **90 s** + `enableLoopWDT` on Core 1 `loopTask` only. No `uiTask` subscribe, no mid-HTTPS `esp_task_wdt_reset`. Soft Discord guard remains HB ack; TWDT is stuck-loop backstop. Confirm flash via `Display · v0.7.43`. If panic: lines above `ELF file SHA256` or `!coredump`.
+- TWDT try (different from 0.7.30/0.7.34): after setup, `esp_task_wdt_reconfigure` to **90 s** + `enableLoopWDT` on Core 1 `loopTask` only. No `uiTask` subscribe, no mid-HTTPS `esp_task_wdt_reset`. Soft Discord guard remains HB ack; TWDT is stuck-loop backstop. Confirm flash via `Display  -  v0.7.43`. If panic: lines above `ELF file SHA256` or `!coredump`.
 - `!ask`: handshake 15 s / body deadline 30 s. `sendDiscordMessage`: 60 s wall budget (release + fail) so 429 stacking cannot outrun the 90 s TWDT.
-- **HIL attestation (2026-09-22/23):** multi-hour lan-monitor soak + `!ask` hammer 23:10–00:16 PDT — no Discord drops, no TWDT panic, ~8 s total `GW_DOWN` (update reboot 3 s + brief 5 s). Details: [`docs/soak-results.md`](docs/soak-results.md).
+- **HIL attestation (2026-09-22/23):** multi-hour lan-monitor soak + `!ask` hammer 23:10-00:16 PDT -- no Discord drops, no TWDT panic, ~8 s total `GW_DOWN` (update reboot 3 s + brief 5 s). Details: [`docs/soak-results.md`](docs/soak-results.md).
 
 ## 0.7.42
 
-- CI badges split further: **Python** (pytest + Pillow; playwright in `requirements-logo.txt`) and **HTML** (`tools/ci_html.py` for LAN CSS/JS/SVG headers). Sanity + Compile unchanged. Confirm flash via `Display · v0.7.42`.
+- CI badges split further: **Python** (pytest + Pillow; playwright in `requirements-logo.txt`) and **HTML** (`tools/ci_html.py` for LAN CSS/JS/SVG headers). Sanity + Compile unchanged. Confirm flash via `Display  -  v0.7.42`.
 
 ## 0.7.41
 
-- CI beyond compile-only: `tools/ci_sanity.py` (VERSION sync, one `.ino`, no AJ6 types, secrets not tracked) then compile. Local HIL playbook: `docs/HIL_SOAK.md` + tracked `docs/lan-monitor.ps1` (`-BaseUrl` / `MINIME_LAN`). Confirm flash via `Display · v0.7.41`.
+- CI beyond compile-only: `tools/ci_sanity.py` (VERSION sync, one `.ino`, no AJ6 types, secrets not tracked) then compile. Local HIL playbook: `docs/HIL_SOAK.md` + tracked `docs/lan-monitor.ps1` (`-BaseUrl` / `MINIME_LAN`). Confirm flash via `Display  -  v0.7.41`.
 
 ## 0.7.40
 
-- Prune nested `gwPumping` HB-only path: re-entry is a no-op (dual-core cmds no longer run inside `gatewayWS.loop`). Keep `gwPumping` for presence defer + Wi-Fi kick gate. Confirm flash via `Display · v0.7.40`.
+- Prune nested `gwPumping` HB-only path: re-entry is a no-op (dual-core cmds no longer run inside `gatewayWS.loop`). Keep `gwPumping` for presence defer + Wi-Fi kick gate. Confirm flash via `Display  -  v0.7.40`.
 
 ## 0.7.39
 
-- Core 0 MmLog bridge: enqueue lines to Core 1 (`drainCore0Logs`); Serial shows `[C0] …`. Ring overflow still counted as `mmLogDropCore0`.
-- DS18B20 disconnect logs via bridge (≤1/min). Confirm flash via `Display · v0.7.39`.
+- Core 0 MmLog bridge: enqueue lines to Core 1 (`drainCore0Logs`); Serial shows `[C0] ...`. Ring overflow still counted as `mmLogDropCore0`.
+- DS18B20 disconnect logs via bridge (<=1/min). Confirm flash via `Display  -  v0.7.39`.
 
 ## 0.7.38
 
 - `!ask` HOL only (no TWDT): DeepSeek dedicated TLS; `pumpNetWait` drains only when `!httpsInUse`; `DrainBusyGuard` RAII.
-- Confirm flash via `Display · v0.7.38`. If panic: lines above `ELF file SHA256` or `!coredump`.
+- Confirm flash via `Display  -  v0.7.38`. If panic: lines above `ELF file SHA256` or `!coredump`.
 
 ## 0.7.37
 
-- `sendDiscordMessage`: retry on HTTPS header timeout (same attempt budget as 429; 500 ms backoff + Gateway pump). Confirm flash via `Display · v0.7.37`.
+- `sendDiscordMessage`: retry on HTTPS header timeout (same attempt budget as 429; 500 ms backoff + Gateway pump). Confirm flash via `Display  -  v0.7.37`.
 
 ## 0.7.36
 
-- ArduinoJson **6 → 7**: `JsonDocument` + `SpiRamAllocator` (no `Static`/`Dynamic`/`BasicJsonDocument`); `to<>` / `add<>` instead of `createNested*`. CI pins `ArduinoJson@7.4.2`.
+- ArduinoJson **6 -> 7**: `JsonDocument` + `SpiRamAllocator` (no `Static`/`Dynamic`/`BasicJsonDocument`); `to<>` / `add<>` instead of `createNested*`. CI pins `ArduinoJson@7.4.2`.
 - Cold-path `String` cut: `TrackedUser` id/name and cached guild IDs are fixed `char[]` (no heap churn per presence/slot).
-- Confirm flash via `Display · v0.7.36`. TWDT / `!ask` HOL unchanged (still unrolled).
+- Confirm flash via `Display  -  v0.7.36`. TWDT / `!ask` HOL unchanged (still unrolled).
 
 ## 0.7.35
 
 - Unroll 0.7.34 again after crash: drop explicit TWDT, mid-TLS drain, dedicated DeepSeek TLS (same shape as 0.7.33).
-- Kept: LCD `Ver`, cmd-error ring, `httpsAwaitHeaders(Client&)`. Confirm flash via `Display · v0.7.35`.
+- Kept: LCD `Ver`, cmd-error ring, `httpsAwaitHeaders(Client&)`. Confirm flash via `Display  -  v0.7.35`.
 
 ## 0.7.34
 
 - Retry 0.7.30 features with safer gates: DeepSeek dedicated TLS again; TWDT add/reset (loop + uiTask around paint + `pumpNetWait`).
 - Drain during TLS waits only when `!httpsInUse` (no mid-shared-fetch busy spam); `DrainBusyGuard` RAII for nested drain flag.
-- Confirm flash via `Display · v0.7.34`. If panic: capture lines above `ELF file SHA256` or `!coredump`.
+- Confirm flash via `Display  -  v0.7.34`. If panic: capture lines above `ELF file SHA256` or `!coredump`.
 
 ## 0.7.33
 
 - Unroll 0.7.30 risk set after `RTC_SW_CPU_RST` / ELF SHA panic (no header captured): drop explicit TWDT add/reset, mid-TLS `drainDiscordCmds`, dedicated DeepSeek TLS (back on shared `httpsClient` + `httpsInUse` queue stall).
-- Kept: LCD `Ver`, cmd-error ring, `httpsAwaitHeaders(Client&)`. Confirm flash via `Display · v0.7.33`.
+- Kept: LCD `Ver`, cmd-error ring, `httpsAwaitHeaders(Client&)`. Confirm flash via `Display  -  v0.7.33`.
 
 ## 0.7.32
 
 - Docs: renumber deferred list; record mid-fetch **busy** tradeoff + `drainCmdsBusy` note (0.7.30 review).
-- Clarify 0.7.30 HOL: queue no longer stalls; shared-client cmds drained during an in-flight fetch get a fast busy reply (see `[CMDERR]`). Confirm flash via `Display · v0.7.32`.
+- Clarify 0.7.30 HOL: queue no longer stalls; shared-client cmds drained during an in-flight fetch get a fast busy reply (see `[CMDERR]`). Confirm flash via `Display  -  v0.7.32`.
 
 ## 0.7.31
 
 - Cmd-error ring (10): Discord failure replies (`busy`, fetch/sensor errors, post fail) via `sendDiscordCmdError` / `noteCmdErrorReply`.
-- Visible on `!sys` (newest 5) and LCD Log→Serial as `[CMDERR] …`. Confirm flash via `Display · v0.7.31`.
+- Visible on `!sys` (newest 5) and LCD Log->Serial as `[CMDERR] ...`. Confirm flash via `Display  -  v0.7.31`.
 
 ## 0.7.30
 
 - TWDT: explicit `esp_task_wdt_add`/`reset` on loop (Core 1) and `uiTask` (Core 0); resets in HTTPS wait pumps.
 - `!ask` HOL: DeepSeek uses its own TLS client (not `httpsInUse`); drain cmds during TLS waits; queue no longer stalls on busy HTTPS.
-- LCD: `Ver` row shows `MINIME_VERSION`. Confirm flash via `Display · v0.7.30`.
+- LCD: `Ver` row shows `MINIME_VERSION`. Confirm flash via `Display  -  v0.7.30`.
 
 ## 0.7.29
 
-- Owner `!coredump`: read flash coredump partition (0xFD0000 / 0x30000) — task, PC, ExcCause, backtrace, panic reason; `!coredump clear` erases. Confirm flash via `Display · v0.7.29`.
+- Owner `!coredump`: read flash coredump partition (0xFD0000 / 0x30000) -- task, PC, ExcCause, backtrace, panic reason; `!coredump clear` erases. Confirm flash via `Display  -  v0.7.29`.
 
 ## 0.7.28
 
 - `connectWiFi` moved to `wifi_connect.cpp` (`.ino` is setup/loop only).
-- README: only one `.ino` in the sketch folder (Arduino merges all; second `.ino` => redefinition). Confirm flash via `Display · v0.7.28`.
+- README: only one `.ino` in the sketch folder (Arduino merges all; second `.ino` => redefinition). Confirm flash via `Display  -  v0.7.28`.
 
 ## 0.7.27
 
-- Loop stack: drop sketch `getArduinoLoopTaskStackSize()` — ESP32 core 3.3+ already defines it from `ARDUINO_LOOP_STACK_SIZE` (was redefinition). Confirm flash via `Display · v0.7.27`.
+- Loop stack: drop sketch `getArduinoLoopTaskStackSize()` -- ESP32 core 3.3+ already defines it from `ARDUINO_LOOP_STACK_SIZE` (was redefinition). Confirm flash via `Display  -  v0.7.27`.
 
 ## 0.7.26
 
 - Org split: `command_fetch.cpp` (API/DeepSeek) vs `commands.cpp` (tokenize/dispatch).
-- Org split: LCD → `display.cpp` + `display_overlay.cpp` + `dash_snap.cpp` + `display_draw.cpp` (+ `display_internal.h`).
-- Gateway JSON filter: file-scope `gwFilter`, built in `connectGateway` (not on first TEXT). Confirm flash via `Display · v0.7.26`.
+- Org split: LCD -> `display.cpp` + `display_overlay.cpp` + `dash_snap.cpp` + `display_draw.cpp` (+ `display_internal.h`).
+- Gateway JSON filter: file-scope `gwFilter`, built in `connectGateway` (not on first TEXT). Confirm flash via `Display  -  v0.7.26`.
 
 ## 0.7.25
 
 - Event sticky: `showTransient` no longer overwrites `lastEventLine` (Gateway/`noteLastEvent` only).
-- Wi‑Fi: `ensureWifiForGateway` skips reconnect while `gwPumping` or `httpsInUse` (no mid‑TLS disconnect).
+- Wi-Fi: `ensureWifiForGateway` skips reconnect while `gwPumping` or `httpsInUse` (no mid-TLS disconnect).
 - Users: `recordUserUse` no longer forces status On; Discord presence owns Online/Idle/DND/Off.
 - CPU: `updateBotPresenceIdle` drops to 160 MHz even if Gateway never identified.
-- HTTP body: block reads + `String::reserve`/`concat` (chunked/CL/until‑close) instead of per‑byte `+=`.
+- HTTP body: block reads + `String::reserve`/`concat` (chunked/CL/until-close) instead of per-byte `+=`.
 - NTP: DST offset recompute at most once per 60 s (1 Hz dash no longer zeros offset every tick).
-- Filter note: `gwFilter["d"]["status"]` already present for `PRESENCE_UPDATE`. Confirm flash via `Display · v0.7.25`.
+- Filter note: `gwFilter["d"]["status"]` already present for `PRESENCE_UPDATE`. Confirm flash via `Display  -  v0.7.25`.
 
 ## 0.7.24
 
 - Temp: `dashTempStore` / `dashTempSnapshot` under one mux (C/F + timestamp together).
 - Transient until: expire under same overlay mux (no clear-vs-set race).
-- FULL LOG match requires `[GW] === …` prefix; Core0 drop count after null/size check; counter lives in `web_ui.cpp`.
-- `/api/status`: `measureJson` vs 48 KB ceiling before send. Confirm flash via `Display · v0.7.24`.
+- FULL LOG match requires `[GW] === ...` prefix; Core0 drop count after null/size check; counter lives in `web_ui.cpp`.
+- `/api/status`: `measureJson` vs 48 KB ceiling before send. Confirm flash via `Display  -  v0.7.24`.
 
 ## 0.7.23
 
 - Cross-core UI overlay: transient/Event are fixed `char[]` + `portMUX` (no torn `String`); DM/Mention atomic.
 - FULL LOG markers match via `strstr`; Core 0 `MmLog` drops counted (`!sys` / status JSON).
-- `!temp` / LCD / web: sample stale if >30 s. `statusDoc` 48 KB. Confirm flash via `Display · v0.7.23`.
+- `!temp` / LCD / web: sample stale if >30 s. `statusDoc` 48 KB. Confirm flash via `Display  -  v0.7.23`.
 
 ## 0.7.22
 
-- LCD left window: same row order as web metrics, and each meter is one row (label | value | bar) like web `mline` — Sig, PSRAM, SRAM, Srv, then Up/T …. Confirm flash via `Display · v0.7.22`.
+- LCD left window: same row order as web metrics, and each meter is one row (label | value | bar) like web `mline` -- Sig, PSRAM, SRAM, Srv, then Up/T .... Confirm flash via `Display  -  v0.7.22`.
 
 ## 0.7.21
 
-- Web subtitle: **MiniMe-II A Discord Bot** (was "MiniMe A Discord Server APP"). LCD left panel matches web order + `MiniMe-II` header + LCD awake/asleep sys row. Confirm flash via `Display · v0.7.21`.
+- Web subtitle: **MiniMe-II A Discord Bot** (was "MiniMe A Discord Server APP"). LCD left panel matches web order + `MiniMe-II` header + LCD awake/asleep sys row. Confirm flash via `Display  -  v0.7.21`.
 
 ## 0.7.20
 
-- LCD/web meters under Sig: **PSRAM** bar, **SRAM** bar, then **Srv** (Up/temp below). PSRAM uses same free/total linear fill as SRAM. Confirm flash via `Display · v0.7.20`.
+- LCD/web meters under Sig: **PSRAM** bar, **SRAM** bar, then **Srv** (Up/temp below). PSRAM uses same free/total linear fill as SRAM. Confirm flash via `Display  -  v0.7.20`.
 
 ## 0.7.19
 
-- 429: drop duplicate macros from `discord_rest.cpp` (config header is sole source); ignore non-numeric `Retry-After` (keep `-1` so JSON body parse can run). Confirm flash via `Display · v0.7.19`.
+- 429: drop duplicate macros from `discord_rest.cpp` (config header is sole source); ignore non-numeric `Retry-After` (keep `-1` so JSON body parse can run). Confirm flash via `Display  -  v0.7.19`.
 
 ## 0.7.18
 
-- Discord REST 429: `sendDiscordMessage` honors `Retry-After` (header, else JSON `retry_after`), waits with `pumpGateway`, up to 3 attempts (0.5–60 s clamp). Confirm flash via `Display · v0.7.18`.
+- Discord REST 429: `sendDiscordMessage` honors `Retry-After` (header, else JSON `retry_after`), waits with `pumpGateway`, up to 3 attempts (0.5-60 s clamp). Confirm flash via `Display  -  v0.7.18`.
 
 ## 0.7.17
 
-- `gwDoc` (256 KB) and `statusDoc` (32 KB): `SpiRamJsonDocument` / `SpiRamAllocator` (same pattern as `!ask`). Was default `DynamicJsonDocument` → internal SRAM (boot heapPct ~93). Confirm flash via `Display · v0.7.17`.
+- `gwDoc` (256 KB) and `statusDoc` (32 KB): `SpiRamJsonDocument` / `SpiRamAllocator` (same pattern as `!ask`). Was default `DynamicJsonDocument` -> internal SRAM (boot heapPct ~93). Confirm flash via `Display  -  v0.7.17`.
 
 ## 0.7.16
 
 - Chunked body: bound empty size-line skips (CDN bare-CRLF quirk); still require final 0-chunk.
 - `webLogFeed`: drop if `xPortGetCoreID() != 1` (ring vs `handleStatus`).
-- Until-close body path: documented best-effort (callers validate JSON). Confirm flash via `Display · v0.7.16`.
+- Until-close body path: documented best-effort (callers validate JSON). Confirm flash via `Display  -  v0.7.16`.
 
 ## 0.7.15
 
 - `readHttpBodyAfterHeaders` chunked: trailer / size-line / mid-chunk failure returns **false** (no partial-body success). Content-Length incomplete also **false**.
 - Loop stack: `static_assert(ARDUINO_LOOP_STACK_SIZE == 16384)` next to strong override.
-- Document: `webLogFeed` / MmLog Core-1-only (no ring mutex vs `handleStatus`). Confirm flash via `Display · v0.7.15`.
+- Document: `webLogFeed` / MmLog Core-1-only (no ring mutex vs `handleStatus`). Confirm flash via `Display  -  v0.7.15`.
 
 ## 0.7.14
 
 - Loop stack (Arduino-ESP32 3.x): `ARDUINO_LOOP_STACK_SIZE 16384` before `Arduino.h` in `minime.h`, plus strong `getArduinoLoopTaskStackSize()` in the `.ino`. 0.7.13's `SET_LOOP_TASK_STACK_SIZE` after `minime.h` was a no-op on 3.x (same class of miss as 0.7.11). Confirm via `[SYS] loop stack free HWM` (16 KB => often >~2000 words remaining after setup).
 - LCD: PSRAM free/total row on left panel (DashSnap + `boardPsramTotals`) to match web/`!sys`.
 - `!ask`: after `SpiRamJsonDocument` alloc, treat `capacity()==0` as out of memory (not "JSON parse NoMemory").
-- Confirm flash via `Display · v0.7.14`.
+- Confirm flash via `Display  -  v0.7.14`.
 
 ## 0.7.13
 
-- Loop stack: documented `SET_LOOP_TASK_STACK_SIZE(16*1024)` after `minime.h`; one-shot `[SYS] loop stack free HWM` log. (**Superseded by 0.7.14** — that macro after Arduino.h does not raise the stack on ESP32 core 3.x.)
+- Loop stack: documented `SET_LOOP_TASK_STACK_SIZE(16*1024)` after `minime.h`; one-shot `[SYS] loop stack free HWM` log. (**Superseded by 0.7.14** -- that macro after Arduino.h does not raise the stack on ESP32 core 3.x.)
 - `!ask`: PSRAM `BasicJsonDocument` + `nothrow`; parse from `c_str()+offset` (no substring copy).
 - Heap bar / `!sys`: **internal** heap only; separate PSRAM lines / JSON fields.
-- `MINIME_USER_AGENT` single source. `appendMembersFromGuild` doc off stack. Confirm flash via `Display · v0.7.13`.
+- `MINIME_USER_AGENT` single source. `appendMembersFromGuild` doc off stack. Confirm flash via `Display  -  v0.7.13`.
 
 ## 0.7.12
 
-- LOG vs Serial restored: Serial = normal MmLog; LOG = body between `[GW] === FULL LOG ===` / `END LOG` (60 s drop-ring dump; clear on each dump start). Confirm flash via `Display · v0.7.12`.
+- LOG vs Serial restored: Serial = normal MmLog; LOG = body between `[GW] === FULL LOG ===` / `END LOG` (60 s drop-ring dump; clear on each dump start). Confirm flash via `Display  -  v0.7.12`.
 
 ## 0.7.11
 
 - `!ask`: DeepSeek parse doc is heap/PSRAM `DynamicJsonDocument` (no 24 KB stack `StaticJsonDocument`).
 - Core 1 loop stack: `getArduinoLoopTaskStackSize()` **before** any `#include` (16 KB strong override).
 - `boardMemTotals`: real `ESP.getPsramSize()` / `getFreePsram()` (no fake 8 MB).
-- `httpGetOpen`: `User-Agent: MiniMeBot/1.0` (OWM / ISS). Confirm flash via `Display · v0.7.11`.
+- `httpGetOpen`: `User-Agent: MiniMeBot/1.0` (OWM / ISS). Confirm flash via `Display  -  v0.7.11`.
 
 ## 0.7.10
 
@@ -331,103 +358,103 @@ Older sections are append-only history (as written when that release shipped). C
 - `!sys`: drop IP / OTA host (use owner `!ota` for those).
 - `!ota` owner-only in README (matches code/help). `!led` handler removed.
 - Web `esc()`: numeric `0` no longer becomes empty (`s||''` bug).
-- `ChunkPrint::write` bulk `memcpy`. Confirm flash via `Display · v0.7.10`.
+- `ChunkPrint::write` bulk `memcpy`. Confirm flash via `Display  -  v0.7.10`.
 
 ## 0.7.9
 
 - Hot-path `String` reduction: `formatLocalTimeStr`; LCD snap/draw use `char[]`; Gateway log ring is fixed `char[][]`; LAN `/` and `/api/status` stream via chunked `Print` (`serializeJson` to `ChunkPrint`, no 25 KB JSON `String`).
-- Confirm flash via `Display · v0.7.9`.
+- Confirm flash via `Display  -  v0.7.9`.
 
 ## 0.7.8
 
 - Gateway TLS: `beginSslWithBundle` + ESP32 CA blob (plain `beginSSL` was `setInsecure`).
 - `readHttpBodyAfterHeaders`: truncation / 48 KB cap returns **false** (not success).
 - Presence: unknown users no longer evict tracked slots; `recordUserUse` after owner check on `!led`/`!servo`/`!clear`.
-- `!sysinfo` firmware URL → `K9DTV/minime-ii-esp32-discord-bot`.
+- `!sysinfo` firmware URL -> `K9DTV/minime-ii-esp32-discord-bot`.
 - DashSnap: static buffers + Core 1 loop stack 16 KB; seqlock retry `taskYIELD`.
 - Cross-core: `displayAsleep` / `lastDisplayActivityMillis` / `dashForceFull` are `std::atomic`.
 - `MINIME_VERSION` single source; web header uses it. GW alive 60 s; full-log dump opt-in (`GW_DEBUG_FULL_LOG_DUMP`).
-- Confirm flash via `Display · v0.7.8`.
+- Confirm flash via `Display  -  v0.7.8`.
 
 ## 0.7.7
 
-- `httpsGetOpen` / `httpGetOpen` return `chunked` + `Content-Length` for pumped body reads (no more “until close” guess). Confirm flash via `Display · v0.7.7`.
+- `httpsGetOpen` / `httpGetOpen` return `chunked` + `Content-Length` for pumped body reads (no more "until close" guess). Confirm flash via `Display  -  v0.7.7`.
 
 ## 0.7.6
 
 - Weather / science news / APOD / ISS / arXiv: body read via `readHttpBodyAfterHeaders` (Gateway HB pumps); removed arXiv `readString()` stall.
-- `docs/CODE_REVIEW_NOTES.md` refreshed for dual-core + fetch pumps. Confirm flash via `Display · v0.7.6`.
+- `docs/CODE_REVIEW_NOTES.md` refreshed for dual-core + fetch pumps. Confirm flash via `Display  -  v0.7.6`.
 
 ## 0.7.5
 
-- Boot: check `gwDoc` alloc immediately after `new` (before `setupDisplay` / Canvas). Confirm flash via `Display · v0.7.5`.
+- Boot: check `gwDoc` alloc immediately after `new` (before `setupDisplay` / Canvas). Confirm flash via `Display  -  v0.7.5`.
 
 ## 0.7.4
 
-- Boot: `statusDoc` alloc failure halts like `gwDoc` (same Fatal / power-cycle policy). Confirm flash via `Display · v0.7.4`.
+- Boot: `statusDoc` alloc failure halts like `gwDoc` (same Fatal / power-cycle policy). Confirm flash via `Display  -  v0.7.4`.
 
 ## 0.7.3
 
 - `showTransient` honors `durationMs` (`!display` stays **6 s** as documented); web flash includes `transientLine3`.
 - LOG ring: drop oldest until 20 KB budget fits (no full wipe on overflow).
 - Boot: halt with `Fatal` / MmLog if `gwDoc` alloc fails.
-- Docs/comments: sticky DM/Mention until `!clear`; nested Wi-Fi kick note. Confirm flash via `Display · v0.7.3`.
+- Docs/comments: sticky DM/Mention until `!clear`; nested Wi-Fi kick note. Confirm flash via `Display  -  v0.7.3`.
 
 ## 0.7.2
 
-- Removed blocking `readTemperature` (shared OneWire footgun vs Core 0 `pollTemperatureNonBlocking`). Temp is Core-0-only poll + cached `dashTempC`/`F`. Confirm flash via `Display · v0.7.2`.
+- Removed blocking `readTemperature` (shared OneWire footgun vs Core 0 `pollTemperatureNonBlocking`). Temp is Core-0-only poll + cached `dashTempC`/`F`. Confirm flash via `Display  -  v0.7.2`.
 
 ## 0.7.1
 
 - DS18B20: non-blocking poll on Core 0 (`pollTemperatureNonBlocking`); Core 1 `publishDashSnap` / `!temp` no longer block ~750 ms on conversion.
 - DashSnap publish: seqlock + 1 s throttle (no `portENTER_CRITICAL` over ~4KB copy).
 - README: dual-core scope clarified (LCD/QSPI fixed; long HTTPS fetches still on Core 1); backlight idle timer / Idle CPU docs corrected; LCD theme independent of web.
-- `uiTask` create failure logs via MmLog. Confirm flash via `Display · v0.7.1`.
+- `uiTask` create failure logs via MmLog. Confirm flash via `Display  -  v0.7.1`.
 
 ## 0.7.0
 
 - Dual-core: Core 1 = Gateway / HTTPS / OTA / web / command drain; Core 0 `uiTask` = LCD + touch.
 - `DashSnap` published under mutex; Core 0 paints only (no mid-draw `pumpGateway`).
 - `MESSAGE_CREATE` enqueues; `drainDiscordCmds()` runs `handleCommand` from `loop()`.
-- Confirm flash via `Display · v0.7.0`.
+- Confirm flash via `Display  -  v0.7.0`.
 
 ## 0.6.10
 
 - Display/Log: web and LCD independent (same as Light/Dark). Removed `/api/ui` layout sync.
 - LCD backlight idle **5 minutes** (`DISPLAY_IDLE_MS`).
-- Discord Idle → CPU **160 MHz**; Online/activity/OTA → **240 MHz**. Confirm flash via `Display · v0.6.10`.
+- Discord Idle -> CPU **160 MHz**; Online/activity/OTA -> **240 MHz**. Confirm flash via `Display  -  v0.6.10`.
 
 ## 0.6.9
 
 - Light/dark: web and LCD are **independent** (web = browser; LCD = glass chip). Layout Display/Log still syncs.
-- LCD light background fixed to true gray `#dde2ea` RGB565 `0xDF1D` (was `0xDEF5`, which looked warm/brown). Confirm flash via `Display · v0.6.9`.
+- LCD light background fixed to true gray `#dde2ea` RGB565 `0xDF1D` (was `0xDEF5`, which looked warm/brown). Confirm flash via `Display  -  v0.6.9`.
 
 ## 0.6.8
 
 - LCD light theme uses bright K9DTV RGB565 logo (`K9DTV_LOGO_BRIGHT_RGB565`); regenerate via `tools/gen_k9dtv_logo_rgb565.py`.
 - Web theme/layout sync with LCD: `/api/ui?theme=&layout=`; status carries `theme` / `layout` (chip on either side updates both).
-- Web layout matches LCD pairing: **Display** = metrics|users; **Log** = LOG|Serial (logo + chips kept). Confirm flash via `Display · v0.6.8`.
+- Web layout matches LCD pairing: **Display** = metrics|users; **Log** = LOG|Serial (logo + chips kept). Confirm flash via `Display  -  v0.6.8`.
 
 ## 0.6.7
 
 - All Discord-reply commands: LCD shows value only if `sendDiscordMessage` succeeds (`showIfPosted`); else `Post fail` (matches fetch / !help).
-- Bot:N: `recordUserUse` only inside known-command branches (no separate `isTrackedBotCommand` list). Confirm flash via `Display · v0.6.7`.
+- Bot:N: `recordUserUse` only inside known-command branches (no separate `isTrackedBotCommand` list). Confirm flash via `Display  -  v0.6.7`.
 
 ## 0.6.6
 
 - HTTPS: `contentLength` maxBody path `stop()`s like chunked; `readHttpLineCapped` false on peer close mid-line.
 - Touch: `Wire.setTimeOut(50)` so I2C stall cannot starve Gateway indefinitely.
-- `sendFetchResult` / `!help`: LCD “Sent” only if Discord post succeeds; else “Post fail”.
+- `sendFetchResult` / `!help`: LCD "Sent" only if Discord post succeeds; else "Post fail".
 - Bot:N: do not count `!help` / unknown commands.
-- `sendDiscordMessage`: comment — status line only, body discarded.
+- `sendDiscordMessage`: comment -- status line only, body discarded.
 - Secrets example: `MINIME_SECRETS_IS_EXAMPLE` + compile `#error` until removed in real `secrets.h`.
-- Docs: watchdog policy, activity stamp while disconnected, `docs/CODE_REVIEW_NOTES.md` updated. Confirm flash via `Display · v0.6.6`.
+- Docs: watchdog policy, activity stamp while disconnected, `docs/CODE_REVIEW_NOTES.md` updated. Confirm flash via `Display  -  v0.6.6`.
 
 ## 0.6.5
 
 - Prune hobby leftovers: empty `MmLog::flushAll`, `mmSerialCdcOnBoot` wrapper, `webUiKeepsCpuActive`, vestigial `backgroundTasks` (loop calls `runAskFromLoop` directly).
 - HTTP open errors: **1**=busy, **2**=header timeout, **3**=connect/TLS/DNS (was busy+connect collapsed).
-- Clarify `noteBotActivity` / `noteDisplayActivity` / `noteLastEvent` in `minime.h`. Confirm flash via `Display · v0.6.5`.
+- Clarify `noteBotActivity` / `noteDisplayActivity` / `noteLastEvent` in `minime.h`. Confirm flash via `Display  -  v0.6.5`.
 
 ## 0.6.4
 
@@ -435,7 +462,7 @@ Older sections are append-only history (as written when that release shipped). C
 - OTA `onError`: restore reconnect interval (failed flash no longer parks Gateway for 1 hour).
 - HTTPS: capped header/chunk lines (512); chunked body no longer returns mid-chunk without draining/stop.
 - Remove dead `content` null check; drop unused `lastSysInfoMillis` boot hack.
-- Docs: `docs/CODE_REVIEW_NOTES.md` (fixed vs deferred from pro review). Confirm flash via `Display · v0.6.4`.
+- Docs: `docs/CODE_REVIEW_NOTES.md` (fixed vs deferred from pro review). Confirm flash via `Display  -  v0.6.4`.
 
 ## 0.6.3
 
@@ -444,30 +471,30 @@ Older sections are append-only history (as written when that release shipped). C
 - Dual IC chips (k9dtv menu-chip): **left** Light/Dark; **right** Display/Log.
   Display = left metrics + right users; Log = left LOG + right Serial (same windows).
 - Dirty redraw: skip logo/chips and right panel when unchanged; skip flush when nothing changed.
-- Confirm flash via `Display · v0.6.3`.
+- Confirm flash via `Display  -  v0.6.3`.
 
 ## 0.6.2
 
 - Left LCD panel: RSSI number, heap free/total, Id, Users n/20, **DM + Mention** on one line, HTTPS busy/idle, sticky **Event** line. No footer strip under the panels.
 - Removed **USB VBUS** and **`!set1` / `!set2`** from firmware and docs. DM/@mention are LCD alert flags; owner `!clear` clears them.
-- Confirm flash via `Display · v0.6.2`.
+- Confirm flash via `Display  -  v0.6.2`.
 
 ## 0.6.1
 
 - Display: drop **JC3248W535EN-Touch-LCD**; use **Arduino_GFX** directly (`Arduino_ESP32QSPI` + `Arduino_AXS15231B` + `Arduino_Canvas`, landscape rotation 1).
 - Touch wake: AXS15231B I2C (`0x3B`, SDA 4 / SCL 8 / INT 3) in-sketch; no wrapper IRQ API.
-- LCD refresh **1 s** (measured ~48 ms flush / ~62 ms total). Confirm flash via `Display · v0.6.1`.
+- LCD refresh **1 s** (measured ~48 ms flush / ~62 ms total). Confirm flash via `Display  -  v0.6.1`.
 
 ## 0.6.0
 
 - Hardware fork **MiniMe II**: Guition **JC3248W535EN** (AXS15231B QSPI LCD + in-cell touch).
 - Display: **JC3248W535EN-Touch-LCD** (Arduino_GFX). Same dashboard fields as MiniMe I; backlight off after idle; touch IRQ wakes panel only.
 - Removed SSD1327 / U8g2 and ESP32 GPIO capacitive touch + VBUS touch compensation. NeoPixel/servo pins remapped off QSPI (16 / 17).
-- Confirm flash via `Display · v0.6.0`.
+- Confirm flash via `Display  -  v0.6.0`.
 
 ## 0.5.3
 
-- Fix compile on Arduino-ESP32 core **3.3.x**: HTTPS uses `useBuiltinCACertBundle()` only on **3.3.12+** (CI). Older IDE cores call `setCACertBundle(start, end - start)` with `_binary_x509_crt_bundle_*` (not PlatformIO `_binary_data_crt_*`, which CI does not link). Confirm flash via `Display · v0.5.3`.
+- Fix compile on Arduino-ESP32 core **3.3.x**: HTTPS uses `useBuiltinCACertBundle()` only on **3.3.12+** (CI). Older IDE cores call `setCACertBundle(start, end - start)` with `_binary_x509_crt_bundle_*` (not PlatformIO `_binary_data_crt_*`, which CI does not link). Confirm flash via `Display  -  v0.5.3`.
 
 ## 0.5.2
 
@@ -478,23 +505,23 @@ Older sections are append-only history (as written when that release shipped). C
 - Removed no-op `applyCpuForIdleState` (Discord Idle after 5 min quiet unchanged). `WIFI_PS_NONE` + HB ack grace kept.
 - LAN CSS + boot/app JS in `web_assets.h`; `/api/status` ArduinoJson with once-allocated status doc. Static status JSON reuse; `yield()` in `loop()`.
 - Docs: README no longer claims boot `!sys`/`!help` auto-posts. Gateway: delete unused resume helpers (`sendResume` / resume host parse); identify-only after drops.
-- Note vs older changelog lines: set1/set2 remain **steady HIGH** in current code (not 1 Hz / 10 Hz flash). Confirm flash via `Display · v0.5.2`.
+- Note vs older changelog lines: set1/set2 remain **steady HIGH** in current code (not 1 Hz / 10 Hz flash). Confirm flash via `Display  -  v0.5.2`.
 
 ## 0.5.1
 
-- CPU locked at **240 MHz** (no idle downclock to 80 MHz when OLED blank + Discord Idle). Test for unexplained full-chip resets. Confirm flash via `Display · v0.5.1`.
+- CPU locked at **240 MHz** (no idle downclock to 80 MHz when OLED blank + Discord Idle). Test for unexplained full-chip resets. Confirm flash via `Display  -  v0.5.1`.
 
 ## 0.5.00
 
 - LAN web UI: k9dtv.com light/dark theme (local assets, `k9-theme`, OS default when unset); IC chip toggle with sun/moon + target label; sticky click focus cleared.
 - LAN web UI: second IC chip for **Display** (all four panels) vs **Log** (Display + SysInfo only); preference in `mm-layout`.
 - Discord: public `!sys` and `!ota` (ArduinoOTA IP / hostname / port 3232); uptime as `d h m s`; set1/set2 flash at 1 Hz 50%.
-- LAN web UI on port **80** (`http://<board-ip>/`). Confirm flash via `Display · v0.5.00`.
+- LAN web UI on port **80** (`http://<board-ip>/`). Confirm flash via `Display  -  v0.5.00`.
 - Gateway: skip resume (never worked here); after OP7/OP9/disconnect use 200 ms IDENTIFY reconnect (no 5 s climb). No boot channel `!sys` / `!help` posts.
 
 ## 0.4.95
 
-- LAN web UI back on port **80** (`http://<board-ip>/`). Dropped the 8080 workaround. Confirm flash via `Display · v0.4.95`.
+- LAN web UI back on port **80** (`http://<board-ip>/`). Dropped the 8080 workaround. Confirm flash via `Display  -  v0.4.95`.
 
 ## 0.4.94
 
@@ -502,32 +529,32 @@ Older sections are append-only history (as written when that release shipped). C
 
 ## 0.4.93
 
-- LAN web UI back to plain HTTP on port 80 (self-signed HTTPS removed; browser warning was not useful trust). Confirm flash via `Display · v0.4.93`.
+- LAN web UI back to plain HTTP on port 80 (self-signed HTTPS removed; browser warning was not useful trust). Confirm flash via `Display  -  v0.4.93`.
 - CI: compile FQBN uses `PartitionScheme=custom` so GitHub builds against sketch `partitions.csv` (not the default 1.25MB APP limit that failed on v0.4.92).
 
 ## 0.4.92
 
-- LAN web UI: HTTPS on port 443 (self-signed); HTTP :80 redirects to HTTPS. Discord outbound TLS back to `setInsecure` / `beginSSL` (no CA verify). Confirm flash via `Display · v0.4.92`.
+- LAN web UI: HTTPS on port 443 (self-signed); HTTP :80 redirects to HTTPS. Discord outbound TLS back to `setInsecure` / `beginSSL` (no CA verify). Confirm flash via `Display  -  v0.4.92`.
 
 ## 0.4.91
 
-- HTTPS REST: verify server certificates with the ESP32 CA cert bundle (removed `setInsecure()`). Confirm flash via `Display · v0.4.91`.
+- HTTPS REST: verify server certificates with the ESP32 CA cert bundle (removed `setInsecure()`). Confirm flash via `Display  -  v0.4.91`.
 
 ## 0.4.90
 
-- Fix: LAN **LOG** panel clears when content would exceed **20 KB** (was able to grow without a hard size wipe). SysInfo uptime spacing `Nd Nh Nm`. Confirm flash via `Display · v0.4.90`.
+- Fix: LAN **LOG** panel clears when content would exceed **20 KB** (was able to grow without a hard size wipe). SysInfo uptime spacing `Nd Nh Nm`. Confirm flash via `Display  -  v0.4.90`.
 
 ## 0.4.89
 
-- Shipped breadboard firmware (no known bugs). Idle CPU **80 MHz** (ESP32-S3 has no 100 MHz step). Channel auto reports off; boot posts sysinfo + help once only. Confirm flash via `Display · v0.4.89`.
+- Shipped breadboard firmware (no known bugs). Idle CPU **80 MHz** (ESP32-S3 has no 100 MHz step). Channel auto reports off; boot posts sysinfo + help once only. Confirm flash via `Display  -  v0.4.89`.
 
 ## 0.4.88
 
-- Gateway reconnect: cap interval at 5s (no climb to 60s); reset backoff on OP9 so identify retry is not delayed. Best-effort under ~30s offline when Discord answers. Confirm flash via `Display · v0.4.88`.
+- Gateway reconnect: cap interval at 5s (no climb to 60s); reset backoff on OP9 so identify retry is not delayed. Best-effort under ~30s offline when Discord answers. Confirm flash via `Display  -  v0.4.88`.
 
 ## 0.4.87
 
-- Web Serial panel: fixed 12-line ring (oldest drops off the top, new line at bottom); no scrollbar. Confirm flash via `Display · v0.4.87`.
+- Web Serial panel: fixed 12-line ring (oldest drops off the top, new line at bottom); no scrollbar. Confirm flash via `Display  -  v0.4.87`.
 
 ## 0.4.86
 
@@ -535,27 +562,27 @@ Older sections are append-only history (as written when that release shipped). C
 
 ## 0.4.85
 
-- Web Display: `.dash` gets `min-width:0;overflow:hidden` so meter `1fr` bars cannot spill past the Display panel. Confirm flash via `Display · v0.4.85`.
+- Web Display: `.dash` gets `min-width:0;overflow:hidden` so meter `1fr` bars cannot spill past the Display panel. Confirm flash via `Display  -  v0.4.85`.
 
 ## 0.4.84
 
-- Web Display meters: bar column is remaining width (`1fr`), not fixed `9rem`, so bars stop at the Display panel edge. Confirm flash via `Display · v0.4.84`.
+- Web Display meters: bar column is remaining width (`1fr`), not fixed `9rem`, so bars stop at the Display panel edge. Confirm flash via `Display  -  v0.4.84`.
 
 ## 0.4.83
 
-- Web Display meters: value column `10ch` -> `7ch` so bars sit ~3 chars left. Confirm flash via `Display · v0.4.83`.
+- Web Display meters: value column `10ch` -> `7ch` so bars sit ~3 chars left. Confirm flash via `Display  -  v0.4.83`.
 
 ## 0.4.82
 
-- Web Display meters: restore first-page fixed `9rem` `.bar` + original `bar()` fill. Each row is `label | 10ch value | bar` so Srv bar left edge matches Heap (and Sig). Confirm flash via `Display · v0.4.82`.
+- Web Display meters: restore first-page fixed `9rem` `.bar` + original `bar()` fill. Each row is `label | 10ch value | bar` so Srv bar left edge matches Heap (and Sig). Confirm flash via `Display  -  v0.4.82`.
 
 ## 0.4.81
 
-- Fix (on us): meters HTML is built on the ESP (not JS grid). Every bar track is `position:absolute;left:148px` so value length cannot shift bar starts. Confirm flash via `Display · v0.4.81`.
+- Fix (on us): meters HTML is built on the ESP (not JS grid). Every bar track is `position:absolute;left:148px` so value length cannot shift bar starts. Confirm flash via `Display  -  v0.4.81`.
 
 ## 0.4.80
 
-- Fix (on us): 0.4.78 table CSS did not lock bar columns. Sig/Heap/Srv now use one inline `display:grid` with columns `40px | 100px | 1fr` so all bar left edges match. Confirm flash via `Display · v0.4.80`.
+- Fix (on us): 0.4.78 table CSS did not lock bar columns. Sig/Heap/Srv now use one inline `display:grid` with columns `40px | 100px | 1fr` so all bar left edges match. Confirm flash via `Display  -  v0.4.80`.
 
 ## 0.4.79
 
@@ -708,11 +735,11 @@ Older sections are append-only history (as written when that release shipped). C
 
 ## 0.4.34
 
-- README: Ongoing project section (OTA updates, set1/set2 when a configured user ID — normally the owner — is mentioned or DMed, PCB + desk case).
+- README: Ongoing project section (OTA updates, set1/set2 when a configured user ID -- normally the owner -- is mentioned or DMed, PCB + desk case).
 
 ## 0.4.33
 
-- README: short AI-use note (same idea as Space Wars — AI helped with edits; James owned architecture and board decisions).
+- README: short AI-use note (same idea as Space Wars -- AI helped with edits; James owned architecture and board decisions).
 
 ## 0.4.32
 
@@ -734,7 +761,7 @@ Older sections are append-only history (as written when that release shipped). C
 
 ## 0.4.28
 
-- Owner `!led`: keep `on` / `off`; add `!led <r> <g> <b>` (integers **0–255**) on the onboard RGB NeoPixel (GPIO 48, `NEO_GRB`). `on` is white 255 255 255. Helpers: `setLedRgb`, `parseRgbTriplet`.
+- Owner `!led`: keep `on` / `off`; add `!led <r> <g> <b>` (integers **0-255**) on the onboard RGB NeoPixel (GPIO 48, `NEO_GRB`). `on` is white 255 255 255. Helpers: `setLedRgb`, `parseRgbTriplet`.
 - Mid-line `!led` keeps multi-word RGB args (same as `!ask` / `!display`). Discord `!help` / README use `!led on/off` wording.
 - Firmware polish: `gwSendJson`, `drawDashBar`, `findFreeTrackedSlot`, `uptimeDhms`, HTTP open connect/timeout codes, dashboard user rows without `String names[]`, `sendDiscordMessage` via `httpsAwaitHeaders`, drop `botDiscordStatusSent` (status `0` = unset).
 - CHANGELOG 0.4.13 mid-line note corrected for `!led`.
@@ -752,7 +779,7 @@ Older sections are append-only history (as written when that release shipped). C
 
 ## 0.4.25
 
-- OLED: uptime and temp on row 3; Sig / Heap / Srv shift down one row. User rows 7–14 and rows 15–16 unchanged.
+- OLED: uptime and temp on row 3; Sig / Heap / Srv shift down one row. User rows 7-14 and rows 15-16 unchanged.
 
 ## 0.4.24
 
@@ -789,7 +816,7 @@ Older sections are append-only history (as written when that release shipped). C
 
 ## 0.4.16
 
-- Touch trip gap default is **450** (was 3500) to match a ~400–500 raw delta on this pad.
+- Touch trip gap default is **450** (was 3500) to match a ~400-500 raw delta on this pad.
 
 ## 0.4.15
 
@@ -801,7 +828,7 @@ Older sections are append-only history (as written when that release shipped). C
 
 ## 0.4.13
 
-- Mid-sentence one-word args work for most commands (e.g. `… !weather 90210 …`). `!ask` / `!display` / `!led` keep multi-word args for the rest of the line.
+- Mid-sentence one-word args work for most commands (e.g. `... !weather 90210 ...`). `!ask` / `!display` / `!led` keep multi-word args for the rest of the line.
 
 ## 0.4.12
 
@@ -824,7 +851,7 @@ Older sections are append-only history (as written when that release shipped). C
 ## 0.4.8
 
 - OLED row 5 combines uptime and temp as fixed-width `Up:xxxxdxxhxxm T:xxxF/xxxC` (space-padded; sensor fail shows `T:--Error--`).
-- User rows shift up to rows 6–13; row 14 left open.
+- User rows shift up to rows 6-13; row 14 left open.
 
 ## 0.4.7
 
@@ -851,7 +878,7 @@ Older sections are append-only history (as written when that release shipped). C
 
 ## 0.4.2
 
-- OLED: eight user rows; `Srv:` bar (0–90°, boot at 45°); command / `!display` text on rows 15–16 (dashboard is not wiped).
+- OLED: eight user rows; `Srv:` bar (0-90 deg, boot at 45 deg); command / `!display` text on rows 15-16 (dashboard is not wiped).
 - `!display` is public; payload only, 50 characters (25 + 25), 6 seconds, overwrite restarts the timer.
 - Member names load from `BOT_GUILD_ID` and both command-channel guilds (two servers).
 - `!ask`: `max_tokens` 900, 12288-byte JSON parse, 3600-character Discord post.
@@ -866,7 +893,7 @@ Older sections are append-only history (as written when that release shipped). C
 
 ## 0.4.0
 
-- SSD1327 128×128 dashboard: MiniMe header, gateway, Pacific time, Sig/Heap bars, temp, uptime, five users with presence and 24h command counts.
+- SSD1327 128x128 dashboard: MiniMe header, gateway, Pacific time, Sig/Heap bars, temp, uptime, five users with presence and 24h command counts.
 - Startup REST member load (`BOT_GUILD_ID` / channel guild resolve) plus Presence Intent for On / Idle / DND / Off.
 - OLED sleeps after 10 minutes with no real events (Sig/time/heap ticks do not count); commands, presence changes, and gateway messages wake it.
 - Public `!ask`; `!status` is not in this firmware. Commands work in DMs and two allowed channels.

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<title>MiniMe II LCD mocks — Display / Log × Dark / Light</title>
+<title>MiniMe II LCD mocks -- Display / Log x Dark / Light</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -87,11 +87,11 @@
 </style>
 </head>
 <body>
-<h1>MiniMe II LCD — 480×320 mocks (real logo + menu chips)</h1>
+<h1>MiniMe II LCD -- 480x320 mocks (real logo + menu chips)</h1>
 <div class="grid">
 
 <figure>
-  <figcaption>1 · Display · Dark</figcaption>
+  <figcaption>1  -  Display  -  Dark</figcaption>
   <div class="lcd dark" id="d-dark">
     <div class="brand">
       <div class="chip-wrap theme"><img src="chip.svg" alt=""/><span>* Light</span></div>
@@ -104,7 +104,7 @@
 </figure>
 
 <figure>
-  <figcaption>2 · Display · Light</figcaption>
+  <figcaption>2  -  Display  -  Light</figcaption>
   <div class="lcd light" id="d-light">
     <div class="brand">
       <div class="chip-wrap theme"><img src="chip-bright.svg" alt=""/><span>) Dark</span></div>
@@ -117,7 +117,7 @@
 </figure>
 
 <figure>
-  <figcaption>3 · Log (LOG | Serial) · Dark</figcaption>
+  <figcaption>3  -  Log (LOG | Serial)  -  Dark</figcaption>
   <div class="lcd dark" id="l-dark">
     <div class="brand">
       <div class="chip-wrap theme"><img src="chip.svg" alt=""/><span>* Light</span></div>
@@ -130,7 +130,7 @@
 </figure>
 
 <figure>
-  <figcaption>4 · Log (LOG | Serial) · Light</figcaption>
+  <figcaption>4  -  Log (LOG | Serial)  -  Light</figcaption>
   <div class="lcd light" id="l-light">
     <div class="brand">
       <div class="chip-wrap theme"><img src="chip-bright.svg" alt=""/><span>) Dark</span></div>
@@ -151,8 +151,8 @@ const metricsHtml = `
   <div class="mline"><span class="k">Sig</span><span>-55 dBm</span><span class="bar"><i style="width:75%"></i></span></div>
   <div class="mline"><span class="k">PSRAM</span><span>7200K</span><span class="bar"><i style="width:88%"></i></span></div>
   <div class="mline"><span class="k">SRAM</span><span>180K</span><span class="bar"><i style="width:55%"></i></span></div>
-  <div class="mline"><span class="k">Srv</span><span>45°</span><span class="bar"><i style="width:50%"></i></span></div>
-  <div class="row loose cyan">Up 2d 4h 12m  T 72°F/22°C</div>
+  <div class="mline"><span class="k">SD</span><span>512M</span><span class="bar"><i style="width:64%"></i></span></div>
+  <div class="row loose cyan">Up 2d 4h 12m  T 72 degF/22 degC</div>
   <div class="row"><span class="ok">Id:yes</span> &nbsp; Users:3/22</div>
   <div class="row muted">DM:off  Mention:off</div>
   <div class="row muted">HTTPS:idle</div>
@@ -198,17 +198,17 @@ while (logLines.length < 24) logLines.push('');
 const serialLines = [
   '[boot] MiniMe-II 0.7.51',
   '[WiFi] connected',
-  '[GW] connecting…',
+  '[GW] connecting...',
   '[GW] identified',
   '[UI] dash flush 48ms',
   '[UI] dash draw 62ms',
   '[CMD] !help',
   '[CMD] !temp 72F',
-  '[SERVO] 45 deg',
+  '[SD] 512M free',
   '[HTTPS] idle',
-  'MmLog line …',
-  'MmLog line …',
-  'MmLog line …'
+  'MmLog line ...',
+  'MmLog line ...',
+  'MmLog line ...'
 ];
 while (serialLines.length < 24) serialLines.push('');
 

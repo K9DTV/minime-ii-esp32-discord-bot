@@ -15,14 +15,15 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 - **Not a cloud service** -- the bot runs entirely on the ESP32; Discord is remote, the app is on the module
 - **Not a Discord.js / Python bot** -- native Arduino/ESP32 firmware, not a host PC or Raspberry Pi process
 - **Not a general-purpose ESP32 Discord library** -- this is one application (LCD + LAN + commands), not a reusable SDK
+- **No servo** -- removed in v0.7.82 (see **Hardware -> Servo removed** below)
 
 **Display:** panel native **320x480** (portrait); firmware paints **480x320** landscape via **GFX Library for Arduino** (`Arduino_ESP32QSPI` + `Arduino_AXS15231B` + `Arduino_Canvas`). No SSD1327 / U8g2 and no capacitive GPIO wake pad.
 
-**LCD <-> LAN web:** glass and `http://<board-ip>/` are one design — same Display / Log / Controls pages, same fields and chrome roles (LCD fixed 480×320; web scales). Logos and Cancel/Save marks on the web are SVG twins of the LCD art. Light/Dark on the glass and in the browser stay **independent** (each has its own chip).
+**LCD <-> LAN web:** glass and `http://<board-ip>/` are one design -- same Display / Log / Controls pages, same fields and chrome roles (LCD fixed 480x320; web scales). Logos and Cancel/Save marks on the web are SVG twins of the LCD art. Light/Dark on the glass and in the browser stay **independent** (each has its own chip).
 
 ### LCD UI preview
 
-480×320 landscape from the current firmware (K9DTV logo + menu chips). Dark | Light side by side.
+480x320 landscape from the current firmware (K9DTV logo + menu chips). Dark | Light side by side.
 
 **Display** (metrics | users)
 
@@ -38,7 +39,7 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 Interactive HTML (all four): [`docs/lcd-mock/all-four.html`](docs/lcd-mock/all-four.html).
 
-**Status:** Guition module firmware **v0.7.80** — usable on the board today (Discord, LCD, LAN, Controls prefs). Still in active tuning and soak testing to harden edge cases; not a closed “final” product. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware **v0.7.86** -- usable on the board today (Discord, LCD, LAN, Controls prefs). Still in active tuning and soak testing to harden edge cases; not a closed "final" product. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
@@ -69,7 +70,7 @@ After Wi-Fi connects, open `http://<board-ip>/` for the LAN dashboard (same Disp
 
 License: see `LICENSE` (non-commercial for original MiniMe II files only; commercial use requires express written permission).
 
-This is my second iteration of MiniMe. The board build is meant to be useful and reliable for day-to-day Discord + LCD use. I am still hardening (soaks, edge cases, polish) — not declaring the project closed.
+This is my second iteration of MiniMe. The board build is meant to be useful and reliable for day-to-day Discord + LCD use. I am still hardening (soaks, edge cases, polish) -- not declaring the project closed.
 AI helped with firmware edits, multi-file layout, and GitHub updates. I owned the architecture, wiring, Discord Gateway/LCD design, commands, power/idle trade-offs, and what shipped on the board.
 
 ## Project status
@@ -78,21 +79,20 @@ AI helped with firmware edits, multi-file layout, and GitHub updates. I owned th
 
 **Not closed out.** Work continues on hardening and a short roadmap (order matters):
 
-1. **Secrets on SD card** — load Wi-Fi / tokens / keys from the card at boot so credential changes do not require a firmware reflash (today: `secrets.h` at build time).
-2. **Further soak / edge-case hardening** — long runtimes, reconnect storms, heap pressure. Local soak: [`docs/HIL_SOAK.md`](docs/HIL_SOAK.md), [`docs/soak-results.md`](docs/soak-results.md). Fixed vs deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
-3. **Desk case / enclosure** — last on the list (module board already; enclosure is packaging, not a breadboard prototype).
+1. **Further soak / edge-case hardening** -- long runtimes, reconnect storms, heap pressure. Local soak: [`docs/HIL_SOAK.md`](docs/HIL_SOAK.md), [`docs/soak-results.md`](docs/soak-results.md). Fixed vs deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+2. **Desk case / enclosure** -- last on the list (module board already; enclosure is packaging, not a breadboard prototype).
 
-**CI:** four badges — **Compile** (Arduino), **Sanity** (fast host checks), **Python** (pytest + Pillow), **HTML** (LAN CSS/JS/SVG in headers).
+**CI:** four badges -- **Compile** (Arduino), **Sanity** (fast host checks), **Python** (pytest + Pillow), **HTML** (LAN CSS/JS/SVG in headers).
 
-Already in: dual-core LCD vs Gateway, Display/Log/Controls + Light/Dark chips, LCD↔web UI parity, flash Controls prefs (dual-slot CRC), DM/@mention flags + alarm/`!clear`, dirty redraw, user-initiated Wi-Fi OTA (`!ota`), ArduinoJson 7, `!ask` HOL, Core0 log bridge.
+Already in: dual-core LCD vs Gateway, Display/Log/Controls + Light/Dark chips, LCD<->web UI parity, flash Controls prefs (dual-slot CRC), DM/@mention flags + alarm/`!clear`, dirty redraw, user-initiated Wi-Fi OTA (`!ota`), ArduinoJson 7, `!ask` HOL, Core0 log bridge, **secrets from SD** (`/secrets.h`).
 
 ### Firmware updates (OTA)
 
-There is **no cloud update service**. MiniMe II does **not** pull or receive firmware from a remote server. You (or an owner on the LAN) choose when to upload a new build — USB or Wi-Fi ArduinoOTA (`!ota` prints IP / hostname / port **3232**).
+There is **no cloud update service**. MiniMe II does **not** pull or receive firmware from a remote server. You (or an owner on the LAN) choose when to upload a new build -- USB or Wi-Fi ArduinoOTA (`!ota` prints IP / hostname / port **3232**).
 
 **Security note (OTA):** ArduinoOTA is only a **hostname + password** on the local network. There is no signed firmware, certificate identity, or other strong authority behind that password. Any host that knows the password can upload a new image. Treat the LAN as trusted; do not expose port **3232** to an untrusted network. Prefer USB when the network is not trusted; keep `OTA_PASSWORD` strong and private.
 
-**Security note (LAN web UI):** `http://<board-ip>/` and `POST /api/controls` have no authentication. Any host on the same network can change brightness/volume/toggles and can factory-reset Controls prefs. Treat the LAN as trusted; do not expose the board to an untrusted network.
+**Security note (LAN web UI):** With `WEB_UI_PASSWORD` empty (default), `http://<board-ip>/` and `POST /api/controls` have **no** authentication -- any host on the same network can change brightness/volume/toggles and factory-reset Controls prefs. Set a non-empty `WEB_UI_PASSWORD` in `secrets.h` to gate `/api/status` and `/api/controls` behind a LAN login (session token). Still not HTTPS or strong remote admin -- treat the LAN as trusted; do not expose the board to an untrusted network.
 
 ---
 
@@ -100,29 +100,36 @@ There is **no cloud update service**. MiniMe II does **not** pull or receive fir
 
 Same list Discord shows for `!help`:
 
-**Public commands** (DMs, `TARGET_CHANNEL_ID`, or `TARGET_CHANNEL_ID1`):
+### Public commands
 
-- `!apod` -- NASA Astronomy Picture of the Day
-- `!ask <question>` -- DeepSeek text reply in chat
-- `!display <text>` -- transient overlay on the LCD
-- `!help` -- this command list
-- `!iss` -- International Space Station position
-- `!news` -- space / high-tech headlines
-- `!physics` -- latest arXiv physics papers
-- `!sys` -- system diagnostics (uptime, internal heap, PSRAM, RSSI, gateway, firmware URL)
-- `!temp` -- indoor DS18B20 temperature
-- `!time` -- bot local time (US Pacific, DST aware)
-- `!weather <zip>` -- US ZIP weather (OpenWeatherMap)
+*(DMs, `TARGET_CHANNEL_ID`, or `TARGET_CHANNEL_ID1`)*
 
-**Owner-only** (`OWNER_ID_STR`):
+| Command | Description | Notes / Key requirement |
+|---|---|---|
+| `!apod` | NASA Astronomy Picture of the Day | Requires `NASA_API_KEY` |
+| `!ask <question>` | DeepSeek text reply in chat | Capped at 2000 chars; requires `DEEPSEEK_API_KEY` |
+| `!display <text>` | Transient overlay on the LCD | Max 50 characters across two lines (6 s duration) |
+| `!help` | Interactive command list | -- |
+| `!iss` | International Space Station position | No API key required |
+| `!news` | Space / high-tech headlines | Spaceflight News API |
+| `!physics` | Latest arXiv physics papers | `cat:physics` feed |
+| `!sys` | System diagnostics (uptime, internal heap, PSRAM, RSSI, gateway, firmware URL) | Hardware health overview |
+| `!temp` | Indoor DS18B20 temperature | Rear 4-pin header (GPIO 18); sensor not fitted yet |
+| `!time` | Bot local time (US Pacific, DST aware) | NTP synchronized |
+| `!weather <zip>` | US ZIP weather (OpenWeatherMap) | Requires `WEATHER_API_KEY` |
 
-- `!ota` -- print Wi-Fi ArduinoOTA connection info (IP / hostname / port 3232); upload is always user-initiated (see **Firmware updates (OTA)** above)
-- `!coredump` -- last panic from flash coredump (`!coredump clear` erases)
-- `!servo <0-90>` -- servo angle (updates the `Srv` bar; optional external servo on GPIO 17)
-- `!clear` -- clear DM / mention alert flags on the LCD (stops the repeating alarm)
-- `!resetprefs` -- factory-reset Controls prefs in flash (theme, bright, vol, Sound/Ticks/Notify)
+### Owner-only
 
-This Guition module has **no LED1 / LED2** and **no on-board RGB**. `!led` is not shipped (no handler).
+*(`OWNER_ID_STR`)*
+
+| Command | Description | Safety / operational notes |
+|---|---|---|
+| `!ota` | Print Wi-Fi ArduinoOTA connection info (IP / hostname / port 3232) | User-initiated only; see **Firmware updates (OTA)** |
+| `!coredump` | Last panic from flash coredump (`!coredump clear` erases) | Forensic memory preservation |
+| `!clear` | Clear DM / mention alert flags on the LCD (stops the repeating alarm) | Silences the I2S alert buzzer |
+| `!resetprefs` | Factory-reset Controls prefs in flash (theme, bright, vol, Sound/Ticks/Notify) | Restores default configuration |
+
+This Guition module has **no LED1 / LED2** and **no on-board RGB**. `!led` is not shipped (no handler). There is **no** `!servo` -- the servo path was removed (see Hardware).
 
 ### Channel / DM commands
 
@@ -202,18 +209,18 @@ DM to the bot and @mention of `OWNER_ID_STR` set **DM** / **Mention** flags on t
 
 ### Controls flash prefs (`prefs` partition)
 
-Adapted from the VFO settings *rules* (dirty / CRC / corrupt defaults), stored in **ESP32-S3 onboard flash** via `esp_partition` — not a 47L16. Code: `mm_prefs.cpp`.
+Adapted from the VFO settings *rules* (dirty / CRC / corrupt defaults), stored in **ESP32-S3 onboard flash** via `esp_partition` -- not a 47L16. Code: `mm_prefs.cpp`.
 
 | Item | Behavior |
 |---|---|
 | **Partition** | First entry in `partitions.csv`: label `prefs`, **8 KB** at `0x9000` (two **4 KB** erase sectors = slot A / slot B). Wi-Fi **NVS** follows at `0xB000` (12 KB). |
-| **What is stored** | LCD Light/Dark, brightness, volume, Sound, Ticks, Notify — plus flash overhead (signature / version / struct size / sequence / tail magic / CRC32). Browser Light/Dark stays in `localStorage` only. |
+| **What is stored** | LCD Light/Dark, brightness, volume, Sound, Ticks, Notify -- plus flash overhead (signature / version / struct size / sequence / tail magic / CRC32). Browser Light/Dark stays in `localStorage` only. |
 | **Save** | Controls **Save** writes only when dirty. Writes the **other** slot with a bumped sequence. Stays on Controls. |
 | **Cancel** | Short tap recalls from flash (stays on Controls). If live values already match the last loaded/saved image (**not dirty**), recall early-outs (no flash read, no redraw). **Long-press ~3 s** = factory reset (defaults + write). Leaving via **Menus** without Save also recalls (same dirty early-out). |
 | **Factory reset** | Long-press Cancel, or owner `!resetprefs`. Defaults = bright/vol **100%**, toggles **ON**, Dark. |
-| **Boot** | `loadSettings()` after display setup (Wi-Fi → web → LCD uiTask order unchanged from 0.7.76). |
-| **Corrupt / missing** | → defaults (brightness/volume **100%**, toggles **ON**, Dark), then seed flash. |
-| **First flash after this change** | Partition table moved — full USB erase/upload once. |
+| **Boot** | `loadSettings()` after display setup (Wi-Fi -> web -> LCD uiTask order unchanged from 0.7.76). |
+| **Corrupt / missing** | -> defaults (brightness/volume **100%**, toggles **ON**, Dark), then seed flash. |
+| **First flash after this change** | Partition table moved -- full USB erase/upload once. |
 
 ### `!display`
 
@@ -236,10 +243,34 @@ Discord presence still goes Idle after **5 minutes** quiet (CPU drops to **160 M
 
 ## Fill in these values
 
-Secrets live in **`MiniMe_Discord_Bot_II/secrets.h`** (gitignored; keep real secrets **outside** this workspace). No sketch source file holds Wi-Fi, tokens, or IDs. **Planned:** load the same values from an **SD card** at boot so you can change credentials without rebuilding firmware.
+Credentials are **`#define NAME "value"`** lines in a file named **`secrets.h`**.
+
+**Preferred (runtime):** copy that file to the **root of the SD card** as `/secrets.h`. At boot the firmware mounts the card and loads Wi-Fi, Discord token, API keys, channel IDs, OTA, and `WEB_UI_PASSWORD` from it -- change credentials without reflashing.
+
+**Build seed (still required):** keep a `MiniMe_Discord_Bot_II/secrets.h` on the build PC (gitignored; keep real secrets **outside** this workspace) so the sketch compiles. Boot always seeds from that compile-time file, then **overlays** any keys found on the SD card. If the SD file is missing, compile-time values are used as-is (LOG: `Secrets: using compile-time...`).
+
+**Missing SD card:** Display **IP** flashes bright red **2 s on / 2 s off** (LCD + web). Put the card in and reboot (or wait for remount) so `/secrets.h` can load.
+
+### Firmware wiring (do not break)
+
+`minime.h` aliases `WIFI_SSID` -> `secWifiSsid` (and the other keys the same way) so call sites keep the old names while values live in runtime buffers. That only works if:
+
+```cpp
+// =============================================================================
+// READ THIS BEFORE EDITING
+//
+// The macro aliasing below (WIFI_SSID -> secWifiSsid, etc.) only works if:
+//   1. secrets_load.cpp is the ONLY .cpp that includes secrets.h directly
+//   2. All other .cpp files include minime.h (never secrets.h) at the top
+//   3. The #undef block in secrets_load.cpp runs after secrets.h and before minime.h
+//
+// If you add a new .cpp that needs credentials, include minime.h ONLY.
+// =============================================================================
+```
 
 1. Copy `MiniMe_Discord_Bot_II/secrets.example.h` -> `secrets.h` (on your machine, outside the repo if that is your rule)
 2. Fill in real values and **delete** the `#define MINIME_SECRETS_IS_EXAMPLE 1` line (compile errors if it remains).
+3. Copy the same filled `secrets.h` to the **SD card root** (filename exactly `secrets.h`).
 
 ```cpp
 #define WIFI_SSID            "ssid"
@@ -249,14 +280,15 @@ Secrets live in **`MiniMe_Discord_Bot_II/secrets.h`** (gitignored; keep real sec
 #define NASA_API_KEY         "NASA_API_KEY"
 #define DEEPSEEK_API_KEY     "DEEPSEEK_API_KEY"
 #define BOT_GUILD_ID         "GUILD_ID"  // startup member fetch
-#define OWNER_ID_STR         "OWNER_ID_STR"         // servo / !clear + mention alert
+#define OWNER_ID_STR         "OWNER_ID_STR"         // !clear + mention alert
 #define TARGET_CHANNEL_ID    "TARGET_CHANNEL_ID"    // commands
 #define TARGET_CHANNEL_ID1   "TARGET_CHANNEL_ID1"   // second command channel
 #define OTA_HOSTNAME         "minime2"
 #define OTA_PASSWORD         "change-me-ota"
+#define WEB_UI_PASSWORD      ""                 // empty = open LAN UI; set to gate /api/*
 ```
 
-Use `#define` (not `const char*`) so every `.cpp` can include `secrets.h` without linker "multiple definition" errors.
+Use `#define NAME "value"` (quoted strings). The SD parser reads those lines; other `#` directives and `//` comments are ignored.
 
 | Field | Used for |
 |---|---|
@@ -266,10 +298,11 @@ Use `#define` (not `const char*`) so every `.cpp` can include `secrets.h` withou
 | `NASA_API_KEY` | NASA APOD for `!apod` |
 | `DEEPSEEK_API_KEY` | DeepSeek for `!ask` |
 | `BOT_GUILD_ID` | One guild to load members from at boot |
-| `OWNER_ID_STR` | Who can run servo / `!clear`; mention alert target |
+| `OWNER_ID_STR` | Who can run `!clear` / owner cmds; mention alert target |
 | `TARGET_CHANNEL_ID` | Commands (no automatic boot posts) |
 | `TARGET_CHANNEL_ID1` | Second channel where commands are allowed |
-| `OTA_HOSTNAME` / `OTA_PASSWORD` | ArduinoOTA on the LAN (password only — see **Firmware updates (OTA)**) |
+| `OTA_HOSTNAME` / `OTA_PASSWORD` | ArduinoOTA on the LAN (password only -- see **Firmware updates (OTA)**) |
+| `WEB_UI_PASSWORD` | Optional LAN web login (empty = off; see **Security note (LAN web UI)**) |
 
 IDs are **digits only**. Paste them as C strings, for example `"123456789012345678"`.
 
@@ -364,13 +397,27 @@ Board: **Guition JC3248W535EN** module (ESP32-S3-N16R8 + AXS15231B LCD + in-cell
 | Device | GPIO |
 |---|---|
 | LCD backlight | 1 |
-| LCD QSPI CS / SCK / D0–D3 | 45 / 47 / 21 / 48 / 40 / 39 |
+| LCD QSPI CS / SCK / D0-D3 | 45 / 47 / 21 / 48 / 40 / 39 |
 | Touch I2C SDA / SCL / INT | 4 / 8 / 3 |
-| Servo (optional external) | 17 |
-| DS18B20 data (optional external) | 10 |
-| I2S DOUT / BCLK / LRCLK (on-module amp → speaker) | 41 / 42 / 2 |
+| SD SPI CS / MOSI / SCK / MISO | 10 / 11 / 12 / 13 |
+| DS18B20 data (rear 4-pin; not fitted yet) | 18 |
+| I2S DOUT / BCLK / LRCLK (on-module amp -> speaker) | 41 / 42 / 2 |
 
-Change pins in `minime_config.h` if your wiring differs. **No LED1 / LED2**, **no on-module RGB**, **no** `!set1` / `!set2`, **no** USB VBUS ADC (GPIO 1 is backlight).
+Change pins in `minime_config.h` if your wiring differs. **No LED1 / LED2**, **no on-module RGB**, **no** `!set1` / `!set2`, **no** USB VBUS ADC (GPIO 1 is backlight). Rear twin **4-pin** headers share **GND / 3.3 V / GPIO 17 / GPIO 18** -- temp uses **18**; **17** is free (was briefly the servo pin).
+
+### Servo removed
+
+On **MiniMe I** I planned an external servo to raise a small mailbox flag for DM / @mention alerts. MiniMe II kept that idea for a while (`!servo`, `Srv` bar, GPIO 17).
+
+With this Guition panel I already have a full color Display (DM/Mention flags on the glass) plus the on-module speaker (ticks and the repeating alarm). That covers the same job without a mechanical flag -- so the servo is **gone**: no `!servo`, no `Srv` meter, no LEDC on GPIO 17. GPIO **18** is temperature; **17** is unused if you want it later for something else.
+
+### SD card (on-module slot)
+
+SPI: **CS 10**, **MOSI 11**, **SCK 12**, **MISO 13**. Firmware mounts at boot (retries if the card is hot-plugged). Display **SD** row = remaining free in **MB** + free/total bar (LCD and web).
+
+Put credentials in a file named **`secrets.h`** on the card root (same `#define NAME "value"` lines as the build template). Boot loads that file after the SD mounts (see **Fill in these values**). Compile-time `secrets.h` remains the build seed / fallback.
+
+**No card detected:** **IP** line flashes bright red **2 s on / 2 s off** on both LCD and LAN web.
 
 ### Speaker (on-module I2S + NS4168)
 
@@ -378,29 +425,31 @@ Guition demo pins: **DOUT 41**, **BCLK 42**, **LRCLK/WS 2**. Firmware plays shor
 
 Touch feedback:
 
-- **Asleep:** any touch → soft lower tick + wake backlight
-- **Awake:** Light/Dark or Display/Log chip → higher confirm tick
-- **Awake:** anywhere else → silent (still refreshes idle timer)
+- **Asleep:** any touch -> soft lower tick + wake backlight
+- **Awake:** Light/Dark or Display/Log chip -> higher confirm tick
+- **Awake:** anywhere else -> silent (still refreshes idle timer)
 
-If the speaker is still very quiet, community reports often need a **10 kΩ pull-up on NS4168 CTRL (U4 pin 1) to 3.3 V** so the amp is enabled / right-channel selected — that is a hardware mod, not a firmware volume slider.
+If the speaker is still very quiet, community reports often need a **10 kohm pull-up on NS4168 CTRL (U4 pin 1) to 3.3 V** so the amp is enabled / right-channel selected -- that is a hardware mod, not a firmware volume slider.
 
-### DS18B20 (GPIO 10, if fitted)
+### DS18B20 (GPIO 18, rear 4-pin header)
 
-TO-92, powered from **3.3 V**. Internal pull-up enabled; a **4.7 kohm** DQ->3.3 V resistor is still recommended.
+**Not hooked up on this board yet.** I do not have the mating connector for the Guition rear 4-pin header. Firmware already polls **GPIO 18**; as soon as the connector arrives it will be wired in. Until then `!temp` and the LCD **T** line show error / disconnect (Serial may log `DS18B20 disconnected` about once a minute) -- that is expected, not a firmware bug.
+
+When fitted: TO-92 on the back **4-pin** (**GND / 3.3 V / 17 / 18**), DQ on **GPIO 18**. Internal pull-up is enabled; a **4.7 kohm** DQ->3.3 V resistor is still recommended.
 
 | TO-92 lead (flat toward you, leads down) | Connect to |
 |---|---|
-| Left | GND |
-| Middle (DQ) | GPIO 10 |
-| Right (VDD) | 3.3 V |
+| Left | GND (4-pin header) |
+| Middle (DQ) | GPIO 18 (4-pin header) |
+| Right (VDD) | 3.3 V (4-pin header) |
 
-`!temp` uses this sensor. On failure: Discord `Temperature sensor error.` and LCD `T --Error--`.
+`!temp` uses this sensor once it is connected. On failure: Discord `Temperature sensor error.` and LCD `T --Error--`.
 
 ---
 
 ## Touch (in-cell)
 
-Capacitive touch on the AXS15231B wakes the LCD after backlight-off and hits the theme / layout chips (I2S speaker ticks — see above).
+Capacitive touch on the AXS15231B wakes the LCD after backlight-off and hits the theme / layout chips (I2S speaker ticks -- see above).
 
 <details>
 <summary><strong>Touch behavior</strong></summary>
@@ -411,7 +460,7 @@ Capacitive touch on the AXS15231B wakes the LCD after backlight-off and hits the
 
 ### What touch does *not* do
 
-- Does not send Discord messages, set Discord Online/Idle, or move the servo by itself.
+- Does not send Discord messages, set Discord Online/Idle, or drive external actuators by itself.
 - The ESP32, Wi-Fi, and Gateway **never sleep** -- only the backlight turns off.
 
 </details>
@@ -423,7 +472,7 @@ Capacitive touch on the AXS15231B wakes the LCD after backlight-off and hits the
 GitHub Actions runs **Compile**, **Sanity**, **Python**, and **HTML** on push (badges above). None upload or talk to the board. Local soak: [`docs/HIL_SOAK.md`](docs/HIL_SOAK.md). Attested results: [`docs/soak-results.md`](docs/soak-results.md).
 
 1. Install [Arduino IDE](https://www.arduino.cc/en/software) and the **esp32** board package (Espressif).
-2. Open **only** `MiniMe_Discord_Bot_II/MiniMe_Discord_Bot_II.ino` from a folder that contains that **single** `.ino` plus the `.cpp` / `.h` files and `partitions.csv`. Arduino merges every `.ino` in the folder into one translation unit — a leftover `Discord_Bot_MiniMe_II.ino` (or any second `.ino`) causes `redefinition of 'void connectWiFi()'` / `setup` / stack helpers. Delete extras; folder name should match the one `.ino` basename.
+2. Open **only** `MiniMe_Discord_Bot_II/MiniMe_Discord_Bot_II.ino` from a folder that contains that **single** `.ino` plus the `.cpp` / `.h` files and `partitions.csv`. Arduino merges every `.ino` in the folder into one translation unit -- a leftover `Discord_Bot_MiniMe_II.ino` (or any second `.ino`) causes `redefinition of 'void connectWiFi()'` / `setup` / stack helpers. Delete extras; folder name should match the one `.ino` basename.
 3. Provide `secrets.h` (from `secrets.example.h`) with Wi-Fi, token, keys, and IDs.
 4. Set **Tools** as in the table below for this **Guition N16R8** module.
 5. Libraries: GFX Library for Arduino, WebSockets, ArduinoJson, OneWire, DallasTemperature, Adafruit NeoPixel, NTPClient.
@@ -451,7 +500,7 @@ GitHub Actions runs **Compile**, **Sanity**, **Python**, and **HTML** on push (b
 - **RAM:** internal SRAM + **8MB OPI PSRAM**. **PSRAM -> OPI PSRAM** must be on.
 - Large Discord Gateway JSON (`GW_DOC_PSRAM` soft size) and LAN `statusDoc` use `JsonDocument` with `SpiRamAllocator` (PSRAM via `heap_caps_*`). Default `JsonDocument` is internal SRAM only.
 - Do **not** enable `heap_caps_malloc_extmem_enable` for small allocations (Wi-Fi / TLS in PSRAM can crash).
-- **Flash:** **16MB**. `partitions.csv` is dual OTA apps + small coredump — **no filesystem** yet (SD secrets are planned). First install over USB; later builds can use user-initiated Wi-Fi OTA (see **Firmware updates (OTA)**).
+- **Flash:** **16MB**. `partitions.csv` is dual OTA apps + small coredump -- **no filesystem** yet (SD secrets are planned). First install over USB; later builds can use user-initiated Wi-Fi OTA (see **Firmware updates (OTA)**).
 
 ---
 

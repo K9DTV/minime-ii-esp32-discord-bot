@@ -12,13 +12,13 @@ enum {
 };
 
 extern WebServer webServer;
-extern char webFullLines[WEB_FULL_N][WEB_LOG_COLS + 1];
-extern uint8_t webFullHead;
-extern uint8_t webFullCount;
-extern char webSerialLines[WEB_SERIAL_N][WEB_LOG_COLS + 1];
-extern uint8_t webSerialHead;
-extern uint8_t webSerialCount;
 extern JsonDocument* statusDoc; // allocated in setupWebUi; used by webUiHandleStatus
+
+// LAN web auth (WEB_UI_PASSWORD). Empty password => always ok.
+bool webUiAuthEnabled();
+bool webUiAuthOk();          // true if auth off or token matches
+void webUiSendUnauthorized();
+void webUiHandleLogin();     // POST /api/login
 
 void webUiSendNoCacheHeaders();
 void webUiHandleRoot();
