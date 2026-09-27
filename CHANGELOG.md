@@ -1,6 +1,10 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.98** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.99** (see `VERSION` and README).
+
+## 0.7.99
+
+- LCD Users: equal row gaps fill the panel so slot **22** is the last line (web unchanged). Confirm `Display  -  v0.7.99`.
 
 ## 0.7.98
 

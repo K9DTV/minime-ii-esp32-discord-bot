@@ -53,8 +53,9 @@ enum {
   DOG_BTN_H = 58,         // icon + label under dog outline
 
 
-  USER_PITCH = 9,           // line baseline step (unchanged); 22 rows leave margin at bottom
-  USER_TEXT_SIZE = 1,       // GFX size 1 @ pitch 9; web Users font is bumped separately
+  USER_PITCH = 9,           // Log scroll step; Users pitch is computed to fill panel (22 slots)
+  USER_TEXT_SIZE = 1,       // GFX size 1; Users rows fill panel to last slot
+  USER_GLYPH_H = 8,         // default GFX font cell height at size 1
   DASH_LOG_ROWS = 55,       // LOG + Serial ring depth (LCD snap + web rings)
   LCD_BAR_MAX = 150,
 

@@ -591,19 +591,26 @@ void drawRightPanel(const DashSnap& s, const DashPalette& p) {
     return;
   }
 
-  // Display mode: users on the right (from published snap only)
+  // Display mode: users on the right (from published snap only).
+  // Equal row gaps; last baseline sits on last paint line so slot 22 is the bottom row.
   prtCol(p.muted, "User", sx, sy, 1);
   prtCol(p.muted, "Status", sx + USER_STATUS_COL_X, sy, 1);
   prtCol(p.muted, "Bot", sx + USER_BOT_COL_X, sy, 1);
   sy += ROW_PITCH_LOOSE;
 
   const uint8_t uts = (uint8_t)USER_TEXT_SIZE;
+  const int16_t textH = (int16_t)(USER_GLYPH_H * (int)uts);
+  const int16_t firstSy = sy;
+  const int16_t lastSy = (int16_t)(bottom - textH);
   for (uint8_t row = 0; row < MAX_TRACKED_USERS; row++) {
-    if (sy + 8 > bottom) break;
-    prtCol(p.text, s.users[row].name, sx, sy, uts);
-    prtCol(p.cyan, s.users[row].status, sx + USER_STATUS_COL_X, sy, uts);
-    prtCol(p.muted, s.users[row].bot, sx + USER_BOT_COL_X, sy, uts);
-    sy += USER_PITCH;
+    int16_t y = firstSy;
+    if (MAX_TRACKED_USERS > 1 && lastSy > firstSy) {
+      y = (int16_t)(firstSy + (int32_t)(lastSy - firstSy) * (int32_t)row
+                    / (int32_t)(MAX_TRACKED_USERS - 1));
+    }
+    prtCol(p.text, s.users[row].name, sx, y, uts);
+    prtCol(p.cyan, s.users[row].status, sx + USER_STATUS_COL_X, y, uts);
+    prtCol(p.muted, s.users[row].bot, sx + USER_BOT_COL_X, y, uts);
   }
 }
 

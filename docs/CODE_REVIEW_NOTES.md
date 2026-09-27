@@ -2,7 +2,7 @@
 
 See [`CHANGELOG.md`](../CHANGELOG.md) for the full per-version list; this document highlights only the durable architectural fixes.
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.98**.
+What we **fixed** vs what we **left** and why. Current: **v0.7.99**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
