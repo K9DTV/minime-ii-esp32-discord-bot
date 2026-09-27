@@ -188,16 +188,20 @@ void uptimeDhms(unsigned long& days, unsigned long& hours, unsigned long& minute
 
 // ====== DISPLAY (Arduino_GFX: ESP32QSPI + AXS15231B + Canvas) ======
 extern Arduino_Canvas* gfx;
-enum { UI_TRANSIENT_COLS = 40, UI_EVENT_COLS = 37 };
+enum { UI_TRANSIENT_COLS = 40, UI_EVENT_COLS = 37, UI_MSG_COLS = 32 }; // Msg: ~31 chars on left panel
 extern char transientLine1[UI_TRANSIENT_COLS];
 extern char transientLine2[UI_TRANSIENT_COLS];
 extern char transientLine3[UI_TRANSIENT_COLS];
 extern char lastEventLine[UI_EVENT_COLS]; // sticky Event; copy under uiOverlay helpers
+extern char lastMsgLine[UI_MSG_COLS];     // sticky Msg (!msg); bottom left panel
 extern std::atomic<bool> alertDm;         // sticky until owner !clear
 extern std::atomic<bool> alertMention;    // sticky until owner !clear
 extern bool lcdThemeLight;             // LCD palette only (web theme is independent)
 extern bool lcdLayoutLog;              // false=metrics|users; true=LOG|Serial overlay
 extern bool lcdLayoutControls;         // Controls page (right chip cycle)
+extern uint8_t lcdLogScroll;           // LOG: skip N newest (drag scroll; 0 = bottom)
+extern uint8_t lcdSerialScroll;        // Serial: same
+void lcdAdjustLogScroll(int deltaRows, bool serialPanel); // + = older (web scroll up)
 extern std::atomic<uint8_t> uiBrightPct; // UI 0..100 (duty maps to 10..100%)
 extern std::atomic<uint8_t> uiVolPct;    // 0..100 -> I2S peak scale
 extern std::atomic<bool> uiNotifyOn;     // DM/@mention alarm
@@ -214,16 +218,18 @@ extern std::atomic<bool> displayAsleep; // Core 0 sleep + Core 1 wake via noteDi
 void dashTempStore(float c, float f);
 bool dashTempSnapshot(float& c, float& f, bool& hadSample, bool& fresh); // fresh = hadSample && age<30s
 void uiOverlayCopyEvent(char* buf, size_t bufLen);
+void uiOverlayCopyMsg(char* buf, size_t bufLen);
 void uiOverlayCopyTransient(char* l1, size_t l1Len, char* l2, size_t l2Len, char* l3, size_t l3Len,
                             unsigned long* untilMs);
 bool uiOverlayExpireIfDue(unsigned long now); // clear until under mux; true if expired
 bool setupDisplay();
 void noteDisplayActivity(); // LCD backlight idle timer / wake
 void noteLastEvent(const String& line); // sticky Event line (+ wakes display)
+void noteLcdMessage(const String& line); // sticky Msg for !msg (+ wakes; no timed clear)
 void drawDashboard();
 void updateDisplay();
 void showTransient(const String& line1, const String& line2 = "", const String& line3 = "",
-                   unsigned long durationMs = 3000); // durationMs=0 -> 3s; !display uses 6000
+                   unsigned long durationMs = 3000); // durationMs=0 -> 3s
 
 bool lcdThemeChipHit(uint16_t x, uint16_t y);
 bool lcdLayoutChipHit(uint16_t x, uint16_t y);
@@ -290,7 +296,7 @@ bool pollTemperatureNonBlocking(float& tempC, float& tempF);
 void setLedRgb(uint8_t r, uint8_t g, uint8_t b);
 bool parseRgbTriplet(const String& args, uint8_t& r, uint8_t& g, uint8_t& b);
 bool isOwner(const String& authorId);
-void clearAlertFlags();
+void clearAlertFlags(); // DM + mention flags + sticky Msg line
 
 // ====== USERS / PRESENCE ======
 extern TrackedUser trackedUsers[MAX_TRACKED_USERS];

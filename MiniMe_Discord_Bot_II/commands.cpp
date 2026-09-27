@@ -85,7 +85,7 @@ static void cmdHelp(const CmdCtx& ctx) {
     "**👤 Public Commands:**\n"
     "- `!apod` -- NASA Astronomy Picture of the Day.\n"
     "- `!ask <question>` -- Asks DeepSeek (text AI reply in chat).\n"
-    "- `!display <text>` -- Writes custom text to the LCD screen.\n"
+    "- `!msg <text>` -- Sticky Msg line on the LCD Display panel (max 31 characters; Clear / !clear wipes it).\n"
     "- `!help` -- Shows this command list.\n"
     "- `!iss` -- Current International Space Station position.\n"
     "- `!news` -- Space and high-tech science headlines.\n"
@@ -97,7 +97,7 @@ static void cmdHelp(const CmdCtx& ctx) {
     "**👑 Owner-Only Commands:**\n"
     "- `!ota` -- Wi-Fi firmware update info (IP / hostname).\n"
     "- `!coredump` -- Last panic from flash coredump (`!coredump clear` erases).\n"
-    "- `!clear` -- Clears DM / mention alert flags on the LCD (stops the alarm sound).\n"
+    "- `!clear` -- Clears DM / mention alerts and the Msg line on the LCD (stops the alarm sound).\n"
     "- `!resetprefs` -- Factory-reset Controls prefs in flash (bright/vol/toggles/theme).";
   showIfPosted("Help", "Command Sent", sendDiscordMessage(ctx.channelId, helpMsg));
 }
@@ -205,26 +205,28 @@ static void cmdAsk(const CmdCtx& ctx) {
   showTransient("DeepSeek", "Queued"); // local queue; Discord reply checked in runAskFromLoop
 }
 
-static void cmdDisplay(const CmdCtx& ctx) {
+static void cmdMessage(const CmdCtx& ctx) {
   if (ctx.args.length() == 0) {
-    sendDiscordMessage(ctx.channelId, "Usage: !display <text>");
+    sendDiscordMessage(ctx.channelId, "Usage: !msg <text> (max 31 characters on LCD Msg line)");
     return;
   }
   String text = ctx.args;
-  if (text.length() > 50) text = text.substring(0, 50);
-  String line15 = text.substring(0, text.length() > 25 ? 25 : text.length());
-  String line16 = text.length() > 25 ? text.substring(25) : "";
-  showTransient(line15, line16, "", 6000); // local LCD is the feature
-  if (!sendDiscordMessage(ctx.channelId, "Display updated.")) {
-    noteCmdErrorReply("Post fail: Display");
-    showTransient("Display", "Post fail");
+  // UI_MSG_COLS includes NUL; glass fits ~31 chars after "Msg:". Sticky -- no timed clear.
+  const int maxChars = UI_MSG_COLS - 1;
+  if ((int)text.length() > maxChars) text = text.substring(0, maxChars);
+  noteLcdMessage(text);
+  char reply[80];
+  snprintf(reply, sizeof(reply), "Msg updated (%d/%d chars).", (int)text.length(), maxChars);
+  if (!sendDiscordMessage(ctx.channelId, reply)) {
+    noteCmdErrorReply("Post fail: Msg");
+    showTransient("Msg", "Post fail");
   }
 }
 
 static void cmdClear(const CmdCtx& ctx) {
   clearAlertFlags();
-  showIfPosted("clear", "alerts OFF",
-               sendDiscordMessage(ctx.channelId, "DM/mention alerts cleared"));
+  showIfPosted("clear", "alerts+Msg OFF",
+               sendDiscordMessage(ctx.channelId, "DM/mention alerts and Msg cleared"));
 }
 
 static void cmdResetPrefs(const CmdCtx& ctx) {
@@ -260,7 +262,7 @@ static const CmdEntry kCmds[] = {
   { "!coredump", CMD_OWNER | CMD_RECORD_USE,         cmdCoredump },
   { "!time",     CMD_RECORD_USE,                     cmdTime },
   { "!ask",      CMD_CONSUMES_REST | CMD_RECORD_USE, cmdAsk },
-  { "!display",  CMD_CONSUMES_REST | CMD_RECORD_USE, cmdDisplay },
+  { "!msg",      CMD_CONSUMES_REST | CMD_RECORD_USE, cmdMessage },
   { "!clear",      CMD_OWNER | CMD_RECORD_USE,         cmdClear },
   { "!resetprefs", CMD_OWNER | CMD_RECORD_USE,         cmdResetPrefs },
 #ifdef MINIME_TEST_TWDT

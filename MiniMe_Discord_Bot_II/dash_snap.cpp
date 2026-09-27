@@ -37,6 +37,8 @@ static void captureSnap(DashSnap& s) {
   s.layoutLog = lcdLayoutLog;
   s.layoutControls = lcdLayoutControls;
   s.controlsGen = uiControlsGen.load();
+  s.logScroll = lcdLogScroll;
+  s.serialScroll = lcdSerialScroll;
   updateLocalTime();
   formatLocalTimeStr(s.timeStr, sizeof(s.timeStr));
   formatLocalDateStr(s.dateStr, sizeof(s.dateStr));
@@ -51,8 +53,8 @@ static void captureSnap(DashSnap& s) {
   pollSdCard();
   s.sdPresent = sdCardPresent();
   boardSdTotalsMb(s.sdFreeMb, s.sdTotalMb);
-  // 2 s on / 2 s off when SD missing (IP bright red).
-  s.ipFlashOn = !s.sdPresent && (((millis() / SD_IP_FLASH_HALF_MS) & 1u) != 0u);
+  s.wifiOk = (WiFi.status() == WL_CONNECTED);
+  s.secretsFromSd = secretsFromSd;
   {
     float tc = 0, tf = 0;
     bool had = false, fresh = false;
@@ -84,12 +86,16 @@ static void captureSnap(DashSnap& s) {
   s.mention = alertMention.load();
   s.httpsBusy = httpsInUse;
   uiOverlayCopyEvent(s.event, sizeof(s.event));
+  uiOverlayCopyMsg(s.msg, sizeof(s.msg));
   {
     IPAddress ip = WiFi.localIP();
     snprintf(s.ip, sizeof(s.ip), "%u.%u.%u.%u",
              (unsigned)ip[0], (unsigned)ip[1], (unsigned)ip[2], (unsigned)ip[3]);
   }
   s.cpuMhz = getCpuFrequencyMhz();
+  s.dashFlushMs = (uint32_t)lastDashFlushMs;
+  s.dashDrawMs = (uint32_t)lastDashDrawMs;
+  s.lcdAsleep = displayAsleep.load();
   s.userHash = hashUsers();
   s.logGen = lcdLogGen();
   s.logRowCount = 0;
@@ -137,7 +143,7 @@ bool snapLeftEqual(const DashSnap& a, const DashSnap& b) {
   if (a.themeLight != b.themeLight || a.layoutLog != b.layoutLog) return false;
   if (a.layoutControls != b.layoutControls) return false;
   if (a.layoutControls) return a.controlsGen == b.controlsGen;
-  if (a.layoutLog) return a.logGen == b.logGen; // LOG window
+  if (a.layoutLog) return a.logGen == b.logGen && a.logScroll == b.logScroll; // LOG window
   // Display mode left: status / metrics
   return strcmp(a.timeStr, b.timeStr) == 0
       && strcmp(a.dateStr, b.dateStr) == 0
@@ -148,19 +154,23 @@ bool snapLeftEqual(const DashSnap& a, const DashSnap& b) {
       && a.psFree == b.psFree && a.psTotal == b.psTotal
       && a.sdPresent == b.sdPresent
       && a.sdFreeMb == b.sdFreeMb && a.sdTotalMb == b.sdTotalMb
-      && a.ipFlashOn == b.ipFlashOn
+      && a.wifiOk == b.wifiOk
+      && a.secretsFromSd == b.secretsFromSd
       && a.tempC10 == b.tempC10
       && a.identified == b.identified && a.nActive == b.nActive
       && a.dm == b.dm && a.mention == b.mention && a.httpsBusy == b.httpsBusy
       && strcmp(a.event, b.event) == 0
+      && strcmp(a.msg, b.msg) == 0
       && strcmp(a.ip, b.ip) == 0
-      && a.cpuMhz == b.cpuMhz;
+      && a.cpuMhz == b.cpuMhz
+      && a.dashFlushMs == b.dashFlushMs && a.dashDrawMs == b.dashDrawMs
+      && a.lcdAsleep == b.lcdAsleep;
 }
 
 bool snapRightEqual(const DashSnap& a, const DashSnap& b) {
   if (a.themeLight != b.themeLight || a.layoutLog != b.layoutLog) return false;
   if (a.layoutControls != b.layoutControls) return false;
   if (a.layoutControls) return a.controlsGen == b.controlsGen;
-  if (a.layoutLog) return a.logGen == b.logGen; // Serial window
+  if (a.layoutLog) return a.logGen == b.logGen && a.serialScroll == b.serialScroll; // Serial
   return a.userHash == b.userHash; // Display mode right: users
 }

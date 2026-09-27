@@ -6,6 +6,8 @@ Arduino_Canvas* gfx = nullptr;
 
 bool lcdThemeLight = false;
 bool lcdLayoutLog = false; // false = left metrics + right users; true = left LOG + right Serial
+uint8_t lcdLogScroll = 0;
+uint8_t lcdSerialScroll = 0;
 
 unsigned long lastDashMillis = 0;
 std::atomic<unsigned long> lastDisplayActivityMillis{0};
@@ -84,6 +86,17 @@ void setLcdThemeLight(bool light) {
   // Core 0 uiTask redraws; Core 1 must not call drawDashboard.
 }
 
+void lcdAdjustLogScroll(int deltaRows, bool serialPanel) {
+  if (!lcdLayoutLog || deltaRows == 0) return;
+  uint8_t& sc = serialPanel ? lcdSerialScroll : lcdLogScroll;
+  int v = (int)sc + deltaRows;
+  if (v < 0) v = 0;
+  if (v > (int)DASH_LOG_ROWS) v = (int)DASH_LOG_ROWS;
+  if ((int)sc == v) return;
+  sc = (uint8_t)v;
+  // Core 0 paint picks up scroll via nowSnap overlay (no brand wipe).
+}
+
 void applyLcdLayoutMode(uint8_t mode) {
   // 0 = Display, 1 = Log, 2 = Controls
   if (mode > 2) mode = 0;
@@ -101,6 +114,10 @@ void applyLcdLayoutMode(uint8_t mode) {
 
   lcdLayoutControls = wantCtrl;
   if (!wantCtrl) lcdLayoutLog = wantLog;
+  if (!wantLog) {
+    lcdLogScroll = 0;
+    lcdSerialScroll = 0;
+  }
   dashForceFull.store(true);
   dashBrandValid = false;
   lastDashMillis = 0;
@@ -197,7 +214,7 @@ void updateDisplay() {
   if (uiOverlayExpireIfDue(now)) {
     lastDashMillis = 0;
   }
-  // Normal 1 s refresh is enough for 2 s on / 2 s off IP flash phase changes.
+  // Normal 1 s refresh is enough for Wi-Fi / SD / meter dirty flags.
   if (lastDashMillis == 0 || now - lastDashMillis >= DASH_REFRESH_MS) {
     lastDashMillis = now;
     // Users / logs / metrics from Core 1 publishDashSnap(); temp from Core 0 above.

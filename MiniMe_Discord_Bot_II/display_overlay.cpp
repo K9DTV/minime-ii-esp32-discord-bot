@@ -9,6 +9,7 @@ char transientLine2[UI_TRANSIENT_COLS] = "";
 char transientLine3[UI_TRANSIENT_COLS] = "";
 static unsigned long transientUntilMs = 0; // under uiOverlayMux only
 char lastEventLine[UI_EVENT_COLS] = "";
+char lastMsgLine[UI_MSG_COLS] = "";
 std::atomic<bool> alertDm{false};
 std::atomic<bool> alertMention{false};
 
@@ -53,6 +54,13 @@ void uiOverlayCopyEvent(char* buf, size_t bufLen) {
   portEXIT_CRITICAL(&uiOverlayMux);
 }
 
+void uiOverlayCopyMsg(char* buf, size_t bufLen) {
+  if (!buf || bufLen == 0) return;
+  portENTER_CRITICAL(&uiOverlayMux);
+  displayCopyCapped(buf, bufLen, lastMsgLine);
+  portEXIT_CRITICAL(&uiOverlayMux);
+}
+
 void uiOverlayCopyTransient(char* l1, size_t l1Len, char* l2, size_t l2Len, char* l3, size_t l3Len,
                             unsigned long* untilMs) {
   portENTER_CRITICAL(&uiOverlayMux);
@@ -79,6 +87,16 @@ void noteLastEvent(const String& line) {
   displayCopyCapped(tmp, sizeof(tmp), line.c_str());
   portENTER_CRITICAL(&uiOverlayMux);
   displayCopyCapped(lastEventLine, sizeof(lastEventLine), tmp);
+  portEXIT_CRITICAL(&uiOverlayMux);
+  noteDisplayActivity();
+  lastDashMillis = 0;
+}
+
+void noteLcdMessage(const String& line) {
+  char tmp[UI_MSG_COLS];
+  displayCopyCapped(tmp, sizeof(tmp), line.c_str());
+  portENTER_CRITICAL(&uiOverlayMux);
+  displayCopyCapped(lastMsgLine, sizeof(lastMsgLine), tmp);
   portEXIT_CRITICAL(&uiOverlayMux);
   noteDisplayActivity();
   lastDashMillis = 0;

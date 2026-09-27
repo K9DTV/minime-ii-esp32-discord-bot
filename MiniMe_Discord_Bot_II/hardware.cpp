@@ -90,4 +90,5 @@ bool isOwner(const String& authorId) {
 void clearAlertFlags() {
   alertDm.store(false);
   alertMention.store(false);
+  noteLcdMessage(""); // sticky Msg line (no timed clear; Clear / !clear wipe it)
 }

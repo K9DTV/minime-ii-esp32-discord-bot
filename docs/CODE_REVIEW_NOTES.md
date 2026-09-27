@@ -2,7 +2,7 @@
 
 See [`CHANGELOG.md`](../CHANGELOG.md) for the full per-version list; this document highlights only the durable architectural fixes.
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.86**.
+What we **fixed** vs what we **left** and why. Current: **v0.7.96**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -60,13 +60,15 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.86**.
 | Touch piezo ticks | **0.7.52** -- wake tick vs button tick (`PIN_BUZZER` GPIO 18); silent non-button awake taps |
 | Touch I2S speaker | **0.7.53** -- I2S 41/42/2 -> NS4168; replaced GPIO LEDC path |
 | LCD/web Controls + audio prefs | **0.7.54-0.7.70** -- brightness/volume/Sound/Ticks/Notify; LCD layout truth; web scaled twin + mark SVGs |
+| Controls Clear (DM/@mention) | **0.7.89** -- Clear under Toggles (LCD + web); same as owner `!clear` |
 | Flash Controls prefs | **0.7.77** -- onboard `prefs` dual-slot CRC; Save/Cancel; factory via long-press / `!resetprefs` (**0.7.78**) |
 | Fixed-buffer Discord / `!ask` | **0.7.79** -- POST + DeepSeek cold path without growing `String` request bodies |
 | File split (web / Discord HTTP) | **0.7.80** -- `web_ui` vs `web_render`; `discord_http` vs `discord_rest`; `board_info` |
 | LAN web auth | **0.7.81** -- optional `WEB_UI_PASSWORD` gates `/api/status` + `/api/controls` |
 | Servo removed; temp pin | **0.7.82** -- no `!servo` / `Srv`; DS18B20 on rear GPIO **18** (sensor not fitted yet) |
 | SD free-space meter | **0.7.82** / **0.7.86** -- pins 10/11/12/13 on **HSPI/SPI3** only (0.7.86: never default `SPI`/FSPI -- that remuxed LCD QSPI and caused color corruption / crash after SD read) |
-| No-SD IP flash | **0.7.82** / **0.7.83** -- IP bright red **2 s on / 2 s off** when card missing |
+| No-SD / Wi-Fi alerts | **0.7.87** -- no SD: **SD** label red + empty bar (`0M`); Wi-Fi down: **IP** solid red. (Older 0.7.82/83 no-SD IP blink retired.) |
+| Secrets boot source | **0.7.87** -- **Src** line `SD card` / `firmware` (LCD + web); JSON `secretsFromSd` |
 | SD secrets loader | **0.7.84** -- boot overlays `/secrets.h` onto runtime buffers; compile-time seed fallback |
 | LOG/Serial ring encapsulation | **0.7.85** -- web status uses `lcd*LogNewest` accessors; ring storage private to `web_ui.cpp` |
 

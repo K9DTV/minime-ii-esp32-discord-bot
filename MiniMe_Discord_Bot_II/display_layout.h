@@ -42,6 +42,11 @@ enum {
   PANEL_PAD_BOTTOM = 4,
   PANEL_CONTENT_TOP = 5,
 
+  // Controls | Toggles: shared row tops so left/right stay in line
+  CTRL_ROW0 = 28,
+  CTRL_ROW_PITCH = 46, // 28, 74, 120
+  CTRL_TOGGLE_H = 36,
+
   DOG_BTN_W = 48,         // mark dog+K9 width (no button chrome)
   DOG_BTN_H_ICON = 32,    // mark dog+K9 height
   DOG_BTN_PAD_X = 8,
@@ -65,6 +70,7 @@ enum {
 
   SYS_VALUE_X = 56,
   EVENT_VALUE_X = 42,
+  MSG_VALUE_X = 32, // "Msg:" + gap; leaves ~31 chars at size 1
   USERS_COL_X = 100,
   USER_STATUS_COL_X = 100,
   USER_BOT_COL_X = 168

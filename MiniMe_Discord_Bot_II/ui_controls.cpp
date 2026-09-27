@@ -25,6 +25,7 @@ int16_t ctrlVolTrackX = 0, ctrlVolTrackY = 0, ctrlVolTrackW = 0, ctrlVolTrackH =
 int16_t ctrlToggle0X = 0, ctrlToggle0Y = 0, ctrlToggle0W = 0, ctrlToggle0H = 0;
 int16_t ctrlToggle1X = 0, ctrlToggle1Y = 0, ctrlToggle1W = 0, ctrlToggle1H = 0;
 int16_t ctrlToggle2X = 0, ctrlToggle2Y = 0, ctrlToggle2W = 0, ctrlToggle2H = 0;
+int16_t ctrlClearHitX = 0, ctrlClearHitY = 0, ctrlClearHitW = 0, ctrlClearHitH = 0;
 int16_t logoHitX = 0, logoHitY = 0, logoHitW = 0, logoHitH = 0;
 
 // Snapshot when entering Controls (return page only; Cancel recalls flash).
@@ -156,6 +157,11 @@ bool handleControlsTouch(uint16_t x, uint16_t y, bool rising) {
   }
   if (hitBox(x, y, ctrlToggle2X, ctrlToggle2Y, ctrlToggle2W, ctrlToggle2H)) {
     setUiNotifyOn(!uiNotifyOn.load());
+    return true;
+  }
+  if (hitBox(x, y, ctrlClearHitX, ctrlClearHitY, ctrlClearHitW, ctrlClearHitH)) {
+    clearAlertFlags();
+    bumpControls();
     return true;
   }
   return false;

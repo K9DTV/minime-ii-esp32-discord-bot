@@ -1,6 +1,46 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.86** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.96** (see `VERSION` and README).
+
+## 0.7.96
+
+- LCD Log/Serial: drag-scroll the full **55**-line rings (same depth as web scroll). Confirm `Display  -  v0.7.96`.
+
+## 0.7.95
+
+- Controls: shared row tops so **Controls** (Brightness / Volume / Clear) and **Toggles** (Sound / Ticks / Notify) stay in line (LCD + web). Confirm `Display  -  v0.7.95`.
+
+## 0.7.94
+
+- Display/web: **Msg** pinned to bottom of left Display window; **LCD** left (awake/asleep) + **Refresh** right (flush/draw ms). Confirm `Display  -  v0.7.94`.
+
+## 0.7.93
+
+- `!msg <text>` (was `!message`); Msg sticky with no timed clear; Controls **Clear DM/Mention/Msg** and owner `!clear` wipe Msg. Confirm `Display  -  v0.7.93`.
+
+## 0.7.92
+
+- Display/web sticky bottom **Msg:** line; `!display` replaced by `!message <text>` (max **31** chars). Confirm `Display  -  v0.7.92`.
+
+## 0.7.91
+
+- Controls: **Clear DM/Mention** button under Volume (Controls panel). Display **LCD** row = awake|asleep then refresh ms. Confirm `Display  -  v0.7.91`.
+
+## 0.7.90
+
+- Display/web: Users left / HTTPS center / Id right; DM left / Mention right; **LCD** row = awake|asleep then write ms; Controls **Clear** is a labeled button (not a toggle). Confirm `Display  -  v0.7.90`.
+
+## 0.7.89
+
+- Display/web: drop **Period**; **Write** row includes LCD awake/asleep. Controls **Clear** under Toggles (LCD + web) clears DM/@mention alerts. Confirm `Display  -  v0.7.89`.
+
+## 0.7.88
+
+- Display/web: one row **Users / HTTPS / Id** (HTTPS moved up; order Users then HTTPS then Id). Confirm `Display  -  v0.7.88`.
+
+## 0.7.87
+
+- Display/web: no-SD shows **SD** label red + **0M** bar empty; **IP** solid red when Wi-Fi down (no more no-SD IP blink); **Up/T** sits above **Sig**; **Src** line = `SD card` or `firmware` (secrets boot source). Confirm `Display  -  v0.7.87`.
 
 ## 0.7.86
 

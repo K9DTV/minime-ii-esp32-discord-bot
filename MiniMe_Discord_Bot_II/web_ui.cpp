@@ -285,7 +285,7 @@ bool cmdErrorReplyNewest(uint8_t fromNewest, char* buf, size_t bufLen) {
 }
 
 static bool lineIsFullStart(const char* s) {
-  // Require gateway prefix so !display / !ask text cannot flip LOG routing.
+  // Require gateway prefix so !msg / !ask text cannot flip LOG routing.
   return s && strstr(s, "[GW] === FULL LOG ===") != nullptr;
 }
 
@@ -375,6 +375,8 @@ static void handleControlsPost() {
     } else if (act == "enter") {
       // Web opened Controls -- snapshot current values.
       controlsSnapshotEnter(0);
+    } else if (act == "clear") {
+      clearAlertFlags();
     }
   }
   if (webServer.hasArg("bright")) {

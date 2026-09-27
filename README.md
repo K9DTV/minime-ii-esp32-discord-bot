@@ -39,7 +39,7 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 Interactive HTML (all four): [`docs/lcd-mock/all-four.html`](docs/lcd-mock/all-four.html).
 
-**Status:** Guition module firmware **v0.7.86** -- usable on the board today (Discord, LCD, LAN, Controls prefs). Still in active tuning and soak testing to harden edge cases; not a closed "final" product. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware **v0.7.96** -- usable on the board today (Discord, LCD, LAN, Controls prefs). Still in active tuning and soak testing to harden edge cases; not a closed "final" product. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
@@ -108,7 +108,7 @@ Same list Discord shows for `!help`:
 |---|---|---|
 | `!apod` | NASA Astronomy Picture of the Day | Requires `NASA_API_KEY` |
 | `!ask <question>` | DeepSeek text reply in chat | Capped at 2000 chars; requires `DEEPSEEK_API_KEY` |
-| `!display <text>` | Transient overlay on the LCD | Max 50 characters across two lines (6 s duration) |
+| `!msg <text>` | Sticky **Msg:** line on LCD Display (bottom left) | Max **31** characters; Clear / `!clear` wipes it |
 | `!help` | Interactive command list | -- |
 | `!iss` | International Space Station position | No API key required |
 | `!news` | Space / high-tech headlines | Spaceflight News API |
@@ -126,7 +126,7 @@ Same list Discord shows for `!help`:
 |---|---|---|
 | `!ota` | Print Wi-Fi ArduinoOTA connection info (IP / hostname / port 3232) | User-initiated only; see **Firmware updates (OTA)** |
 | `!coredump` | Last panic from flash coredump (`!coredump clear` erases) | Forensic memory preservation |
-| `!clear` | Clear DM / mention alert flags on the LCD (stops the repeating alarm) | Silences the I2S alert buzzer |
+| `!clear` | Clear DM / mention alerts and the Msg line (stops the repeating alarm) | Silences the I2S alert buzzer |
 | `!resetprefs` | Factory-reset Controls prefs in flash (theme, bright, vol, Sound/Ticks/Notify) | Restores default configuration |
 
 This Guition module has **no LED1 / LED2** and **no on-board RGB**. `!led` is not shipped (no handler). There is **no** `!servo` -- the servo path was removed (see Hardware).
@@ -190,7 +190,7 @@ Shared UI state is a published **DashSnap** (seqlock; Core 1 writes, Core 0 pain
 The LAN page matches this layout (Display = metrics|users, Log = LOG|Serial, Controls = sliders|toggles). Glass and browser Light/Dark stay independent.
 
 <details>
-<summary><strong>LCD panels, chips, !display, and backlight sleep</strong></summary>
+<summary><strong>LCD panels, chips, !msg, and backlight sleep</strong></summary>
 
 ### Modes (right IC chip)
 
@@ -222,18 +222,18 @@ Adapted from the VFO settings *rules* (dirty / CRC / corrupt defaults), stored i
 | **Corrupt / missing** | -> defaults (brightness/volume **100%**, toggles **ON**, Dark), then seed flash. |
 | **First flash after this change** | Partition table moved -- full USB erase/upload once. |
 
-### `!display`
+### `!msg`
 
-- Public command.
-- Only the text after `!display` is shown.
-- Cap **50** characters across two transient lines.
-- Stays **6 seconds**. A new `!display` overwrites and restarts the timer.
+- Public command (replaces old `!display` / `!message`).
+- Only the text after `!msg` is shown on the sticky **Msg:** line (bottom of left Display panel).
+- Cap **31** characters (left-panel fit after the `Msg:` label).
+- Sticky with **no timed clear**. Cleared by Controls **Clear DM/Mention/Msg** or owner `!clear`. Wakes the backlight.
 
 ### Backlight sleep
 
 After **5 minutes** with no real events, backlight turns **off**. That is panel power only. The microcontroller, Wi-Fi, and Discord Gateway keep running.
 
-These **wake** the panel and restart the **5-minute** idle timer: **in-cell touch**, Discord commands, gateway connect/disconnect, `!display`, and other status overlays. Presence updates for user rows **do not** wake the panel.
+These **wake** the panel and restart the **5-minute** idle timer: **in-cell touch**, Discord commands, gateway connect/disconnect, `!msg`, and other status overlays. Presence updates for user rows **do not** wake the panel.
 
 Discord presence still goes Idle after **5 minutes** quiet (CPU drops to **160 MHz**; activity / OTA returns to **240 MHz**). Backlight sleep does not by itself change CPU clock.
 

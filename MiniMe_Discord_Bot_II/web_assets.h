@@ -41,24 +41,32 @@ html[data-layout="controls"] #box-ctrl-sliders,html[data-layout="controls"] #box
 .box.box-lcd-ctrl{border-radius:.25rem;overflow:visible}
 #box-metrics{grid-area:metrics}#box-users{grid-area:users}#box-logfile{grid-area:logfile}#box-serial{grid-area:serial}
 #box-ctrl-sliders{grid-area:ctrl-sliders}#box-ctrl-toggles{grid-area:ctrl-toggles}
-.dash{padding:.45rem .55rem;flex:1;min-width:0;overflow:hidden}
+.dash{padding:.45rem .55rem;flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column}
 .hdr{display:grid;grid-template-columns:1fr auto 1fr;gap:.25rem;margin:0 0 .3rem;padding-bottom:.25rem;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden}
 .hdr .c{text-align:center;overflow:hidden;text-overflow:ellipsis}.hdr .r{text-align:right;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .hdr strong{overflow:hidden;text-overflow:ellipsis}
 .mline{display:grid;grid-template-columns:3.2rem 7ch minmax(0,1fr);column-gap:.3rem;align-items:center;margin:0 0 .14rem;width:100%;max-width:100%;min-width:0}
 .mline .k{color:var(--label);font-size:.78rem;white-space:nowrap;overflow:hidden}
+.mline .k.bad{color:#ff2020}
 .mline .n{color:var(--muted);font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .bar{display:block;width:100%;max-width:100%;height:.45rem;border:1px solid var(--line);background:var(--bar-track);overflow:hidden;min-width:0;box-sizing:border-box}
 .bar>i{display:block;height:100%;background:var(--cyan);max-width:100%}
 .metric{margin:0 0 .14rem;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .metric .k{color:var(--label)}
+.metric-3{display:grid;grid-template-columns:1fr auto 1fr;column-gap:.25rem;align-items:baseline;margin:0 0 .14rem;width:100%;max-width:100%;min-width:0;font-size:.78rem;white-space:nowrap}
+.metric-3>span{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.metric-3 .c{text-align:center}
+.metric-3 .r{text-align:right}
 .metric-bot{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:.35rem;align-items:baseline}
 .metric-bot .r{text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .sysrows{margin:.35rem 0 0;padding-top:.3rem;border-top:1px solid var(--line);display:grid;grid-template-columns:3.6rem minmax(0,1fr);gap:.08rem .35rem;width:100%;max-width:100%;min-width:0}
 .sysrows .k{color:var(--label);font-size:.72rem;white-space:nowrap;overflow:hidden}
 .sysrows .v{font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;word-break:normal}
-.sysrows .v.ip-flash{color:#ff2020;animation:ipSdFlash 4s steps(1,end) infinite}
-@keyframes ipSdFlash{0%,49.999%{color:#ff2020;opacity:1}50%,100%{color:#ff2020;opacity:0}}
+.sysrows .v.ip-bad{color:#ff2020}
+.sysrows .metric-3{grid-column:1/-1;margin:0}
+.msg-line{margin-top:auto;padding-top:.2rem;display:grid;grid-template-columns:3.6rem minmax(0,1fr);gap:.08rem .35rem;width:100%;max-width:100%;min-width:0}
+.msg-line .k{color:var(--label);font-size:.72rem;white-space:nowrap;overflow:hidden}
+.msg-line .v{font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .users{padding:.4rem .5rem;flex:1;min-height:0;overflow:hidden}
 .urole{display:grid;grid-template-columns:minmax(0,1fr) 4rem 3.2rem;gap:.25rem;font-size:.72rem;color:var(--muted);margin:0 0 .15rem;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
 .urow{display:grid;grid-template-columns:minmax(0,1fr) 4rem 3.2rem;gap:.25rem;padding:.08rem 0;border-bottom:1px solid var(--row-line);font-size:.82rem;line-height:1.1;min-width:0}
@@ -72,19 +80,24 @@ html[data-layout="controls"] #box-ctrl-sliders,html[data-layout="controls"] #box
 .serial div{padding:.12rem 0;border-bottom:1px solid var(--row-line);white-space:pre-wrap;word-break:break-word;color:var(--text);min-height:1.15em}
 .serial div:last-child{border-bottom:none}.serial .empty{color:var(--muted)}
 .ctrl-panel{padding:.4rem .4rem .25rem;flex:1;display:flex;flex-direction:column;min-height:0;box-sizing:border-box}
-.ctrl-title{color:var(--cyan);font-size:.85rem;font-weight:400;line-height:1;margin:0 0 .7rem;padding:0;letter-spacing:0;text-transform:none}
-.ctrl-row{display:flex;flex-direction:column;gap:.5rem;margin:0 0 1.35rem;flex:0 0 auto}
+.ctrl-title{color:var(--cyan);font-size:.85rem;font-weight:400;line-height:1;margin:0 0 .55rem;padding:0;letter-spacing:0;text-transform:none;flex:0 0 auto}
+/* Equal slots so Controls | Toggles row tops stay in line (LCD CTRL_ROW_*). */
+.ctrl-slot{height:2.85rem;margin:0 0 .55rem;padding:0;flex:0 0 auto;box-sizing:border-box;display:flex;flex-direction:column;justify-content:flex-start;min-width:0}
+.ctrl-row{display:flex;flex-direction:column;gap:.35rem;margin:0;flex:1 1 auto;min-height:0;width:100%}
 .ctrl-row .ctrl-lab{color:var(--muted);font-size:.85rem;line-height:1;font-weight:400;letter-spacing:0;text-transform:none}
-.ctrl-track{position:relative;width:100%;height:1rem;margin:.125rem 0;background:var(--bar-track);border:1px solid var(--line);border-radius:0;box-sizing:border-box;--pct:0;overflow:visible}
+.ctrl-track{position:relative;width:100%;height:1rem;margin:0;background:var(--bar-track);border:1px solid var(--line);border-radius:0;box-sizing:border-box;--pct:0;overflow:visible}
 .ctrl-track .ctrl-fill{position:absolute;left:1px;top:1px;bottom:1px;width:calc((100% - 2px) * var(--pct) / 100);max-width:calc(100% - 2px);background:var(--cyan);pointer-events:none}
 .ctrl-track .ctrl-knob{position:absolute;top:-2px;width:6px;height:calc(100% + 4px);left:calc((100% - 6px) * var(--pct) / 100);background:var(--cyan);pointer-events:none}
 .ctrl-track input[type=range]{-webkit-appearance:none;appearance:none;position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;opacity:0;cursor:pointer;z-index:2;border:none;background:transparent}
 .ctrl-track input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:6px;height:1.25rem;background:transparent;border:none}
 .ctrl-track input[type=range]::-moz-range-thumb{width:6px;height:1.25rem;background:transparent;border:none}
-.tog{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:0 .5rem;border:1px solid var(--line);border-radius:.25rem;background:var(--panel);cursor:pointer;font:inherit;color:inherit;width:100%;height:2.25rem;min-height:2.25rem;box-sizing:border-box;margin:0 0 .65rem;flex:0 0 auto}
+.tog{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:0 .5rem;border:1px solid var(--line);border-radius:.25rem;background:var(--panel);cursor:pointer;font:inherit;color:inherit;width:100%;height:2.25rem;min-height:2.25rem;max-height:2.25rem;box-sizing:border-box;margin:0;flex:0 0 auto}
 .tog .lab{color:var(--muted);font-size:.85rem;letter-spacing:0;text-transform:none;font-weight:400}
 .tog .st{font-size:.85rem;min-width:2.2rem;text-align:right;font-weight:400}
 .tog[aria-pressed="true"] .st{color:var(--ok)}.tog[aria-pressed="false"] .st{color:var(--bad)}
+.ctrl-clear-btn{display:flex;align-items:center;justify-content:center;margin:0;padding:0 .5rem;border:1px solid var(--line);border-radius:.25rem;background:var(--panel);cursor:pointer;font:inherit;color:var(--cyan);width:100%;height:2.25rem;min-height:2.25rem;max-height:2.25rem;box-sizing:border-box;flex:0 0 auto;letter-spacing:0;text-transform:none;font-weight:400;font-size:.85rem}
+.ctrl-clear-btn:focus{outline:none}
+.ctrl-clear-btn:focus-visible{outline:2px solid var(--k9-cyan);outline-offset:3px}
 .dog-btn{margin:0;padding:0;border:none;border-radius:0;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;-webkit-tap-highlight-color:transparent;min-width:0;flex:0 0 auto}
 .dog-btn.dog-cancel{align-self:flex-start;margin-top:auto}
 .dog-btn.dog-save{align-self:flex-end;margin-top:auto}
@@ -242,7 +255,7 @@ if(j){lastCtrl={bright:j.bright,vol:j.vol,notify:j.notify,ticks:j.ticks,sound:j.
 });bs.blur();});
 function esc(s){return String(s==null||s===undefined?'':s).replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));}
 function bar(pct){pct=Math.max(0,Math.min(100,+pct||0));return '<span class="bar"><i style="width:'+pct+'%"></i></span>';}
-function mline(lab,n,pct){return '<div class="mline"><span class="k">'+lab+'</span><span class="n">'+n+'</span>'+bar(pct)+'</div>';}
+function mline(lab,n,pct,kCls){return '<div class="mline"><span class="k'+(kCls?(' '+kCls):'')+'">'+lab+'</span><span class="n">'+n+'</span>'+bar(pct)+'</div>';}
 function srow(k,v,cls){return '<span class="k">'+esc(k)+'</span><span class="v'+(cls?(' '+cls):'')+'">'+v+'</span>';}
 function linesHtml(lines){
 var a=(lines||[]).filter(function(l){return !!l;});
@@ -294,7 +307,10 @@ if(v){v.addEventListener('input',function(){setRangeUi(v,vl,v.value);postControl
 function wireTog(id,key){var el=document.getElementById(id);if(!el)return;
 el.addEventListener('click',function(){var on=el.getAttribute('aria-pressed')!=='true';
 setTog(id,on);postControls(key+'='+(on?'1':'0'));el.blur();});}
-wireTog('ctrl-sound','sound');wireTog('ctrl-ticks','ticks');wireTog('ctrl-notify','notify');}
+wireTog('ctrl-sound','sound');wireTog('ctrl-ticks','ticks');wireTog('ctrl-notify','notify');
+var bcClear=document.getElementById('ctrl-clear');
+if(bcClear){bcClear.addEventListener('click',function(){postControls('action=clear');bcClear.blur();});}
+}
 wireControls();
 function render(j){
 lastCtrl={bright:j.bright,vol:j.vol,notify:j.notify,ticks:j.ticks,sound:j.sound};
@@ -312,21 +328,22 @@ var metrics=document.getElementById('metrics');
 if(metrics)metrics.innerHTML=
 '<div class="hdr"><strong>MiniMe-II</strong><span class="c">'+gw+'</span><span class="r">'+esc(j.time)+'</span></div>'+
 '<div class="metric metric-bot"><span><span class="k">Bot</span> '+esc(bot)+'</span><span class="r muted">'+esc(j.date)+'</span></div>'+
+'<div class="metric" style="color:var(--cyan)">Up '+esc(j.uptime)+'  T '+temp+'</div>'+
 mline('Sig',esc(j.rssi)+' dBm',j.sigPct)+
 (j.psramTotal?mline('PSRAM',fmtK(j.psramFree),j.psramPct):'')+
 mline('SRAM',fmtK(j.heapFree),j.heapPct)+
-mline('SD',j.sdOk?fmtM(j.sdFreeMb):'--',j.sdOk?j.sdPct:0)+
-'<div class="metric" style="color:var(--cyan)">Up '+esc(j.uptime)+'  T '+temp+'</div>'+
-'<div class="metric"><span class="'+idC+'">Id:'+(j.identified?'yes':'no')+'</span></div>'+
-'<div class="metric">Users:'+esc(j.usersActive)+'/'+esc(j.usersMax)+'</div>'+
-'<div class="metric"><span class="'+al+'">DM:'+(dmOn?'ON':'off')+'  Mention:'+(menOn?'ON':'off')+'</span></div>'+
-'<div class="metric"><span class="'+httpsC+'">HTTPS:'+(j.httpsBusy?'busy':'idle')+'</span></div>'+
+mline('SD',j.sdOk?fmtM(j.sdFreeMb):'0M',j.sdOk?j.sdPct:0,j.sdOk?'':'bad')+
+'<div class="metric-3"><span>Users:'+esc(j.usersActive)+'/'+esc(j.usersMax)+'</span><span class="c '+httpsC+'">HTTPS:'+(j.httpsBusy?'busy':'idle')+'</span><span class="r '+idC+'">Id:'+(j.identified?'yes':'no')+'</span></div>'+
+'<div class="metric-3"><span class="'+al+'">DM:'+(dmOn?'ON':'off')+'</span><span></span><span class="r '+al+'">Mention:'+(menOn?'ON':'off')+'</span></div>'+
 '<div class="metric"><span class="k">Event:</span> '+esc(j.lastEvent||'-')+'</div>'+
 '<div class="sysrows">'+
-srow('IP',esc(j.ip),j.sdOk?'':'ip-flash')+srow('OTA',esc(j.ota))+srow('Ver',esc(j.ver))+srow('CPU',esc(j.cpuMhz)+' MHz')+
-srow('Write',esc(j.dashFlushMs)+' / '+esc(j.dashDrawMs)+' ms')+
-srow('Period',esc(j.dashRefreshMs)+' ms')+srow('LCD',esc(j.lcd))+
-'</div>'+msg;
+srow('IP',esc(j.ip),j.wifiOk?'':'ip-bad')+
+srow('Src',j.secretsFromSd?'SD card':'firmware')+
+srow('OTA',esc(j.ota))+srow('Ver',esc(j.ver))+srow('CPU',esc(j.cpuMhz)+' MHz')+
+'<div class="metric-3"><span><span class="k">LCD</span> '+esc(j.lcd)+'</span><span></span><span class="r muted">Refresh '+esc(j.dashFlushMs)+'/'+esc(j.dashDrawMs)+' ms</span></div>'+
+'</div>'+
+'<div class="msg-line"><span class="k">Msg</span><span class="v">'+esc(j.lcdMsg||'')+'</span></div>'+
+msg;
 var users='<div class="urole"><span>User</span><span>Status</span><span class="bt">Bot</span></div>';
 (j.users||[]).forEach(function(u){users+='<div class="urow"><span>'+esc(u.name)+'</span><span class="st">'+esc(u.status)+'</span><span class="bt">'+esc(u.bot)+'</span></div>';});
 var ub=document.getElementById('users');

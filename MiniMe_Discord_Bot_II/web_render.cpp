@@ -163,16 +163,17 @@ static void streamRootHtml(Print& out) {
   out.print(F("<section class=\"box box-lcd-ctrl\" id=\"box-ctrl-sliders\">"));
   out.print(F("<div class=\"ctrl-panel\">"));
   out.print(F("<div class=\"ctrl-title\">Controls</div>"));
-  out.print(F("<div class=\"ctrl-row\"><div class=\"ctrl-lab\" id=\"ctrl-bright-lab\">Brightness 100%</div>"));
+  out.print(F("<div class=\"ctrl-slot\"><div class=\"ctrl-row\"><div class=\"ctrl-lab\" id=\"ctrl-bright-lab\">Brightness 100%</div>"));
   out.print(F("<div class=\"ctrl-track\" id=\"ctrl-bright-track\" style=\"--pct:100\">"));
   out.print(F("<div class=\"ctrl-fill\"></div><div class=\"ctrl-knob\"></div>"));
   out.print(F("<input id=\"ctrl-bright\" type=\"range\" min=\"0\" max=\"100\" value=\"100\" aria-label=\"Brightness\">"));
-  out.print(F("</div></div>"));
-  out.print(F("<div class=\"ctrl-row\"><div class=\"ctrl-lab\" id=\"ctrl-vol-lab\">Volume 100%</div>"));
+  out.print(F("</div></div></div>"));
+  out.print(F("<div class=\"ctrl-slot\"><div class=\"ctrl-row\"><div class=\"ctrl-lab\" id=\"ctrl-vol-lab\">Volume 100%</div>"));
   out.print(F("<div class=\"ctrl-track\" id=\"ctrl-vol-track\" style=\"--pct:100\">"));
   out.print(F("<div class=\"ctrl-fill\"></div><div class=\"ctrl-knob\"></div>"));
   out.print(F("<input id=\"ctrl-vol\" type=\"range\" min=\"0\" max=\"100\" value=\"100\" aria-label=\"Volume\">"));
-  out.print(F("</div></div>"));
+  out.print(F("</div></div></div>"));
+  out.print(F("<div class=\"ctrl-slot\"><button type=\"button\" class=\"ctrl-clear-btn\" id=\"ctrl-clear\" aria-label=\"Clear DM mention and Msg\">Clear DM/Mention/Msg</button></div>"));
   out.print(F("<button type=\"button\" class=\"dog-btn dog-cancel\" id=\"ctrl-cancel\" aria-label=\"Cancel\">"));
   out.print(F("<img id=\"dog-left-img\" width=\"48\" height=\"32\" alt=\"\">"));
   out.print(F("<span class=\"dog-lab\">Cancel</span></button>"));
@@ -180,9 +181,9 @@ static void streamRootHtml(Print& out) {
   out.print(F("<section class=\"box box-lcd-ctrl\" id=\"box-ctrl-toggles\">"));
   out.print(F("<div class=\"ctrl-panel\">"));
   out.print(F("<div class=\"ctrl-title\">Toggles</div>"));
-  out.print(F("<button type=\"button\" class=\"tog\" id=\"ctrl-sound\" aria-pressed=\"true\"><span class=\"lab\">Sound</span><span class=\"st\">ON</span></button>"));
-  out.print(F("<button type=\"button\" class=\"tog\" id=\"ctrl-ticks\" aria-pressed=\"true\"><span class=\"lab\">Ticks</span><span class=\"st\">ON</span></button>"));
-  out.print(F("<button type=\"button\" class=\"tog\" id=\"ctrl-notify\" aria-pressed=\"true\"><span class=\"lab\">Notify</span><span class=\"st\">ON</span></button>"));
+  out.print(F("<div class=\"ctrl-slot\"><button type=\"button\" class=\"tog\" id=\"ctrl-sound\" aria-pressed=\"true\"><span class=\"lab\">Sound</span><span class=\"st\">ON</span></button></div>"));
+  out.print(F("<div class=\"ctrl-slot\"><button type=\"button\" class=\"tog\" id=\"ctrl-ticks\" aria-pressed=\"true\"><span class=\"lab\">Ticks</span><span class=\"st\">ON</span></button></div>"));
+  out.print(F("<div class=\"ctrl-slot\"><button type=\"button\" class=\"tog\" id=\"ctrl-notify\" aria-pressed=\"true\"><span class=\"lab\">Notify</span><span class=\"st\">ON</span></button></div>"));
   out.print(F("<button type=\"button\" class=\"dog-btn dog-save\" id=\"ctrl-save\" aria-label=\"Save\">"));
   out.print(F("<img id=\"dog-right-img\" width=\"48\" height=\"32\" alt=\"\">"));
   out.print(F("<span class=\"dog-lab\">Save</span></button>"));
@@ -234,7 +235,8 @@ void webUiHandleStatus() {
   }
 
   // Stack buffers must stay live until serializeJson finishes (AJ7 may store const char* by ptr).
-  char timeStr[12], dateStr[24], upStr[28], msg1[40], msg2[128], ipBuf[16], eventBuf[UI_EVENT_COLS];
+  char timeStr[12], dateStr[24], upStr[28], msg1[40], msg2[128], ipBuf[16], eventBuf[UI_EVENT_COLS],
+       lcdMsgBuf[UI_MSG_COLS];
   int sigPct = 0, heapPct = 0, sdPct = 0;
   long rssi = 0;
   uint32_t memFree = 0, memTotal = 0;
@@ -242,6 +244,7 @@ void webUiHandleStatus() {
              sigPct, heapPct, sdPct, rssi, memFree, memTotal,
              msg1, sizeof(msg1), msg2, sizeof(msg2));
   uiOverlayCopyEvent(eventBuf, sizeof(eventBuf));
+  uiOverlayCopyMsg(lcdMsgBuf, sizeof(lcdMsgBuf));
 
   JsonDocument& doc = *statusDoc;
   doc.clear();
@@ -289,6 +292,8 @@ void webUiHandleStatus() {
              (unsigned)ip[0], (unsigned)ip[1], (unsigned)ip[2], (unsigned)ip[3]);
   }
   doc["ip"] = ipBuf;
+  doc["wifiOk"] = (WiFi.status() == WL_CONNECTED);
+  doc["secretsFromSd"] = secretsFromSd;
   static char otaHost[40];
   static bool otaHostReady = false;
   if (!otaHostReady) {
@@ -305,6 +310,7 @@ void webUiHandleStatus() {
   doc["mention"] = alertMention.load();
   doc["httpsBusy"] = httpsInUse;
   doc["lastEvent"] = eventBuf;
+  doc["lcdMsg"] = lcdMsgBuf;
   doc["mmLogDropCore0"] = mmLogDropCore0.load();
   doc["msg1"] = msg1;
   doc["msg2"] = msg2;

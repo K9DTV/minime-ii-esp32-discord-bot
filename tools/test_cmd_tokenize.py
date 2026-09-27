@@ -26,9 +26,9 @@ def test_cpp_known_cmds_match_python_spec() -> None:
 
 
 def test_cmd_word_lowercased_args_keep_case() -> None:
-    # 0.4.9: lowercase the command word only; !display text keeps case.
-    r = tokenize("!Display Hello World")
-    assert r.ok and r.cmd == "!display"
+    # 0.4.9: lowercase the command word only; !msg text keeps case.
+    r = tokenize("!Msg Hello World")
+    assert r.ok and r.cmd == "!msg"
     assert r.args == "Hello World"
     assert r.consumes_rest
 
@@ -62,9 +62,9 @@ def test_midline_ask_keeps_rest() -> None:
     assert r.consumes_rest
 
 
-def test_midline_display_keeps_rest_case() -> None:
-    r = tokenize("note: !display Keep CASE intact")
-    assert r.ok and r.cmd == "!display"
+def test_midline_message_keeps_rest_case() -> None:
+    r = tokenize("note: !msg Keep CASE intact")
+    assert r.ok and r.cmd == "!msg"
     assert r.args == "Keep CASE intact"
 
 

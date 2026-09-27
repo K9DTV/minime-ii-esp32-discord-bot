@@ -1,6 +1,6 @@
 # MiniMe II -- soak for v0.7.85 (SD / secrets / temp / IP flash / LOG accessors)
 
-Flash **v0.7.86** (`Display  -  v0.7.86`). Date the run in [`soak-results.md`](soak-results.md) when done.
+Flash **v0.7.87** (`Display  -  v0.7.87`). Date the run in [`soak-results.md`](soak-results.md) when done.
 
 General Gateway watch: [`HIL_SOAK.md`](HIL_SOAK.md) + `docs/lan-monitor.ps1`.
 Prior Controls / `!ask` smoke: [`soak-0.7.80.md`](soak-0.7.80.md).
@@ -16,7 +16,10 @@ Prior overnight Gateway on **v0.7.80**: **2026-09-24** in [`soak-results.md`](so
 | SD SPI 10/11/12/13 + meter | **SD** free **MB** + bar on LCD/web when card mounted |
 | SD `/secrets.h` load (0.7.84) | Boot LOG `Secrets: loaded N keys from SD`; Wi-Fi/Discord use those values |
 | Compile-time fallback | No SD file -> `Secrets: using compile-time...` still connects |
-| No-SD IP flash (0.7.83) | IP bright red **2 s on / 2 s off**; stops when card mounts |
+| No SD card | **SD** label red; value **0M**; bar empty |
+| Wi-Fi down | **IP** solid bright red |
+| Up / temp | Line sits **above Sig** |
+| Boot secrets | **Src** = `SD card` or `firmware` |
 | LOG ring accessors (0.7.85) | `/api/status` `fulllog` / `serial` still populate; LAN Log page paints |
 
 ## Setup
@@ -26,7 +29,7 @@ $env:MINIME_LAN = "http://192.168.68.60"
 powershell -File docs/lan-monitor.ps1
 ```
 
-Confirm glass/web **v0.7.86** before scoring PASS. Leave monitor running.
+Confirm glass/web **v0.7.87** before scoring PASS. Leave monitor running.
 
 ## Timed Gateway soak (background)
 
@@ -34,13 +37,14 @@ Confirm glass/web **v0.7.86** before scoring PASS. Leave monitor running.
 - Note `FETCH_FAIL` (LAN only) vs Discord drops
 - Optional: pull `/api/status` into `docs/lan-status-snapshot.json`
 
-## A -- Pins / meters / IP flash
+## A -- Pins / meters / alerts
 
-1. LCD + web: **PSRAM** / **SRAM** / **SD** (not Srv). SD like `512M` or `--` if no card
-2. `/api/status`: `sdOk`, `sdFreeMb`, `sdTotalMb`, `sdPct`; no `servo` / `srvPct`
-3. With card: SD bar OK; IP normal color
-4. No card: SD `--`; IP flashes **2 s red / 2 s off** (time it)
-5. Reinsert: flash stops; SD MB returns (hot-plug ~2 s)
+1. LCD + web: **PSRAM** / **SRAM** / **SD** (not Srv). Order: **Up/T** then **Sig** then meters
+2. `/api/status`: `sdOk`, `wifiOk`, `secretsFromSd`, `sdFreeMb` present
+3. With card: SD bar OK; **SD** label normal color
+4. No card: **SD** label red, value **0M**, bar empty
+5. Wi-Fi down: **IP** solid red; reconnect restores normal text color
+6. **Src** shows `SD card` or `firmware` matching boot secrets
 
 ## B -- Temperature (GPIO 18)
 
@@ -76,7 +80,7 @@ Confirm glass/web **v0.7.86** before scoring PASS. Leave monitor running.
 
 | Result | Rule |
 |---|---|
-| **PASS** | A-F done (B skip OK if no probe); version on glass = **0.7.86**; SD secrets or compile-time confirmed; IP timing by eye; Log JSON/UI OK; monitor no GW>=60 s stop; **no color scramble / reboot after SD** |
-| **FAIL** | Panic, stuck GW, empty Log after accessors, SD never mounts with known-good card, `/secrets.h` ignored when present, IP flash wrong rate |
+| **PASS** | A-F done (B skip OK if no probe); version on glass = **0.7.87**; Src + SD/IP colors match rules; Log JSON/UI OK; monitor no GW>=60 s stop; **no color scramble / reboot after SD** |
+| **FAIL** | Panic, stuck GW, empty Log after accessors, SD never mounts with known-good card, `/secrets.h` ignored when present, wrong SD/IP colors, Up/T not above Sig |
 
 Record date + version + PASS/FAIL in [`soak-results.md`](soak-results.md). Snapshot: `docs/lan-status-snapshot.json`.

@@ -285,7 +285,7 @@ static void drawCtrlToggle(int16_t x, int16_t y, int16_t w, const char* label, b
                            const DashPalette& p,
                            int16_t& hitX, int16_t& hitY, int16_t& hitW, int16_t& hitH) {
   if (!gfx) return;
-  const int16_t h = 36;
+  const int16_t h = CTRL_TOGGLE_H;
   gfx->fillRoundRect(x, y, w, h, 4, p.panel);
   gfx->drawRoundRect(x, y, w, h, 4, p.line);
   prtCol(p.muted, label, x + 8, y + 14, 1);
@@ -305,10 +305,22 @@ void drawControlsLeft(const DashPalette& p) {
   const int16_t sx = lx + PANEL_PAD;
   const int16_t sw = (int16_t)(lw - 2 * PANEL_PAD);
   prtCol(p.cyan, "Controls", sx, ly + PANEL_CONTENT_TOP, 1);
-  drawCtrlSlider(sx, ly + 28, sw, "Brightness", uiBrightPct.load(), 0, p,
+  drawCtrlSlider(sx, (int16_t)(ly + CTRL_ROW0), sw, "Brightness", uiBrightPct.load(), 0, p,
                  ctrlBrightTrackX, ctrlBrightTrackY, ctrlBrightTrackW, ctrlBrightTrackH);
-  drawCtrlSlider(sx, ly + 78, sw, "Volume", uiVolPct.load(), 0, p,
+  drawCtrlSlider(sx, (int16_t)(ly + CTRL_ROW0 + CTRL_ROW_PITCH), sw, "Volume", uiVolPct.load(), 0, p,
                  ctrlVolTrackX, ctrlVolTrackY, ctrlVolTrackW, ctrlVolTrackH);
+  // Clear DM/@mention/Msg -- same row top as Notify (Toggles).
+  {
+    const int16_t x = sx, y = (int16_t)(ly + CTRL_ROW0 + 2 * CTRL_ROW_PITCH);
+    const int16_t w = sw, h = CTRL_TOGGLE_H;
+    gfx->fillRoundRect(x, y, w, h, 4, p.panel);
+    gfx->drawRoundRect(x, y, w, h, 4, p.line);
+    prtCenter(p.cyan, "Clear DM/Mention/Msg", x + w / 2, y + 14, 1);
+    ctrlClearHitX = x;
+    ctrlClearHitY = y;
+    ctrlClearHitW = w;
+    ctrlClearHitH = h;
+  }
   drawPanelDog(lx, ly, lw, lh, false, "Cancel", p,
                dogLeftHitX, dogLeftHitY, dogLeftHitW, dogLeftHitH);
 }
@@ -321,11 +333,11 @@ void drawControlsRight(const DashPalette& p) {
   const int16_t sx = rx + PANEL_PAD;
   const int16_t sw = (int16_t)(rw - 2 * PANEL_PAD);
   prtCol(p.cyan, "Toggles", sx, ry + PANEL_CONTENT_TOP, 1);
-  drawCtrlToggle(sx, ry + 28, sw, "Sound", uiSoundOn.load(), p,
+  drawCtrlToggle(sx, (int16_t)(ry + CTRL_ROW0), sw, "Sound", uiSoundOn.load(), p,
                  ctrlToggle0X, ctrlToggle0Y, ctrlToggle0W, ctrlToggle0H);
-  drawCtrlToggle(sx, ry + 74, sw, "Ticks", uiTicksOn.load(), p,
+  drawCtrlToggle(sx, (int16_t)(ry + CTRL_ROW0 + CTRL_ROW_PITCH), sw, "Ticks", uiTicksOn.load(), p,
                  ctrlToggle1X, ctrlToggle1Y, ctrlToggle1W, ctrlToggle1H);
-  drawCtrlToggle(sx, ry + 120, sw, "Notify", uiNotifyOn.load(), p,
+  drawCtrlToggle(sx, (int16_t)(ry + CTRL_ROW0 + 2 * CTRL_ROW_PITCH), sw, "Notify", uiNotifyOn.load(), p,
                  ctrlToggle2X, ctrlToggle2Y, ctrlToggle2W, ctrlToggle2H);
   drawPanelDog(rx, ry, rw, rh, true, "Save", p,
                dogRightHitX, dogRightHitY, dogRightHitW, dogRightHitH);
@@ -334,9 +346,10 @@ void drawControlsRight(const DashPalette& p) {
 // Same 3-column idea as web mline(): label | fixed value col | bar (one row per meter).
 static void drawMetricMline(int16_t x, int16_t y, int16_t right, const char* label,
                             const char* value, int fillFull, const DashPalette& p,
-                            bool degreeSuffix = false) {
+                            bool degreeSuffix = false, uint16_t labelCol = 0) {
   if (!gfx) return;
-  prtCol(p.muted, label, x, y, 1);
+  if (labelCol == 0) labelCol = p.muted;
+  prtCol(labelCol, label, x, y, 1);
   const int16_t valX = x + MLINE_VALUE_X;
   prtCol(p.text, value ? value : "", valX, y, 1);
   int16_t vw = textW(value ? value : "", 1);
@@ -362,32 +375,64 @@ static void drawSysRow(int16_t x, int16_t y, const char* k, const char* v, const
   prtCol(p.text, v ? v : "", x + SYS_VALUE_X, y, 1);
 }
 
-// Bright red (RGB565) for missing-SD IP flash -- not palette bad/orange.
-static const uint16_t IP_FLASH_RED = 0xF800;
+// Bright red (RGB565) for missing SD label / Wi-Fi-down IP.
+static const uint16_t WARN_RED = 0xF800;
 
 static void drawIpSysRow(int16_t x, int16_t y, const DashSnap& s, const DashPalette& p) {
   prtCol(p.muted, "IP", x, y, 1);
-  uint16_t vc = p.text;
-  if (!s.sdPresent) {
-    // 2 s on / 2 s off: bright red on, blank off (same phase as s.ipFlashOn).
-    vc = s.ipFlashOn ? IP_FLASH_RED : p.panel;
-  }
+  // Solid red when Wi-Fi not connected (not SD-related).
+  uint16_t vc = s.wifiOk ? p.text : WARN_RED;
   prtCol(vc, s.ip, x + SYS_VALUE_X, y, 1);
+}
+
+static void drawUpTempLine(int16_t cx, int16_t y, const DashSnap& s, const DashPalette& p) {
+  if (s.tempC10 > -9980) {
+    float tc = s.tempC10 / 10.0f;
+    float tf = tc * 9.0f / 5.0f + 32.0f;
+    int iF = (int)(tf >= 0.0f ? tf + 0.5f : tf - 0.5f);
+    int iC = (int)(tc >= 0.0f ? tc + 0.5f : tc - 0.5f);
+    char upPart[28];
+    snprintf(upPart, sizeof(upPart), "Up %s  T ", s.upStr);
+    prtCol(p.cyan, upPart, cx, y, 1);
+    int16_t tx = cx + textW(upPart, 1);
+    char nb[8];
+    snprintf(nb, sizeof(nb), "%d", iF);
+    prtCol(p.cyan, nb, tx, y, 1);
+    tx += textW(nb, 1);
+    gfx->drawCircle(tx + 3, y + 1, 2, p.cyan);
+    tx += 7;
+    prtCol(p.cyan, "F/", tx, y, 1);
+    tx += textW("F/", 1);
+    snprintf(nb, sizeof(nb), "%d", iC);
+    prtCol(p.cyan, nb, tx, y, 1);
+    tx += textW(nb, 1);
+    gfx->drawCircle(tx + 3, y + 1, 2, p.cyan);
+    tx += 7;
+    prtCol(p.cyan, "C", tx, y, 1);
+  } else {
+    char line[40];
+    snprintf(line, sizeof(line), "Up %s  T --Error--", s.upStr);
+    prtCol(p.cyan, line, cx, y, 1);
+  }
 }
 
 static void drawLogLines(int16_t sx, int16_t sy, int16_t bottom, const DashPalette& p,
                          const DashSnap& s, bool fullLog) {
   const int16_t maxRows = (int16_t)((bottom - sy) / USER_PITCH);
-  uint8_t n = fullLog ? s.logRowCount : s.serialRowCount;
-  if (n == 0) {
+  const uint8_t total = fullLog ? s.logRowCount : s.serialRowCount;
+  if (total == 0) {
     prtCol(p.muted, "(empty)", sx, sy, 1);
     return;
   }
   if (maxRows < 1) return;
-  if ((int16_t)n > maxRows) n = (uint8_t)maxRows;
-  // Newest at bottom: snap rows are newest-first from lcd*Newest.
-  for (uint8_t i = 0; i < n; i++) {
-    uint8_t fromNewest = (uint8_t)(n - 1 - i);
+  uint8_t vis = total;
+  if ((int16_t)vis > maxRows) vis = (uint8_t)maxRows;
+  uint8_t maxScroll = (total > vis) ? (uint8_t)(total - vis) : 0;
+  uint8_t scroll = fullLog ? s.logScroll : s.serialScroll;
+  if (scroll > maxScroll) scroll = maxScroll;
+  // Newest at bottom; scroll skips N newest (drag up/down like web Log/Serial).
+  for (uint8_t i = 0; i < vis; i++) {
+    uint8_t fromNewest = (uint8_t)(scroll + vis - 1 - i);
     const char* line = fullLog ? s.logRows[fromNewest] : s.serialRows[fromNewest];
     prtCol(p.text, line, sx, sy, 1);
     sy += USER_PITCH;
@@ -416,8 +461,8 @@ void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   }
 
   // Same order + formatting as web_assets.h #metrics:
-  // MiniMe-II|GW|time, Bot|date, Sig dBm, PSRAM/SRAM freeK, SD freeM,
-  // Up/T, Id/Users, DM/Mention, HTTPS, Event, IP, OTA, Ver, CPU, Write, Period, LCD.
+  // MiniMe-II|GW|time, Bot|date, Up/T, Sig, PSRAM/SRAM, SD,
+  // Users, HTTPS, Id (one row), DM/Mention, Event, IP, Src, OTA, Ver, CPU, Write+LCD.
   prtCol(p.text, "MiniMe-II", cx, y, 1);
   const char* gwLabel = (s.gw < 0) ? "GW:Bad" : (s.gw > 0 ? "GW:Good" : "GW:Wait");
   uint16_t gwCol = (s.gw > 0) ? p.ok : (s.gw == 0 ? p.cyan : p.bad);
@@ -432,6 +477,9 @@ void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
     prtRight(p.muted, s.dateStr, right, y, 1);
   }
   y += ROW_PITCH;
+
+  drawUpTempLine(cx, y, s, p);
+  y += ROW_PITCH_UP_T;
 
   {
     char rb[16];
@@ -456,67 +504,39 @@ void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   {
     char sb[12];
     int fill = 0;
+    uint16_t sdLab = p.muted;
     if (s.sdPresent && s.sdTotalMb > 0) {
       snprintf(sb, sizeof(sb), "%luM", (unsigned long)s.sdFreeMb);
       fill = dashHeapBarW(s.sdFreeMb, s.sdTotalMb);
     } else {
-      snprintf(sb, sizeof(sb), "--");
+      snprintf(sb, sizeof(sb), "0M");
       fill = 0;
+      sdLab = WARN_RED;
     }
-    drawMetricMline(cx, y, right, "SD", sb, fill, p);
+    drawMetricMline(cx, y, right, "SD", sb, fill, p, false, sdLab);
   }
   y += ROW_PITCH_LOOSE;
 
   {
-    if (s.tempC10 > -9980) {
-      float tc = s.tempC10 / 10.0f;
-      float tf = tc * 9.0f / 5.0f + 32.0f;
-      int iF = (int)(tf >= 0.0f ? tf + 0.5f : tf - 0.5f);
-      int iC = (int)(tc >= 0.0f ? tc + 0.5f : tc - 0.5f);
-      char upPart[28];
-      snprintf(upPart, sizeof(upPart), "Up %s  T ", s.upStr);
-      prtCol(p.cyan, upPart, cx, y, 1);
-      int16_t tx = cx + textW(upPart, 1);
-      char nb[8];
-      snprintf(nb, sizeof(nb), "%d", iF);
-      prtCol(p.cyan, nb, tx, y, 1);
-      tx += textW(nb, 1);
-      gfx->drawCircle(tx + 3, y + 1, 2, p.cyan);
-      tx += 7;
-      prtCol(p.cyan, "F/", tx, y, 1);
-      tx += textW("F/", 1);
-      snprintf(nb, sizeof(nb), "%d", iC);
-      prtCol(p.cyan, nb, tx, y, 1);
-      tx += textW(nb, 1);
-      gfx->drawCircle(tx + 3, y + 1, 2, p.cyan);
-      tx += 7;
-      prtCol(p.cyan, "C", tx, y, 1);
-    } else {
-      char line[40];
-      snprintf(line, sizeof(line), "Up %s  T --Error--", s.upStr);
-      prtCol(p.cyan, line, cx, y, 1);
-    }
-  }
-  y += ROW_PITCH_UP_T;
-
-  {
-    char idBuf[28];
-    snprintf(idBuf, sizeof(idBuf), "Id:%s", s.identified ? "yes" : "no");
     char uBuf[28];
     snprintf(uBuf, sizeof(uBuf), "Users:%u/%u", (unsigned)s.nActive, (unsigned)MAX_TRACKED_USERS);
-    prtCol(s.identified ? p.ok : p.bad, idBuf, cx, y, 1);
-    prtCol(p.text, uBuf, cx + USERS_COL_X, y, 1);
+    prtCol(p.text, uBuf, cx, y, 1);
+    const char* https = s.httpsBusy ? "HTTPS:busy" : "HTTPS:idle";
+    prtCenter(s.httpsBusy ? p.bad : p.muted, https, mid, y, 1);
+    char idBuf[16];
+    snprintf(idBuf, sizeof(idBuf), "Id:%s", s.identified ? "yes" : "no");
+    prtRight(s.identified ? p.ok : p.bad, idBuf, right, y, 1);
   }
   y += ROW_PITCH;
   {
-    char al[40];
-    snprintf(al, sizeof(al), "DM:%s  Mention:%s",
-             s.dm ? "ON" : "off", s.mention ? "ON" : "off");
-    prtCol((s.dm || s.mention) ? p.bad : p.muted, al, cx, y, 1);
+    char dmBuf[16];
+    snprintf(dmBuf, sizeof(dmBuf), "DM:%s", s.dm ? "ON" : "off");
+    char menBuf[20];
+    snprintf(menBuf, sizeof(menBuf), "Mention:%s", s.mention ? "ON" : "off");
+    uint16_t ac = (s.dm || s.mention) ? p.bad : p.muted;
+    prtCol(ac, dmBuf, cx, y, 1);
+    prtRight(ac, menBuf, right, y, 1);
   }
-  y += ROW_PITCH;
-  prtCol(s.httpsBusy ? p.bad : p.muted,
-         s.httpsBusy ? "HTTPS:busy" : "HTTPS:idle", cx, y, 1);
   y += ROW_PITCH;
   {
     prtCol(p.muted, "Event:", cx, y, 1);
@@ -532,20 +552,27 @@ void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   }
   char cpuBuf[16];
   snprintf(cpuBuf, sizeof(cpuBuf), "%u MHz", (unsigned)s.cpuMhz);
-  char wrBuf[28];
-  snprintf(wrBuf, sizeof(wrBuf), "%lu / %lu ms",
-           (unsigned long)lastDashFlushMs, (unsigned long)lastDashDrawMs);
-  char periodBuf[16];
-  snprintf(periodBuf, sizeof(periodBuf), "%lu ms", (unsigned long)DASH_REFRESH_MS);
-  const char* lcdState = displayAsleep.load() ? "asleep" : "awake";
 
   drawIpSysRow(cx, y, s, p); y += ROW_PITCH;
+  drawSysRow(cx, y, "Src", s.secretsFromSd ? "SD card" : "firmware", p); y += ROW_PITCH;
   drawSysRow(cx, y, "OTA", otaHost, p); y += ROW_PITCH;
   drawSysRow(cx, y, "Ver", MINIME_VERSION, p); y += ROW_PITCH;
   drawSysRow(cx, y, "CPU", cpuBuf, p); y += ROW_PITCH;
-  drawSysRow(cx, y, "Write", wrBuf, p); y += ROW_PITCH;
-  drawSysRow(cx, y, "Period", periodBuf, p); y += ROW_PITCH;
-  drawSysRow(cx, y, "LCD", lcdState, p);
+  {
+    // LCD left (awake/asleep); Refresh right (last write flush/draw ms).
+    prtCol(p.muted, "LCD", cx, y, 1);
+    prtCol(p.text, s.lcdAsleep ? "asleep" : "awake", cx + SYS_VALUE_X, y, 1);
+    char refBuf[28];
+    snprintf(refBuf, sizeof(refBuf), "Refresh %lu/%lu ms",
+             (unsigned long)s.dashFlushMs, (unsigned long)s.dashDrawMs);
+    prtRight(p.muted, refBuf, right, y, 1);
+  }
+  // Sticky Msg from !msg -- very last line of the left Display window.
+  {
+    const int16_t msgY = (int16_t)(bottom - 8);
+    prtCol(p.muted, "Msg:", cx, msgY, 1);
+    prtCol(p.text, s.msg[0] ? s.msg : "", cx + MSG_VALUE_X, msgY, 1);
+  }
 }
 
 void drawRightPanel(const DashSnap& s, const DashPalette& p) {
@@ -592,22 +619,27 @@ void drawDashboard() {
   nowSnap.layoutLog = lcdLayoutLog;
   nowSnap.layoutControls = lcdLayoutControls;
   nowSnap.controlsGen = uiControlsGen.load();
+  nowSnap.logScroll = lcdLogScroll;
+  nowSnap.serialScroll = lcdSerialScroll;
   {
     float tc = 0, tf = 0;
     bool had = false, fresh = false;
     dashTempSnapshot(tc, tf, had, fresh);
     nowSnap.tempC10 = fresh ? (int)(tc * 10.0f) : -9990;
   }
-  // Live SD present + IP flash phase (2 s on / 2 s off when card missing).
+  // Live SD / Wi-Fi / secrets source (Core 0 may be ahead of last Core 1 publish).
   nowSnap.sdPresent = sdCardPresent();
   if (nowSnap.sdPresent) {
     boardSdTotalsMb(nowSnap.sdFreeMb, nowSnap.sdTotalMb);
-    nowSnap.ipFlashOn = false;
   } else {
     nowSnap.sdFreeMb = 0;
     nowSnap.sdTotalMb = 0;
-    nowSnap.ipFlashOn = ((millis() / SD_IP_FLASH_HALF_MS) & 1u) != 0u;
   }
+  nowSnap.wifiOk = (WiFi.status() == WL_CONNECTED);
+  nowSnap.secretsFromSd = secretsFromSd;
+  nowSnap.dashFlushMs = (uint32_t)lastDashFlushMs;
+  nowSnap.dashDrawMs = (uint32_t)lastDashDrawMs;
+  nowSnap.lcdAsleep = displayAsleep.load();
   if (!nowSnap.valid) {
     lastDashDrawMs = 0;
     lastDashFlushMs = 0;

@@ -33,16 +33,23 @@ struct DashSnap {
   uint32_t psFree, psTotal; // 0/0 if no PSRAM
   bool sdPresent;
   uint32_t sdFreeMb, sdTotalMb; // 0/0 if no card
-  bool ipFlashOn; // no-SD: 2 s on / 2 s off bright-red IP (dirty redraw)
+  bool wifiOk; // Wi-Fi associated; IP line red when false
+  bool secretsFromSd; // boot credentials from SD /secrets.h vs compile-time firmware
   int tempC10; // -9990 = error
   bool identified;
   uint8_t nActive;
   bool dm, mention, httpsBusy;
   char event[37];
+  char msg[UI_MSG_COLS];
   char ip[16];
   uint32_t cpuMhz;
+  uint32_t dashFlushMs;
+  uint32_t dashDrawMs;
+  bool lcdAsleep;
   uint32_t userHash;
   uint32_t logGen;
+  uint8_t logScroll;     // skip N newest in LOG (0 = pinned to bottom)
+  uint8_t serialScroll;  // skip N newest in Serial
   DashUserRow users[MAX_TRACKED_USERS];
   char logRows[DASH_LOG_ROWS][33];
   uint8_t logRowCount;
@@ -63,6 +70,7 @@ extern int16_t ctrlVolTrackX, ctrlVolTrackY, ctrlVolTrackW, ctrlVolTrackH;
 extern int16_t ctrlToggle0X, ctrlToggle0Y, ctrlToggle0W, ctrlToggle0H;
 extern int16_t ctrlToggle1X, ctrlToggle1Y, ctrlToggle1W, ctrlToggle1H;
 extern int16_t ctrlToggle2X, ctrlToggle2Y, ctrlToggle2W, ctrlToggle2H;
+extern int16_t ctrlClearHitX, ctrlClearHitY, ctrlClearHitW, ctrlClearHitH;
 extern std::atomic<bool> dashForceFull;
 extern bool dashBrandValid;
 extern DashSnap drawnSnap;

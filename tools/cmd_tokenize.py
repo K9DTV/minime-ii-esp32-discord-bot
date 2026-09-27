@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COMMANDS_CPP = ROOT / "MiniMe_Discord_Bot_II" / "commands.cpp"
 
 # Must match kCmds[] CMD_CONSUMES_REST rows in commands.cpp.
-CONSUMES_REST: frozenset[str] = frozenset({"!ask", "!display"})
+CONSUMES_REST: frozenset[str] = frozenset({"!ask", "!msg"})
 
 # Known command names from kCmds (for "known vs unknown" checks).
 KNOWN_CMDS: frozenset[str] = frozenset(
@@ -27,7 +27,7 @@ KNOWN_CMDS: frozenset[str] = frozenset(
         "!coredump",
         "!time",
         "!ask",
-        "!display",
+        "!msg",
         "!clear",
         "!resetprefs",
     }

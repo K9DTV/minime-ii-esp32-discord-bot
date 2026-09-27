@@ -2,7 +2,7 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.86"
+#define MINIME_VERSION "0.7.96"
 #define MINIME_USER_AGENT "MiniMeBot/1.0"
 
 // Scratch TWDT proof only -- enables owner !hang (infinite loop). Never ship with this enabled.
@@ -84,8 +84,6 @@ static_assert(INTENTS_MINIME == 37635u, "intents value drifted from Discord docs
 
 // ====== DISPLAY STATE (480x320 landscape via Arduino_GFX AXS15231B canvas) ======
 const unsigned long DASH_REFRESH_MS = 1000UL; // ~60ms draw+flush measured; 1s ok for Gateway HB
-// No-SD IP alert: bright red 2 s on / 2 s off (50% of a 4 s period).
-const unsigned long SD_IP_FLASH_HALF_MS = 2000UL;
 
 const unsigned long DISPLAY_IDLE_MS = 300000UL; // 5 minutes after last display activity -> backlight off
 const unsigned long TOUCH_DEBOUNCE_MS = 300;
