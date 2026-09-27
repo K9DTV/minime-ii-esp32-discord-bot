@@ -8,15 +8,19 @@
 WiFiClientSecure httpsClient;
 bool httpsInUse = false;
 
-bool sendDiscordCmdError(const String& channelId, const String& content, bool suppressEmbeds) {
-  noteCmdErrorReply(content.c_str());
+bool sendDiscordCmdError(const char* channelId, const char* content, bool suppressEmbeds) {
+  noteCmdErrorReply(content ? content : "");
   return sendDiscordMessage(channelId, content, suppressEmbeds);
+}
+
+bool sendDiscordCmdError(const String& channelId, const String& content, bool suppressEmbeds) {
+  return sendDiscordCmdError(channelId.c_str(), content.c_str(), suppressEmbeds);
 }
 
 // Escape for Discord JSON content (Core 1 only; not reentrant with concurrent send).
 static size_t jsonEscape(const char* in, char* out, size_t outSize) {
   size_t o = 0;
-  for (size_t i = 0; in[i] && o + 2 < outSize; i++) {
+  for (size_t i = 0; in && in[i] && o + 2 < outSize; i++) {
     const char c = in[i];
     if (c == '"' || c == '\\') {
       out[o++] = '\\';
@@ -40,7 +44,8 @@ static size_t jsonEscape(const char* in, char* out, size_t outSize) {
   return o;
 }
 
-bool sendDiscordMessage(const String& channelId, const String& content, bool suppressEmbeds) {
+bool sendDiscordMessage(const char* channelId, const char* content, bool suppressEmbeds) {
+  if (!channelId || !channelId[0] || !content) return false;
   unsigned long startedAt = millis();
 
   // Truncate to Discord cap, then escape into fixed buffers (.bss -- Core 1, not reentrant).
@@ -49,15 +54,15 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
   static char body[DISCORD_CONTENT_MAX * 2 + 80];
   static char request[DISCORD_CONTENT_MAX * 2 + 400];
 
-  size_t n = content.length();
+  size_t n = strlen(content);
   if (n > (size_t)DISCORD_CONTENT_MAX) {
-    memcpy(raw, content.c_str(), (size_t)DISCORD_CONTENT_MAX - 3);
+    memcpy(raw, content, (size_t)DISCORD_CONTENT_MAX - 3);
     raw[DISCORD_CONTENT_MAX - 3] = '.';
     raw[DISCORD_CONTENT_MAX - 2] = '.';
     raw[DISCORD_CONTENT_MAX - 1] = '.';
     raw[DISCORD_CONTENT_MAX] = '\0';
   } else {
-    memcpy(raw, content.c_str(), n);
+    memcpy(raw, content, n);
     raw[n] = '\0';
   }
   jsonEscape(raw, esc, sizeof(esc));
@@ -77,7 +82,7 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
                         "Content-Length: %d\r\n"
                         "Connection: close\r\n\r\n"
                         "%s",
-                        channelId.c_str(), BOT_TOKEN, bodyLen, body);
+                        channelId, BOT_TOKEN, bodyLen, body);
   if (reqLen < 0 || (size_t)reqLen >= sizeof(request)) return false;
 
   for (uint8_t attempt = 0; attempt < DISCORD_REST_MAX_ATTEMPTS; attempt++) {
@@ -85,12 +90,13 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
     if (!httpsAcquire("discord.com")) return false;
     httpsClient.write((const uint8_t*)request, (size_t)reqLen);
     unsigned long deadline = millis() + 8000UL;
-    String statusLine;
+    char statusLine[160];
+    statusLine[0] = '\0';
     bool chunked = false;
     int contentLength = -1;
     float retryAfterSec = -1.f;
-    // pump=true: HB stays alive while waiting for Discord headers / during retry backoff.
-    if (!httpsAwaitHeaders(httpsClient, deadline, true, statusLine, chunked, contentLength, &retryAfterSec)) {
+    if (!httpsAwaitHeaders(httpsClient, deadline, true, statusLine, sizeof(statusLine), chunked,
+                           contentLength, &retryAfterSec)) {
       httpsRelease();
       if ((millis() - startedAt) > 60000UL) return false;
       MmLog.print(F("[REST] Discord header timeout attempt "));
@@ -107,25 +113,25 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
       continue;
     }
     int code = 0;
-    int sp = statusLine.indexOf(' ');
-    if (sp >= 0) code = statusLine.substring(sp + 1).toInt();
+    const char* sp = strchr(statusLine, ' ');
+    if (sp) code = atoi(sp + 1);
 
     if (code >= 200 && code < 300) {
-      // Body unused; Connection: close + release discards it.
       httpsRelease();
       return true;
     }
 
     if (code == 429) {
-      // Prefer Retry-After header; else skim JSON body for "retry_after".
       if (retryAfterSec < 0.f) {
-        String errBody;
+        char errBody[512];
+        size_t errLen = 0;
         unsigned long bodyDeadline = millis() + 3000UL;
-        if (readHttpBodyAfterHeaders(httpsClient, chunked, contentLength, errBody, bodyDeadline)) {
-          int idx = errBody.indexOf("\"retry_after\"");
-          if (idx >= 0) {
-            int colon = errBody.indexOf(':', idx);
-            if (colon >= 0) retryAfterSec = errBody.substring(colon + 1).toFloat();
+        if (readHttpBodyAfterHeaders(httpsClient, chunked, contentLength, errBody, sizeof(errBody),
+                                     errLen, bodyDeadline)) {
+          const char* idx = strstr(errBody, "\"retry_after\"");
+          if (idx) {
+            const char* colon = strchr(idx, ':');
+            if (colon) retryAfterSec = (float)atof(colon + 1);
           }
         }
       }
@@ -167,6 +173,10 @@ bool sendDiscordMessage(const String& channelId, const String& content, bool sup
   return false;
 }
 
+bool sendDiscordMessage(const String& channelId, const String& content, bool suppressEmbeds) {
+  return sendDiscordMessage(channelId.c_str(), content.c_str(), suppressEmbeds);
+}
+
 bool httpsConnect(const char* host, uint32_t timeoutMs) {
   httpsClient.stop();
   // Verify server certs. Never setInsecure -- BOT_TOKEN / API keys must not ride MITM TLS.
@@ -203,20 +213,29 @@ bool httpsAcquire(const char* host, uint32_t timeoutMs) {
 }
 
 // Returns 0=ok (httpsInUse held until httpsRelease), 1=busy, 2=header timeout, 3=connect/TLS/DNS fail.
-uint8_t httpsGetOpen(const char* host, const String& path, unsigned long headerTimeoutMs,
+uint8_t httpsGetOpen(const char* host, const char* path, unsigned long headerTimeoutMs,
                      bool& outChunked, int& outContentLength,
                      const char* userAgent, const char* extraHeaders) {
   outChunked = false;
   outContentLength = -1;
+  if (!host || !path) return 3;
   if (httpsInUse) return 1;
   if (!httpsAcquire(host)) return 3;
   if (!userAgent || !userAgent[0]) userAgent = MINIME_USER_AGENT;
-  String req = String("GET ") + path + " HTTP/1.1\r\n"
-               "Host: " + host + "\r\n"
-               "User-Agent: " + userAgent + "\r\n";
-  if (extraHeaders && extraHeaders[0]) req += extraHeaders;
-  req += "Connection: close\r\n\r\n";
-  httpsClient.print(req);
+  static char req[768];
+  int n = snprintf(req, sizeof(req),
+                   "GET %s HTTP/1.1\r\n"
+                   "Host: %s\r\n"
+                   "User-Agent: %s\r\n"
+                   "%s"
+                   "Connection: close\r\n\r\n",
+                   path, host, userAgent,
+                   (extraHeaders && extraHeaders[0]) ? extraHeaders : "");
+  if (n < 0 || (size_t)n >= sizeof(req)) {
+    httpsRelease();
+    return 3;
+  }
+  httpsClient.write((const uint8_t*)req, (size_t)n);
   if (!httpSkipHeaders(httpsClient, headerTimeoutMs, outChunked, outContentLength)) {
     httpsRelease();
     return 2;
@@ -224,15 +243,24 @@ uint8_t httpsGetOpen(const char* host, const String& path, unsigned long headerT
   return 0;
 }
 
-uint8_t httpGetOpen(WiFiClient& client, const char* host, const String& path,
+uint8_t httpGetOpen(WiFiClient& client, const char* host, const char* path,
                     unsigned long headerTimeoutMs, bool& outChunked, int& outContentLength) {
   outChunked = false;
   outContentLength = -1;
+  if (!host || !path) return 3;
   if (!client.connect(host, 80)) return 3;
-  client.print(String("GET ") + path + " HTTP/1.1\r\n"
-               "Host: " + host + "\r\n"
-               "User-Agent: " + String(MINIME_USER_AGENT) + "\r\n"
-               "Connection: close\r\n\r\n");
+  static char req[512];
+  int n = snprintf(req, sizeof(req),
+                   "GET %s HTTP/1.1\r\n"
+                   "Host: %s\r\n"
+                   "User-Agent: " MINIME_USER_AGENT "\r\n"
+                   "Connection: close\r\n\r\n",
+                   path, host);
+  if (n < 0 || (size_t)n >= sizeof(req)) {
+    client.stop();
+    return 3;
+  }
+  client.write((const uint8_t*)req, (size_t)n);
   if (!httpSkipHeaders(client, headerTimeoutMs, outChunked, outContentLength)) {
     client.stop();
     return 2;
@@ -240,88 +268,125 @@ uint8_t httpGetOpen(WiFiClient& client, const char* host, const String& path,
   return 0;
 }
 
-void setHttpOpenError(String& outReport, uint8_t err, const char* label) {
-  outReport = String(label);
-  if (err == 1) outReport += " busy.";
-  else if (err == 2) outReport += " header timeout.";
-  else if (err == 3) outReport += " connect/TLS failed.";
-  else outReport += " connection failed.";
+void setHttpOpenError(char* outReport, size_t outCap, uint8_t err, const char* label) {
+  if (!outReport || outCap == 0) return;
+  const char* suffix = " connection failed.";
+  if (err == 1) suffix = " busy.";
+  else if (err == 2) suffix = " header timeout.";
+  else if (err == 3) suffix = " connect/TLS failed.";
+  snprintf(outReport, outCap, "%s%s", label ? label : "HTTP", suffix);
 }
 
-bool discordIdLooksValid(const String& id) {
-  if (id.length() < 16) return false;
-  for (unsigned int i = 0; i < id.length(); i++) {
-    char c = id.charAt(i);
+bool discordIdLooksValid(const char* id) {
+  if (!id) return false;
+  size_t n = strlen(id);
+  if (n < 16) return false;
+  for (size_t i = 0; i < n; i++) {
+    char c = id[i];
     if (c < '0' || c > '9') return false;
   }
   return true;
 }
 
-bool discordRestGet(const String& path, String& outBody, String& outStatus) {
-  outBody = "";
+bool discordIdLooksValid(const String& id) {
+  return discordIdLooksValid(id.c_str());
+}
+
+bool discordRestGet(const char* path, char* outBody, size_t bodyCap, size_t& outLen,
+                    char* outStatus, size_t statusCap) {
+  outLen = 0;
+  if (outBody && bodyCap) outBody[0] = '\0';
+  if (outStatus && statusCap) outStatus[0] = '\0';
+  if (!path || !outBody || bodyCap < 2) return false;
   if (!httpsAcquire("discord.com", 15000)) {
-    outStatus = httpsInUse ? "busy" : "connect failed";
+    if (outStatus && statusCap) {
+      strncpy(outStatus, httpsInUse ? "busy" : "connect failed", statusCap - 1);
+      outStatus[statusCap - 1] = '\0';
+    }
     return false;
   }
-  String request =
-    "GET " + path + " HTTP/1.1\r\n"
-    "Host: discord.com\r\n"
-    "Authorization: Bot " + String(BOT_TOKEN) + "\r\n"
-    "Accept: application/json\r\n"
-    "Accept-Encoding: identity\r\n"
-    "User-Agent: " + String(MINIME_USER_AGENT) + "\r\n"
-    "Connection: close\r\n\r\n";
-  httpsClient.print(request);
+  static char request[512];
+  int reqLen = snprintf(request, sizeof(request),
+                        "GET %s HTTP/1.1\r\n"
+                        "Host: discord.com\r\n"
+                        "Authorization: Bot %s\r\n"
+                        "Accept: application/json\r\n"
+                        "Accept-Encoding: identity\r\n"
+                        "User-Agent: " MINIME_USER_AGENT "\r\n"
+                        "Connection: close\r\n\r\n",
+                        path, BOT_TOKEN);
+  if (reqLen < 0 || (size_t)reqLen >= sizeof(request)) {
+    httpsRelease();
+    if (outStatus && statusCap) {
+      strncpy(outStatus, "request overflow", statusCap - 1);
+      outStatus[statusCap - 1] = '\0';
+    }
+    return false;
+  }
+  httpsClient.write((const uint8_t*)request, (size_t)reqLen);
 
   unsigned long deadline = millis() + 15000UL;
   bool chunked = false;
   int contentLength = -1;
-  if (!httpsAwaitHeaders(httpsClient, deadline, false, outStatus, chunked, contentLength)) {
+  char statusBuf[160];
+  char* statusPtr = outStatus && statusCap ? outStatus : statusBuf;
+  size_t statusSz = outStatus && statusCap ? statusCap : sizeof(statusBuf);
+  if (!httpsAwaitHeaders(httpsClient, deadline, false, statusPtr, statusSz, chunked, contentLength)) {
     httpsRelease();
-    outStatus = "timeout";
+    if (outStatus && statusCap) {
+      strncpy(outStatus, "timeout", statusCap - 1);
+      outStatus[statusCap - 1] = '\0';
+    }
     return false;
   }
-  bool ok = readHttpBodyAfterHeaders(httpsClient, chunked, contentLength, outBody, deadline);
+  bool ok = readHttpBodyAfterHeaders(httpsClient, chunked, contentLength, outBody, bodyCap, outLen,
+                                     deadline);
   httpsRelease();
   return ok;
 }
 
-String guildIdFromChannel(const String& channelId) {
-  if (!discordIdLooksValid(channelId)) return "";
+bool guildIdFromChannel(const char* channelId, char* outGid, size_t gidCap) {
+  if (outGid && gidCap) outGid[0] = '\0';
+  if (!discordIdLooksValid(channelId) || !outGid || gidCap < 2) return false;
 
-  String body, status;
-  if (!discordRestGet("/api/v10/channels/" + channelId, body, status)) {
-    return "";
+  char path[80];
+  snprintf(path, sizeof(path), "/api/v10/channels/%s", channelId);
+  static char body[2048];
+  char status[80];
+  size_t bodyLen = 0;
+  if (!discordRestGet(path, body, sizeof(body), bodyLen, status, sizeof(status))) {
+    return false;
   }
-  int jsonStart = body.indexOf('{');
-  if (jsonStart < 0) {
-    return "";
-  }
-  if (jsonStart > 0) body = body.substring(jsonStart);
+  const char* jsonStart = (const char*)memchr(body, '{', bodyLen);
+  if (!jsonStart) return false;
 
   JsonDocument filter;
   filter["guild_id"] = true;
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
-  if (err) {
-    return "";
-  }
-  String gid = doc["guild_id"] | "";
-  return gid;
+  DeserializationError err = deserializeJson(doc, jsonStart, DeserializationOption::Filter(filter));
+  if (err) return false;
+  const char* gid = doc["guild_id"] | "";
+  if (!gid[0]) return false;
+  strncpy(outGid, gid, gidCap - 1);
+  outGid[gidCap - 1] = '\0';
+  return true;
 }
 
-bool appendMembersFromGuild(const String& guildId, uint8_t maxToAdd) {
+bool appendMembersFromGuild(const char* guildId, uint8_t maxToAdd) {
   if (!discordIdLooksValid(guildId)) return false;
 
-  String body, status;
-  String path = "/api/v10/guilds/" + guildId + "/members?limit=200";
-  if (!discordRestGet(path, body, status)) {
+  char path[96];
+  snprintf(path, sizeof(path), "/api/v10/guilds/%s/members?limit=200", guildId);
+  static char body[24576];
+  char status[80];
+  size_t bodyLen = 0;
+  if (!discordRestGet(path, body, sizeof(body), bodyLen, status, sizeof(status))) {
     return false;
   }
 
-  int jsonStart = body.indexOf('[');
-  int objStart = body.indexOf('{');
-  if (jsonStart < 0 || (objStart >= 0 && objStart < jsonStart)) {
+  const char* jsonStart = (const char*)memchr(body, '[', bodyLen);
+  const char* objStart = (const char*)memchr(body, '{', bodyLen);
+  if (!jsonStart || (objStart && objStart < jsonStart)) {
     return false;
   }
 
@@ -332,16 +397,14 @@ bool appendMembersFromGuild(const String& guildId, uint8_t maxToAdd) {
   filter[0]["user"]["global_name"] = true;
   filter[0]["user"]["bot"] = true;
 
-  // Heap JsonDocument -- not on Core 1 setup/loop stack.
   static JsonDocument* memberDoc = nullptr;
   if (!memberDoc) {
     memberDoc = new (std::nothrow) JsonDocument();
   }
   if (!memberDoc) return false;
   memberDoc->clear();
-  // Parse from offset -- avoid body.substring() second large String copy.
-  DeserializationError err = deserializeJson(
-      *memberDoc, body.c_str() + jsonStart, DeserializationOption::Filter(filter));
+  DeserializationError err =
+      deserializeJson(*memberDoc, jsonStart, DeserializationOption::Filter(filter));
   if (err) {
     return false;
   }
@@ -357,12 +420,21 @@ bool appendMembersFromGuild(const String& guildId, uint8_t maxToAdd) {
     int slot = findFreeTrackedSlot();
     if (slot < 0) break;
     if (member["user"]["bot"] == true) continue;
-    String uid = member["user"]["id"] | "";
-    String name = member["nick"] | "";
-    if (name.length() == 0) name = discordDisplayName(member["user"]);
-    if (uid.length() == 0 || name.length() == 0) continue;
+    const char* uid = member["user"]["id"] | "";
+    const char* nick = member["nick"] | "";
+    char nameBuf[48];
+    nameBuf[0] = '\0';
+    if (nick[0]) {
+      strncpy(nameBuf, nick, sizeof(nameBuf) - 1);
+      nameBuf[sizeof(nameBuf) - 1] = '\0';
+    } else {
+      String dn = discordDisplayName(member["user"]);
+      strncpy(nameBuf, dn.c_str(), sizeof(nameBuf) - 1);
+      nameBuf[sizeof(nameBuf) - 1] = '\0';
+    }
+    if (!uid[0] || !nameBuf[0]) continue;
     if (findUserIndex(uid) >= 0) continue;
-    fillTrackedSlot((uint8_t)slot, uid, name);
+    fillTrackedSlot((uint8_t)slot, uid, nameBuf);
     added++;
   }
 
@@ -373,8 +445,9 @@ bool fetchGuildMembersAtStartup() {
   initTrackedUsers();
   cachedGuildCount = 0;
   rememberGuildId(String(BOT_GUILD_ID));
-  rememberGuildId(guildIdFromChannel(TARGET_CHANNEL_ID));
-  rememberGuildId(guildIdFromChannel(TARGET_CHANNEL_ID1));
+  char gid[DISCORD_SNOWFLAKE_MAX];
+  if (guildIdFromChannel(TARGET_CHANNEL_ID, gid, sizeof(gid))) rememberGuildId(String(gid));
+  if (guildIdFromChannel(TARGET_CHANNEL_ID1, gid, sizeof(gid))) rememberGuildId(String(gid));
 
   if (cachedGuildCount == 0) {
     return false;

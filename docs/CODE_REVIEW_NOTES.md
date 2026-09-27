@@ -2,7 +2,7 @@
 
 See [`CHANGELOG.md`](../CHANGELOG.md) for the full per-version list; this document highlights only the durable architectural fixes.
 
-What we **fixed** vs what we **left** and why. Current: **v0.7.99**.
+What we **fixed** vs what we **left** and why. Current: **v0.8.1**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -71,6 +71,8 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.99**.
 | Secrets boot source | **0.7.87** -- **Src** line `SD card` / `firmware` (LCD + web); JSON `secretsFromSd` |
 | SD secrets loader | **0.7.84** -- boot overlays `/secrets.h` onto runtime buffers; compile-time seed fallback |
 | LOG/Serial ring encapsulation | **0.7.85** -- web status uses `lcd*LogNewest` accessors; ring storage private to `web_ui.cpp` |
+| Cold HTTPS / command replies | **0.8.0** -- fetch bodies, Discord POST, `!ask`, `!sys` / reports on fixed `char[]` (closes deferred String cut) |
+| LCD draw module split | **0.8.1** -- `display_draw_util` / `_brand` / `_controls` / `_panels` + thin orchestrator |
 
 ## Known tradeoffs (not deferred bugs)
 
@@ -80,10 +82,8 @@ What we **fixed** vs what we **left** and why. Current: **v0.7.99**.
 
 ## Still deferred (why)
 
-### 1 -- Remaining `String` on cold HTTPS/command reply paths
-
-Bodies / Discord posts / `!ask` still use `String`. Tracked users + guild IDs done in 0.7.36. More only if heap pressure shows on those paths.
-
-### 2 -- Architectural (not this release)
+### 1 -- Architectural (not this release)
 
 Theme chips stay independent (no `/api/ui` sync). **0.7.51** aligns Display metrics formatting and Log LOG|Serial pairing; still not one shared layout codegen.
+
+Header/chunk size lines in `discord_http.cpp` still use small `String` helpers; body payload itself is fixed-buffer on the cold paths above.

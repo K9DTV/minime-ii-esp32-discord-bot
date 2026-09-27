@@ -1,29 +1,15 @@
 #include "minime.h"
+#include <stdio.h>
+#include <string.h>
 
 bool askNeedPost = false;
-String askPendingQuestion;
-String askPendingChannelId;
+char askPendingQuestion[ASK_QUESTION_MAX + 1] = "";
+char askPendingChannelId[DISCORD_SNOWFLAKE_MAX] = "";
 
-String collapseWhitespace(String s) {
-  s.replace("\n", " ");
-  s.replace("\r", " ");
-  s.replace("\t", " ");
-  while (s.indexOf("  ") >= 0) {
-    s.replace("  ", " ");
-  }
-  s.trim();
-  return s;
-}
+typedef bool (*FetchReportFn)(char*, size_t);
 
-String truncateText(const String& s, int maxLen) {
-  if (s.length() <= maxLen) return s;
-  return s.substring(0, maxLen - 3) + "...";
-}
-
-typedef bool (*FetchReportFn)(String&);
-
-static void sendFetchResult(const String& channelId, const char* label, bool ok, const String& report,
-                            const String& okLine2 = "Sent", const String& okLine3 = "") {
+static void sendFetchResult(const char* channelId, const char* label, bool ok, const char* report,
+                            const char* okLine2 = "Sent", const char* okLine3 = "") {
   if (!ok) {
     sendDiscordCmdError(channelId, report);
     showTransient(label, "Error");
@@ -32,24 +18,28 @@ static void sendFetchResult(const String& channelId, const char* label, bool ok,
   const bool posted = sendDiscordMessage(channelId, report);
   if (posted) showTransient(label, okLine2, okLine3);
   else {
-    noteCmdErrorReply((String("Post fail: ") + label).c_str());
+    char note[48];
+    snprintf(note, sizeof(note), "Post fail: %s", label ? label : "?");
+    noteCmdErrorReply(note);
     showTransient(label, "Post fail");
   }
 }
 
-static void runFetchCommand(const String& channelId, const char* label, const char* fetching,
+static void runFetchCommand(const char* channelId, const char* label, const char* fetching,
                             FetchReportFn fetch) {
-  String report;
+  char report[CMD_REPORT_MAX];
+  report[0] = '\0';
   showTransient(label, fetching);
-  sendFetchResult(channelId, label, fetch(report), report);
+  sendFetchResult(channelId, label, fetch(report, sizeof(report)), report);
 }
 
 // LCD value only if Discord accepted the post (same rule as sendFetchResult / !help).
-// Usage-error replies (Usage: !weather ...) are fire-and-forget: no LCD, no post-bool check.
-static void showIfPosted(const char* label, const String& okLine2, bool posted) {
+static void showIfPosted(const char* label, const char* okLine2, bool posted) {
   if (posted) showTransient(label, okLine2);
   else {
-    noteCmdErrorReply((String("Post fail: ") + label).c_str());
+    char note[48];
+    snprintf(note, sizeof(note), "Post fail: %s", label ? label : "?");
+    noteCmdErrorReply(note);
     showTransient(label, "Post fail");
   }
 }
@@ -80,7 +70,7 @@ struct CmdEntry {
 };
 
 static void cmdHelp(const CmdCtx& ctx) {
-  String helpMsg =
+  static const char helpMsg[] =
     "🤖 **MiniMe Bot Commands**\n\n"
     "**👤 Public Commands:**\n"
     "- `!apod` -- NASA Astronomy Picture of the Day.\n"
@@ -99,12 +89,12 @@ static void cmdHelp(const CmdCtx& ctx) {
     "- `!coredump` -- Last panic from flash coredump (`!coredump clear` erases).\n"
     "- `!clear` -- Clears DM / mention alerts and the Msg line on the LCD (stops the alarm sound).\n"
     "- `!resetprefs` -- Factory-reset Controls prefs in flash (bright/vol/toggles/theme).";
-  showIfPosted("Help", "Command Sent", sendDiscordMessage(ctx.channelId, helpMsg));
+  showIfPosted("Help", "Command Sent", sendDiscordMessage(ctx.channelId.c_str(), helpMsg));
 }
 
 static void cmdWeather(const CmdCtx& ctx) {
   if (ctx.args.length() == 0) {
-    sendDiscordMessage(ctx.channelId, "Usage: !weather <zip>");
+    sendDiscordMessage(ctx.channelId.c_str(), "Usage: !weather <zip>");
     return;
   }
   String zip = ctx.args;
@@ -116,29 +106,30 @@ static void cmdWeather(const CmdCtx& ctx) {
     }
   }
   if (!validZip) {
-    sendDiscordMessage(ctx.channelId, "Invalid ZIP code.");
+    sendDiscordMessage(ctx.channelId.c_str(), "Invalid ZIP code.");
     return;
   }
-  String report;
+  char report[CMD_REPORT_MAX];
+  report[0] = '\0';
   showTransient("Weather", "Fetching...");
-  bool ok = getWeather(zip, report);
-  sendFetchResult(ctx.channelId, "Weather", ok, report, zip, "Sent");
+  bool ok = getWeather(zip.c_str(), report, sizeof(report));
+  sendFetchResult(ctx.channelId.c_str(), "Weather", ok, report, zip.c_str(), "Sent");
 }
 
 static void cmdNews(const CmdCtx& ctx) {
-  runFetchCommand(ctx.channelId, "News", "Fetching...", getScienceNews);
+  runFetchCommand(ctx.channelId.c_str(), "News", "Fetching...", getScienceNews);
 }
 
 static void cmdPhysics(const CmdCtx& ctx) {
-  runFetchCommand(ctx.channelId, "Physics", "Fetching arXiv...", getPhysicsPapers);
+  runFetchCommand(ctx.channelId.c_str(), "Physics", "Fetching arXiv...", getPhysicsPapers);
 }
 
 static void cmdApod(const CmdCtx& ctx) {
-  runFetchCommand(ctx.channelId, "APOD", "Fetching NASA...", getApod);
+  runFetchCommand(ctx.channelId.c_str(), "APOD", "Fetching NASA...", getApod);
 }
 
 static void cmdIss(const CmdCtx& ctx) {
-  runFetchCommand(ctx.channelId, "ISS", "Fetching...", getIssPosition);
+  runFetchCommand(ctx.channelId.c_str(), "ISS", "Fetching...", getIssPosition);
 }
 
 static void cmdTemp(const CmdCtx& ctx) {
@@ -146,61 +137,75 @@ static void cmdTemp(const CmdCtx& ctx) {
   bool had = false, fresh = false;
   dashTempSnapshot(c, f, had, fresh);
   if (fresh) {
-    String msg = "Current Temp: " + String(c, 1) + " degC / " + String(f, 1) + " degF";
-    showIfPosted("Temp", String(f, 1) + "F/" + String(c, 1) + "C",
-                 sendDiscordMessage(ctx.channelId, msg));
+    char msg[96];
+    char lcd[24];
+    snprintf(msg, sizeof(msg), "Current Temp: %.1f degC / %.1f degF", c, f);
+    snprintf(lcd, sizeof(lcd), "%.1fF/%.1fC", f, c);
+    showIfPosted("Temp", lcd, sendDiscordMessage(ctx.channelId.c_str(), msg));
   } else if (had) {
     showIfPosted("Temp", "Stale",
-                 sendDiscordCmdError(ctx.channelId, "Temperature reading is stale (>30s). Sensor may be disconnected."));
+                 sendDiscordCmdError(ctx.channelId.c_str(),
+                                     "Temperature reading is stale (>30s). Sensor may be disconnected."));
   } else {
     showIfPosted("Temp", "Sensor error",
-                 sendDiscordCmdError(ctx.channelId, "Temperature sensor error."));
+                 sendDiscordCmdError(ctx.channelId.c_str(), "Temperature sensor error."));
   }
 }
 
 static void cmdSys(const CmdCtx& ctx) {
-  showIfPosted("Sys", "Sent", sendDiscordMessage(ctx.channelId, getSystemInfo(), true));
+  char report[CMD_REPORT_MAX];
+  formatSystemInfo(report, sizeof(report));
+  showIfPosted("Sys", "Sent", sendDiscordMessage(ctx.channelId.c_str(), report, true));
 }
 
 static void cmdOta(const CmdCtx& ctx) {
-  showIfPosted("OTA", WiFi.localIP().toString(), sendDiscordMessage(ctx.channelId, otaStatusText()));
+  String ota = otaStatusText();
+  String ip = WiFi.localIP().toString();
+  showIfPosted("OTA", ip.c_str(), sendDiscordMessage(ctx.channelId.c_str(), ota.c_str()));
 }
 
 static void cmdCoredump(const CmdCtx& ctx) {
-  String report;
+  char report[CMD_REPORT_MAX];
+  report[0] = '\0';
   if (ctx.args.equalsIgnoreCase("clear") || ctx.args.equalsIgnoreCase("erase")) {
-    bool ok = clearCoreDumpImage(report);
+    bool ok = clearCoreDumpImage(report, sizeof(report));
     showIfPosted("Coredump", ok ? "Cleared" : "Error",
-                 ok ? sendDiscordMessage(ctx.channelId, report, true)
-                    : sendDiscordCmdError(ctx.channelId, report, true));
+                 ok ? sendDiscordMessage(ctx.channelId.c_str(), report, true)
+                    : sendDiscordCmdError(ctx.channelId.c_str(), report, true));
     return;
   }
   showTransient("Coredump", "Reading...");
-  bool ok = formatCoreDumpReport(report);
+  bool ok = formatCoreDumpReport(report, sizeof(report));
   showIfPosted("Coredump", ok ? "Sent" : "Empty",
-               ok ? sendDiscordMessage(ctx.channelId, report, true)
-                  : sendDiscordCmdError(ctx.channelId, report, true));
+               ok ? sendDiscordMessage(ctx.channelId.c_str(), report, true)
+                  : sendDiscordCmdError(ctx.channelId.c_str(), report, true));
 }
 
 static void cmdTime(const CmdCtx& ctx) {
   updateLocalTime();
   char currentTime[12];
   formatLocalTimeStr(currentTime, sizeof(currentTime));
-  String msg = String("🕒 Current Bot Time: ") + currentTime;
-  showIfPosted("Time", currentTime, sendDiscordMessage(ctx.channelId, msg));
+  char msg[48];
+  snprintf(msg, sizeof(msg), "🕒 Current Bot Time: %s", currentTime);
+  showIfPosted("Time", currentTime, sendDiscordMessage(ctx.channelId.c_str(), msg));
 }
 
 static void cmdAsk(const CmdCtx& ctx) {
   if (ctx.args.length() == 0) {
-    sendDiscordMessage(ctx.channelId, "Usage: !ask <question>");
+    sendDiscordMessage(ctx.channelId.c_str(), "Usage: !ask <question>");
     return;
   }
   if (askNeedPost) {
-    sendDiscordCmdError(ctx.channelId, "DeepSeek is already answering. Try again in a moment.");
+    sendDiscordCmdError(ctx.channelId.c_str(),
+                        "DeepSeek is already answering. Try again in a moment.");
     return;
   }
-  askPendingQuestion = ctx.args;
-  askPendingChannelId = ctx.channelId;
+  size_t n = ctx.args.length();
+  if (n > ASK_QUESTION_MAX) n = ASK_QUESTION_MAX;
+  memcpy(askPendingQuestion, ctx.args.c_str(), n);
+  askPendingQuestion[n] = '\0';
+  strncpy(askPendingChannelId, ctx.channelId.c_str(), sizeof(askPendingChannelId) - 1);
+  askPendingChannelId[sizeof(askPendingChannelId) - 1] = '\0';
   askNeedPost = true;
   showTransient("DeepSeek", "Queued"); // local queue; Discord reply checked in runAskFromLoop
 }

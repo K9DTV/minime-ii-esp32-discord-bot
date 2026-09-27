@@ -1,171 +1,292 @@
 #include "minime.h"
 #include <new>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 
 // External API fetchers + DeepSeek (Core 1). Dispatch stays in commands.cpp.
+// Cold path: fixed body/report buffers -- no String growth for HTTPS bodies or Discord replies.
 
 static JsonDocument* deepSeekDoc = nullptr;
 
-// Body read with Gateway HB pumps (HTTP or HTTPS Client& -- both run on Core 1).
-// empty body => false (readHttpBodyAfterHeaders); these APIs never return empty on success.
-static bool readOpenBodyPumped(Client& client, bool chunked, int contentLength,
-                               String& outBody, unsigned long timeoutMs) {
-  return readHttpBodyAfterHeaders(client, chunked, contentLength, outBody, millis() + timeoutMs);
-}
+// Shared fetch body (Core 1 sequential -- not concurrent with another fetch).
+static char gFetchBody[HTTP_FETCH_BODY_MAX];
 
-bool getWeather(const String& zip, String& outReport) {
-  WiFiClient client;
-  String url = "/data/2.5/weather?zip=" + zip + ",US&units=imperial&appid=" + WEATHER_API_KEY;
-  bool chunked = false;
-  int contentLength = -1;
-  uint8_t openErr = httpGetOpen(client, "api.openweathermap.org", url, 5000, chunked, contentLength);
-  if (openErr) {
-    setHttpOpenError(outReport, openErr, "Weather service");
-    return false;
-  }
-  String body;
-  if (!readOpenBodyPumped(client, chunked, contentLength, body, 5000UL)) {
-    client.stop();
-    outReport = "Weather empty response.";
-    return false;
-  }
-  client.stop();
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, body);
-  if (err) {
-    outReport = "Weather JSON parse error.";
-    return false;
-  }
-  String city = doc["name"] | "Unknown";
-  float tempF = doc["main"]["temp"] | 0.0f;
-  float tempC = (tempF - 32.0f) * 5.0f / 9.0f;
-  int humidity = doc["main"]["humidity"] | 0;
-  String cond = doc["weather"][0]["description"] | "Unknown";
-  outReport = "☁️ **Weather Report (" + city + " - " + zip + "):**\n" +
-              "- **Condition:** " + cond + "\n" +
-              "- **Temperature:** " + String(tempF, 1) + " degF (" + String(tempC, 1) + " degC)\n" +
-              "- **Humidity:** " + String(humidity) + "%";
+static bool reportSet(char* out, size_t cap, const char* msg) {
+  if (!out || cap == 0) return false;
+  strncpy(out, msg ? msg : "", cap - 1);
+  out[cap - 1] = '\0';
   return true;
 }
 
-bool getScienceNews(String& outReport) {
+static bool reportPrintf(char* out, size_t cap, size_t& len, const char* fmt, ...) {
+  if (!out || cap == 0 || len >= cap) return false;
+  va_list ap;
+  va_start(ap, fmt);
+  int n = vsnprintf(out + len, cap - len, fmt, ap);
+  va_end(ap);
+  if (n < 0) return false;
+  if ((size_t)n >= cap - len) {
+    len = cap - 1;
+    out[len] = '\0';
+    return false;
+  }
+  len += (size_t)n;
+  return true;
+}
+
+void collapseWhitespaceBuf(char* s) {
+  if (!s) return;
+  // Newlines/tabs -> space
+  for (char* p = s; *p; p++) {
+    if (*p == '\n' || *p == '\r' || *p == '\t') *p = ' ';
+  }
+  // Collapse runs of spaces + trim
+  char* w = s;
+  bool space = true; // leading trim
+  for (const char* r = s; *r; r++) {
+    if (*r == ' ') {
+      if (space) continue;
+      space = true;
+      *w++ = ' ';
+    } else {
+      space = false;
+      *w++ = *r;
+    }
+  }
+  while (w > s && w[-1] == ' ') w--;
+  *w = '\0';
+}
+
+void truncateTextBuf(char* s, size_t maxLen) {
+  if (!s) return;
+  size_t n = strlen(s);
+  if (n <= maxLen) return;
+  if (maxLen < 3) {
+    s[maxLen] = '\0';
+    return;
+  }
+  s[maxLen - 3] = '.';
+  s[maxLen - 2] = '.';
+  s[maxLen - 1] = '.';
+  s[maxLen] = '\0';
+}
+
+String collapseWhitespace(String s) {
+  char buf[512];
+  size_t n = s.length();
+  if (n >= sizeof(buf)) n = sizeof(buf) - 1;
+  memcpy(buf, s.c_str(), n);
+  buf[n] = '\0';
+  collapseWhitespaceBuf(buf);
+  return String(buf);
+}
+
+String truncateText(const String& s, int maxLen) {
+  if (maxLen <= 0) return "";
+  if ((int)s.length() <= maxLen) return s;
+  char buf[512];
+  size_t n = s.length();
+  if (n >= sizeof(buf)) n = sizeof(buf) - 1;
+  memcpy(buf, s.c_str(), n);
+  buf[n] = '\0';
+  truncateTextBuf(buf, (size_t)maxLen);
+  return String(buf);
+}
+
+static bool readOpenBodyPumped(Client& client, bool chunked, int contentLength,
+                               char* outBuf, size_t outCap, size_t& outLen,
+                               unsigned long timeoutMs) {
+  return readHttpBodyAfterHeaders(client, chunked, contentLength, outBuf, outCap, outLen,
+                                  millis() + timeoutMs);
+}
+
+bool getWeather(const char* zip, char* outReport, size_t outCap) {
+  if (!zip || !outReport || outCap == 0) return false;
+  WiFiClient client;
+  char path[192];
+  snprintf(path, sizeof(path),
+           "/data/2.5/weather?zip=%s,US&units=imperial&appid=%s", zip, WEATHER_API_KEY);
+  bool chunked = false;
+  int contentLength = -1;
+  uint8_t openErr = httpGetOpen(client, "api.openweathermap.org", path, 5000, chunked, contentLength);
+  if (openErr) {
+    setHttpOpenError(outReport, outCap, openErr, "Weather service");
+    return false;
+  }
+  size_t bodyLen = 0;
+  if (!readOpenBodyPumped(client, chunked, contentLength, gFetchBody, sizeof(gFetchBody), bodyLen,
+                          5000UL)) {
+    client.stop();
+    return reportSet(outReport, outCap, "Weather empty response."), false;
+  }
+  client.stop();
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, gFetchBody, bodyLen);
+  if (err) {
+    return reportSet(outReport, outCap, "Weather JSON parse error."), false;
+  }
+  const char* city = doc["name"] | "Unknown";
+  float tempF = doc["main"]["temp"] | 0.0f;
+  float tempC = (tempF - 32.0f) * 5.0f / 9.0f;
+  int humidity = doc["main"]["humidity"] | 0;
+  const char* cond = doc["weather"][0]["description"] | "Unknown";
+  size_t len = 0;
+  outReport[0] = '\0';
+  reportPrintf(outReport, outCap, len,
+               "☁️ **Weather Report (%s - %s):**\n"
+               "- **Condition:** %s\n"
+               "- **Temperature:** %.1f degF (%.1f degC)\n"
+               "- **Humidity:** %d%%",
+               city, zip, cond, tempF, tempC, humidity);
+  return true;
+}
+
+bool getScienceNews(char* outReport, size_t outCap) {
+  if (!outReport || outCap == 0) return false;
   bool chunked = false;
   int contentLength = -1;
   uint8_t openErr = httpsGetOpen("api.spaceflightnewsapi.net", "/v4/articles/?limit=3", 8000,
                                  chunked, contentLength);
   if (openErr) {
-    setHttpOpenError(outReport, openErr, "Science news");
+    setHttpOpenError(outReport, outCap, openErr, "Science news");
     return false;
   }
-  String body;
-  if (!readOpenBodyPumped(httpsClient, chunked, contentLength, body, 8000UL)) {
+  size_t bodyLen = 0;
+  if (!readOpenBodyPumped(httpsClient, chunked, contentLength, gFetchBody, sizeof(gFetchBody),
+                          bodyLen, 8000UL)) {
     httpsRelease();
-    outReport = "Science news empty response.";
-    return false;
+    return reportSet(outReport, outCap, "Science news empty response."), false;
   }
   httpsRelease();
-  // SNAPI v4: { "count", "next", "results": [ { title, news_site, url, ... } ] }
   JsonDocument filter;
   filter["results"][0]["title"] = true;
   filter["results"][0]["news_site"] = true;
   filter["results"][0]["url"] = true;
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
+  DeserializationError err =
+      deserializeJson(doc, gFetchBody, bodyLen, DeserializationOption::Filter(filter));
   if (err) {
-    outReport = "Science news JSON parse error.";
-    return false;
+    return reportSet(outReport, outCap, "Science news JSON parse error."), false;
   }
   JsonArray results = doc["results"].as<JsonArray>();
   if (results.isNull() || results.size() == 0) {
-    outReport = "No science headlines right now.";
-    return false;
+    return reportSet(outReport, outCap, "No science headlines right now."), false;
   }
-  outReport = "🛰️ **Space & high-tech headlines:**\n";
+  size_t len = 0;
+  outReport[0] = '\0';
+  reportPrintf(outReport, outCap, len, "🛰️ **Space & high-tech headlines:**\n");
   int n = 0;
   for (JsonObject item : results) {
     if (n >= 3) break;
-    String title = collapseWhitespace(item["title"] | "Untitled");
-    String site = item["news_site"] | "Source";
-    String url = item["url"] | "";
-    outReport += String(n + 1) + ". **" + truncateText(title, 140) + "** (" + site + ")";
-    if (url.length()) outReport += "\n" + url;
-    outReport += "\n";
+    char title[160];
+    char site[64];
+    char url[256];
+    strncpy(title, item["title"] | "Untitled", sizeof(title) - 1);
+    title[sizeof(title) - 1] = '\0';
+    collapseWhitespaceBuf(title);
+    truncateTextBuf(title, 140);
+    strncpy(site, item["news_site"] | "Source", sizeof(site) - 1);
+    site[sizeof(site) - 1] = '\0';
+    strncpy(url, item["url"] | "", sizeof(url) - 1);
+    url[sizeof(url) - 1] = '\0';
+    reportPrintf(outReport, outCap, len, "%d. **%s** (%s)", n + 1, title, site);
+    if (url[0]) reportPrintf(outReport, outCap, len, "\n%s", url);
+    reportPrintf(outReport, outCap, len, "\n");
     n++;
   }
   return n > 0;
 }
 
-bool getPhysicsPapers(String& outReport) {
+bool getPhysicsPapers(char* outReport, size_t outCap) {
+  if (!outReport || outCap == 0) return false;
   const char* path =
-    "/api/query?search_query=cat:physics.*&start=0&max_results=3&sortBy=submittedDate&sortOrder=descending";
+      "/api/query?search_query=cat:physics.*&start=0&max_results=3&sortBy=submittedDate&sortOrder=descending";
   bool chunked = false;
   int contentLength = -1;
   uint8_t openErr = httpsGetOpen("export.arxiv.org", path, 8000, chunked, contentLength,
                                  "MiniMeBot/1.0 (ESP32 Discord bot)", "Accept-Encoding: identity\r\n");
   if (openErr) {
-    setHttpOpenError(outReport, openErr, "arXiv");
+    setHttpOpenError(outReport, outCap, openErr, "arXiv");
     return false;
   }
-  String xml;
-  if (!readOpenBodyPumped(httpsClient, chunked, contentLength, xml, 8000UL)) {
+  size_t bodyLen = 0;
+  if (!readOpenBodyPumped(httpsClient, chunked, contentLength, gFetchBody, sizeof(gFetchBody),
+                          bodyLen, 8000UL)) {
     httpsRelease();
-    outReport = "arXiv response empty.";
-    return false;
+    return reportSet(outReport, outCap, "arXiv response empty."), false;
   }
   httpsRelease();
-  // Soft 24 KB parse cap (readHttpBodyAfterHeaders hard-caps at 48 KB).
-  if (xml.length() > 24000) xml = xml.substring(0, 24000);
-  if (xml.length() < 50) {
-    outReport = "arXiv response empty.";
-    return false;
+  if (bodyLen > 24000) bodyLen = 24000;
+  gFetchBody[bodyLen] = '\0';
+  if (bodyLen < 50) {
+    return reportSet(outReport, outCap, "arXiv response empty."), false;
   }
-  outReport = "⚛️ **Latest arXiv physics papers:**\n";
-  int from = 0;
+  size_t len = 0;
+  outReport[0] = '\0';
+  reportPrintf(outReport, outCap, len, "⚛️ **Latest arXiv physics papers:**\n");
+  const char* from = gFetchBody;
   int n = 0;
   while (n < 3) {
-    int entry = xml.indexOf("<entry>", from);
-    if (entry < 0) break;
-    int entryEnd = xml.indexOf("</entry>", entry);
-    if (entryEnd < 0) break;
-    String block = xml.substring(entry, entryEnd);
-    int t0 = block.indexOf("<title>");
-    int t1 = block.indexOf("</title>");
-    String title = "Untitled";
-    if (t0 >= 0 && t1 > t0) {
-      title = collapseWhitespace(block.substring(t0 + 7, t1));
+    const char* entry = strstr(from, "<entry>");
+    if (!entry) break;
+    const char* entryEnd = strstr(entry, "</entry>");
+    if (!entryEnd) break;
+    char title[160];
+    char id[160];
+    title[0] = '\0';
+    id[0] = '\0';
+    const char* t0 = strstr(entry, "<title>");
+    const char* t1 = t0 ? strstr(t0, "</title>") : nullptr;
+    if (t0 && t1 && t0 < entryEnd && t1 < entryEnd) {
+      t0 += 7;
+      size_t tn = (size_t)(t1 - t0);
+      if (tn >= sizeof(title)) tn = sizeof(title) - 1;
+      memcpy(title, t0, tn);
+      title[tn] = '\0';
+      collapseWhitespaceBuf(title);
+      truncateTextBuf(title, 140);
+    } else {
+      strncpy(title, "Untitled", sizeof(title) - 1);
     }
-    int i0 = block.indexOf("<id>");
-    int i1 = block.indexOf("</id>");
-    String id = "";
-    if (i0 >= 0 && i1 > i0) {
-      id = collapseWhitespace(block.substring(i0 + 4, i1));
+    const char* i0 = strstr(entry, "<id>");
+    const char* i1 = i0 ? strstr(i0, "</id>") : nullptr;
+    if (i0 && i1 && i0 < entryEnd && i1 < entryEnd) {
+      i0 += 4;
+      size_t in = (size_t)(i1 - i0);
+      if (in >= sizeof(id)) in = sizeof(id) - 1;
+      memcpy(id, i0, in);
+      id[in] = '\0';
+      collapseWhitespaceBuf(id);
     }
-    outReport += String(n + 1) + ". **" + truncateText(title, 140) + "**";
-    if (id.length()) outReport += "\n" + id;
-    outReport += "\n";
+    reportPrintf(outReport, outCap, len, "%d. **%s**", n + 1, title[0] ? title : "Untitled");
+    if (id[0]) reportPrintf(outReport, outCap, len, "\n%s", id);
+    reportPrintf(outReport, outCap, len, "\n");
     n++;
     from = entryEnd + 8;
   }
   if (n == 0) {
-    outReport = "No physics papers found.";
-    return false;
+    return reportSet(outReport, outCap, "No physics papers found."), false;
   }
   return true;
 }
 
-bool getApod(String& outReport) {
-  String path = String("/planetary/apod?api_key=") + NASA_API_KEY;
+bool getApod(char* outReport, size_t outCap) {
+  if (!outReport || outCap == 0) return false;
+  char path[96];
+  snprintf(path, sizeof(path), "/planetary/apod?api_key=%s", NASA_API_KEY);
   bool chunked = false;
   int contentLength = -1;
   uint8_t openErr = httpsGetOpen("api.nasa.gov", path, 8000, chunked, contentLength);
   if (openErr) {
-    setHttpOpenError(outReport, openErr, "NASA APOD");
+    setHttpOpenError(outReport, outCap, openErr, "NASA APOD");
     return false;
   }
-  String body;
-  if (!readOpenBodyPumped(httpsClient, chunked, contentLength, body, 8000UL)) {
+  size_t bodyLen = 0;
+  if (!readOpenBodyPumped(httpsClient, chunked, contentLength, gFetchBody, sizeof(gFetchBody),
+                          bodyLen, 8000UL)) {
     httpsRelease();
-    outReport = "NASA APOD empty response.";
-    return false;
+    return reportSet(outReport, outCap, "NASA APOD empty response."), false;
   }
   httpsRelease();
   JsonDocument filter;
@@ -174,65 +295,75 @@ bool getApod(String& outReport) {
   filter["date"] = true;
   filter["url"] = true;
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, body, DeserializationOption::Filter(filter));
+  DeserializationError err =
+      deserializeJson(doc, gFetchBody, bodyLen, DeserializationOption::Filter(filter));
   if (err) {
-    outReport = "NASA APOD JSON parse error.";
-    return false;
+    return reportSet(outReport, outCap, "NASA APOD JSON parse error."), false;
   }
-  String title = doc["title"] | "Astronomy Picture of the Day";
-  String date = doc["date"] | "";
-  String expl = collapseWhitespace(doc["explanation"] | "");
-  String url = doc["url"] | "";
-  outReport = "🌌 **NASA APOD";
-  if (date.length()) outReport += " (" + date + ")";
-  outReport += ":**\n- **" + title + "**\n" + truncateText(expl, 350);
-  if (url.length()) outReport += "\n" + url;
+  const char* title = doc["title"] | "Astronomy Picture of the Day";
+  const char* date = doc["date"] | "";
+  char expl[400];
+  strncpy(expl, doc["explanation"] | "", sizeof(expl) - 1);
+  expl[sizeof(expl) - 1] = '\0';
+  collapseWhitespaceBuf(expl);
+  truncateTextBuf(expl, 350);
+  const char* url = doc["url"] | "";
+  size_t len = 0;
+  outReport[0] = '\0';
+  if (date[0]) {
+    reportPrintf(outReport, outCap, len, "🌌 **NASA APOD (%s):**\n- **%s**\n%s", date, title, expl);
+  } else {
+    reportPrintf(outReport, outCap, len, "🌌 **NASA APOD:**\n- **%s**\n%s", title, expl);
+  }
+  if (url[0]) reportPrintf(outReport, outCap, len, "\n%s", url);
   return true;
 }
 
-bool getIssPosition(String& outReport) {
+bool getIssPosition(char* outReport, size_t outCap) {
+  if (!outReport || outCap == 0) return false;
   WiFiClient client;
   bool chunked = false;
   int contentLength = -1;
-  uint8_t openErr = httpGetOpen(client, "api.open-notify.org", "/iss-now.json", 5000,
-                                chunked, contentLength);
+  uint8_t openErr =
+      httpGetOpen(client, "api.open-notify.org", "/iss-now.json", 5000, chunked, contentLength);
   if (openErr) {
-    setHttpOpenError(outReport, openErr, "ISS tracker");
+    setHttpOpenError(outReport, outCap, openErr, "ISS tracker");
     return false;
   }
-  String body;
-  if (!readOpenBodyPumped(client, chunked, contentLength, body, 5000UL)) {
+  size_t bodyLen = 0;
+  if (!readOpenBodyPumped(client, chunked, contentLength, gFetchBody, sizeof(gFetchBody), bodyLen,
+                          5000UL)) {
     client.stop();
-    outReport = "ISS tracker empty response.";
-    return false;
+    return reportSet(outReport, outCap, "ISS tracker empty response."), false;
   }
   client.stop();
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, body);
+  DeserializationError err = deserializeJson(doc, gFetchBody, bodyLen);
   if (err) {
-    outReport = "ISS tracker JSON parse error.";
-    return false;
+    return reportSet(outReport, outCap, "ISS tracker JSON parse error."), false;
   }
-  String lat = doc["iss_position"]["latitude"] | "?";
-  String lon = doc["iss_position"]["longitude"] | "?";
-  outReport = "🌍 **ISS now:**\n"
-              "- **Latitude:** " + lat + "\n"
-              "- **Longitude:** " + lon;
+  const char* lat = doc["iss_position"]["latitude"] | "?";
+  const char* lon = doc["iss_position"]["longitude"] | "?";
+  size_t len = 0;
+  outReport[0] = '\0';
+  reportPrintf(outReport, outCap, len,
+               "🌍 **ISS now:**\n- **Latitude:** %s\n- **Longitude:** %s", lat, lon);
   return true;
 }
 
-bool askDeepSeek(const String& question, String& outReport) {
+bool askDeepSeek(const char* question, char* outReport, size_t outCap) {
+  if (!outReport || outCap == 0) return false;
   if (strlen(DEEPSEEK_API_KEY) == 0 ||
       strcmp(DEEPSEEK_API_KEY, "DEEPSEEK_API_KEY") == 0) {
-    outReport = "DeepSeek API key not set. Add DEEPSEEK_API_KEY in secrets.h.";
-    return false;
+    return reportSet(outReport, outCap,
+                     "DeepSeek API key not set. Add DEEPSEEK_API_KEY in secrets.h."),
+           false;
   }
 
-  // Trim/cap question into a fixed buffer (no String heap churn).
-  char q[501];
-  size_t qn = question.length();
-  if (qn > 500) qn = 500;
-  memcpy(q, question.c_str(), qn);
+  char q[ASK_QUESTION_MAX + 1];
+  size_t qn = question ? strlen(question) : 0;
+  if (qn > ASK_QUESTION_MAX) qn = ASK_QUESTION_MAX;
+  if (qn) memcpy(q, question, qn);
   q[qn] = '\0';
   while (qn > 0 && (q[qn - 1] == ' ' || q[qn - 1] == '\t' || q[qn - 1] == '\r' || q[qn - 1] == '\n')) {
     q[--qn] = '\0';
@@ -245,8 +376,7 @@ bool askDeepSeek(const String& question, String& outReport) {
     qn = rem;
   }
   if (qn == 0) {
-    outReport = "Usage: !ask <question>";
-    return false;
+    return reportSet(outReport, outCap, "Usage: !ask <question>"), false;
   }
 
   JsonDocument req;
@@ -257,22 +387,21 @@ bool askDeepSeek(const String& question, String& outReport) {
   JsonArray messages = req["messages"].to<JsonArray>();
   JsonObject sys = messages.add<JsonObject>();
   sys["role"] = "system";
-  sys["content"] = "You are MiniMe on an ESP32 Discord bot. Answer clearly for science, tech, and physics. Keep the full answer under 2000 characters so it fits one Discord message.";
+  sys["content"] =
+      "You are MiniMe on an ESP32 Discord bot. Answer clearly for science, tech, and physics. "
+      "Keep the full answer under 2000 characters so it fits one Discord message.";
   JsonObject user = messages.add<JsonObject>();
   user["role"] = "user";
   user["content"] = q;
 
-  // Fixed .bss buffers -- Core 1 only, not concurrent with another !ask.
   static char body[3072];
   static char request[3584];
   static char respBuf[8192];
   size_t bodyLen = serializeJson(req, body, sizeof(body));
   if (bodyLen == 0 || bodyLen >= sizeof(body)) {
-    outReport = "DeepSeek: request too large.";
-    return false;
+    return reportSet(outReport, outCap, "DeepSeek: request too large."), false;
   }
 
-  // Dedicated TLS -- leaves httpsInUse free so Discord REST / !weather can drain during wait.
   static WiFiClientSecure deepSeekTls;
   deepSeekTls.stop();
 #if defined(ESP_ARDUINO_VERSION) && (ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 3, 12))
@@ -287,8 +416,7 @@ bool askDeepSeek(const String& question, String& outReport) {
   deepSeekTls.setHandshakeTimeout(15);
   if (!deepSeekTls.connect("api.deepseek.com", 443)) {
     deepSeekTls.stop();
-    outReport = "DeepSeek connection failed.";
-    return false;
+    return reportSet(outReport, outCap, "DeepSeek connection failed."), false;
   }
   int reqLen = snprintf(request, sizeof(request),
                         "POST /chat/completions HTTP/1.1\r\n"
@@ -304,30 +432,38 @@ bool askDeepSeek(const String& question, String& outReport) {
                         DEEPSEEK_API_KEY, (unsigned)bodyLen, body);
   if (reqLen < 0 || (size_t)reqLen >= sizeof(request)) {
     deepSeekTls.stop();
-    outReport = "DeepSeek: request buffer overflow.";
-    return false;
+    return reportSet(outReport, outCap, "DeepSeek: request buffer overflow."), false;
   }
   deepSeekTls.write((const uint8_t*)request, (size_t)reqLen);
   unsigned long deadline = millis() + 30000UL;
-  String statusLine;
+  char statusLine[160];
+  statusLine[0] = '\0';
   bool chunked = false;
   int contentLength = -1;
-  if (!httpsAwaitHeaders(deepSeekTls, deadline, true, statusLine, chunked, contentLength)) {
+  if (!httpsAwaitHeaders(deepSeekTls, deadline, true, statusLine, sizeof(statusLine), chunked,
+                         contentLength)) {
     deepSeekTls.stop();
-    outReport = "DeepSeek timeout waiting for headers.";
-    return false;
+    return reportSet(outReport, outCap, "DeepSeek timeout waiting for headers."), false;
   }
   size_t respLen = 0;
   if (!readHttpBodyAfterHeaders(deepSeekTls, chunked, contentLength, respBuf, sizeof(respBuf),
                                 respLen, deadline)) {
     deepSeekTls.stop();
-    outReport = "DeepSeek empty response. " + statusLine;
+    size_t len = 0;
+    outReport[0] = '\0';
+    reportPrintf(outReport, outCap, len, "DeepSeek empty response. %s", statusLine);
     return false;
   }
   deepSeekTls.stop();
   const char* jsonPtr = (const char*)memchr(respBuf, '{', respLen);
   if (!jsonPtr) {
-    outReport = "DeepSeek: no JSON body. " + truncateText(statusLine, 80);
+    char st[84];
+    strncpy(st, statusLine, sizeof(st) - 1);
+    st[sizeof(st) - 1] = '\0';
+    truncateTextBuf(st, 80);
+    size_t len = 0;
+    outReport[0] = '\0';
+    reportPrintf(outReport, outCap, len, "DeepSeek: no JSON body. %s", st);
     return false;
   }
   JsonDocument filter;
@@ -338,45 +474,67 @@ bool askDeepSeek(const String& question, String& outReport) {
     deepSeekDoc = newSpiRamJsonDoc();
   }
   if (!deepSeekDoc) {
-    outReport = "DeepSeek: out of memory (JSON doc).";
-    return false;
+    return reportSet(outReport, outCap, "DeepSeek: out of memory (JSON doc)."), false;
   }
   deepSeekDoc->clear();
-  DeserializationError err = deserializeJson(
-      *deepSeekDoc, jsonPtr, DeserializationOption::Filter(filter));
+  DeserializationError err =
+      deserializeJson(*deepSeekDoc, jsonPtr, DeserializationOption::Filter(filter));
   if (err) {
-    outReport = "DeepSeek JSON parse error (" + String(err.c_str()) + ").";
+    size_t len = 0;
+    outReport[0] = '\0';
+    reportPrintf(outReport, outCap, len, "DeepSeek JSON parse error (%s).", err.c_str());
     return false;
   }
   if (!(*deepSeekDoc)["error"].isNull()) {
-    String emsg = (*deepSeekDoc)["error"]["message"] | "API error";
-    outReport = "DeepSeek error: " + truncateText(emsg, 200);
+    char emsg[220];
+    strncpy(emsg, (*deepSeekDoc)["error"]["message"] | "API error", sizeof(emsg) - 1);
+    emsg[sizeof(emsg) - 1] = '\0';
+    truncateTextBuf(emsg, 200);
+    size_t len = 0;
+    outReport[0] = '\0';
+    reportPrintf(outReport, outCap, len, "DeepSeek error: %s", emsg);
     return false;
   }
-  String answer = collapseWhitespace((*deepSeekDoc)["choices"][0]["message"]["content"] | "");
-  if (answer.length() == 0) {
-    outReport = "DeepSeek returned an empty answer. " + truncateText(statusLine, 60);
+  char answer[DISCORD_CONTENT_MAX + 1];
+  strncpy(answer, (*deepSeekDoc)["choices"][0]["message"]["content"] | "", sizeof(answer) - 1);
+  answer[sizeof(answer) - 1] = '\0';
+  collapseWhitespaceBuf(answer);
+  if (answer[0] == '\0') {
+    char st[64];
+    strncpy(st, statusLine, sizeof(st) - 1);
+    st[sizeof(st) - 1] = '\0';
+    truncateTextBuf(st, 60);
+    size_t len = 0;
+    outReport[0] = '\0';
+    reportPrintf(outReport, outCap, len, "DeepSeek returned an empty answer. %s", st);
     return false;
   }
   const char* prefix = "🧠 **DeepSeek:**\n";
   int room = DISCORD_CONTENT_MAX - (int)strlen(prefix);
   if (room < 100) room = 100;
-  outReport = String(prefix) + truncateText(answer, room);
+  truncateTextBuf(answer, (size_t)room);
+  size_t len = 0;
+  outReport[0] = '\0';
+  reportPrintf(outReport, outCap, len, "%s%s", prefix, answer);
   return true;
 }
 
 void runAskFromLoop() {
   if (!askNeedPost) return;
   askNeedPost = false;
-  String channelId = askPendingChannelId;
-  String report;
-  bool ok = askDeepSeek(askPendingQuestion, report);
-  askPendingQuestion = "";
-  askPendingChannelId = "";
+  char channelId[DISCORD_SNOWFLAKE_MAX];
+  strncpy(channelId, askPendingChannelId, sizeof(channelId) - 1);
+  channelId[sizeof(channelId) - 1] = '\0';
+  char report[CMD_REPORT_MAX];
+  report[0] = '\0';
+  bool ok = askDeepSeek(askPendingQuestion, report, sizeof(report));
+  askPendingQuestion[0] = '\0';
+  askPendingChannelId[0] = '\0';
   if (ok) {
     if (!sendDiscordMessage(channelId, report)) {
       noteCmdErrorReply("Post fail: DeepSeek");
-      String fallback = "DeepSeek answered, but Discord rejected the post (try a shorter question).";
+      const char* fallback =
+          "DeepSeek answered, but Discord rejected the post (try a shorter question).";
       if (!sendDiscordCmdError(channelId, fallback)) {
         showTransient("DeepSeek", "Post fail");
         return;
@@ -385,8 +543,8 @@ void runAskFromLoop() {
     showTransient("DeepSeek", "Sent");
   } else {
     if (!sendDiscordCmdError(channelId, report)) {
-      String fallback = truncateText(report, DISCORD_CONTENT_MAX);
-      if (!sendDiscordCmdError(channelId, fallback)) {
+      truncateTextBuf(report, (size_t)DISCORD_CONTENT_MAX);
+      if (!sendDiscordCmdError(channelId, report)) {
         showTransient("DeepSeek", "Post fail");
         return;
       }

@@ -1,4 +1,7 @@
 #include "minime.h"
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 
 void boardMemTotals(uint32_t& memFree, uint32_t& memTotal) {
   // Internal SRAM only -- LCD/web heap bar must not hide internal exhaustion behind free PSRAM.
@@ -20,44 +23,80 @@ void uptimeDhms(unsigned long& days, unsigned long& hours, unsigned long& minute
   if (days > 9999) days = 9999;
 }
 
-String getSystemInfo() {
+static bool infoAppend(char* out, size_t cap, size_t& len, const char* fmt, ...) {
+  if (!out || cap == 0 || len >= cap) return false;
+  va_list ap;
+  va_start(ap, fmt);
+  int n = vsnprintf(out + len, cap - len, fmt, ap);
+  va_end(ap);
+  if (n < 0) return false;
+  if ((size_t)n >= cap - len) {
+    len = cap - 1;
+    out[len] = '\0';
+    return false;
+  }
+  len += (size_t)n;
+  return true;
+}
+
+bool formatSystemInfo(char* out, size_t outCap) {
+  if (!out || outCap == 0) return false;
   long rssi = WiFi.RSSI();
   uint32_t freeHeap = 0, totalHeap = 0, freePs = 0, totalPs = 0;
   boardMemTotals(freeHeap, totalHeap);
   boardPsramTotals(freePs, totalPs);
   unsigned long days = 0, hours = 0, minutes = 0, seconds = 0;
   uptimeDhms(days, hours, minutes, seconds);
-  String uptimeStr = String(days) + "d " + String(hours) + "h " + String(minutes) + "m " + String(seconds) + "s";
-  String msg = "📊 **System Diagnostics:**\n"
-         "- **Uptime:** " + uptimeStr + "\n"
-         "- **Internal heap:** " + String((unsigned long)freeHeap) + " / " +
-         String((unsigned long)totalHeap) + " bytes\n";
+
+  size_t len = 0;
+  out[0] = '\0';
+  infoAppend(out, outCap, len,
+             "📊 **System Diagnostics:**\n"
+             "- **Uptime:** %lud %luh %lum %lus\n"
+             "- **Internal heap:** %lu / %lu bytes\n",
+             days, hours, minutes, seconds,
+             (unsigned long)freeHeap, (unsigned long)totalHeap);
   if (totalPs > 0) {
-    msg += "- **PSRAM:** " + String((unsigned long)freePs) + " / " +
-           String((unsigned long)totalPs) + " bytes\n";
+    infoAppend(out, outCap, len, "- **PSRAM:** %lu / %lu bytes\n",
+               (unsigned long)freePs, (unsigned long)totalPs);
   } else {
-    msg += "- **PSRAM:** none\n";
+    infoAppend(out, outCap, len, "- **PSRAM:** none\n");
   }
-  msg += "- **WiFi RSSI:** " + String(rssi) + " dBm\n"
-         "- **Gateway Status:** " + String((gatewayConnected && identified) ? "Connected" : "Disconnected") + "\n"
-         "- **MmLog Core0 drops:** " + String((unsigned long)mmLogDropCore0.load()) + " (ring overflow)\n";
+  infoAppend(out, outCap, len,
+             "- **WiFi RSSI:** %ld dBm\n"
+             "- **Gateway Status:** %s\n"
+             "- **MmLog Core0 drops:** %lu (ring overflow)\n",
+             rssi,
+             (gatewayConnected && identified) ? "Connected" : "Disconnected",
+             (unsigned long)mmLogDropCore0.load());
   {
     uint8_t n = cmdErrorReplyCount();
-    msg += "- **Cmd errors (" + String((unsigned)n) + "/" + String((unsigned)CMD_ERR_RING_N) + "):**\n";
+    infoAppend(out, outCap, len, "- **Cmd errors (%u/%u):**\n",
+               (unsigned)n, (unsigned)CMD_ERR_RING_N);
     if (n == 0) {
-      msg += "  (none)\n";
+      infoAppend(out, outCap, len, "  (none)\n");
     } else {
-      // Newest first; cap so !sys still fits Discord 2000.
       uint8_t show = n;
       if (show > 5) show = 5;
       for (uint8_t i = 0; i < show; i++) {
         char row[97];
         if (!cmdErrorReplyNewest(i, row, sizeof(row))) break;
-        msg += "  - " + truncateText(String(row), 120) + "\n";
+        truncateTextBuf(row, 120);
+        infoAppend(out, outCap, len, "  - %s\n", row);
       }
-      if (n > show) msg += "  - ... +" + String((unsigned)(n - show)) + " more (Serial / Log panel)\n";
+      if (n > show) {
+        infoAppend(out, outCap, len, "  - ... +%u more (Serial / Log panel)\n",
+                   (unsigned)(n - show));
+      }
     }
   }
-  msg += "- **Firmware:** https://github.com/K9DTV/minime-ii-esp32-discord-bot";
-  return msg;
+  infoAppend(out, outCap, len,
+             "- **Firmware:** https://github.com/K9DTV/minime-ii-esp32-discord-bot");
+  return true;
+}
+
+String getSystemInfo() {
+  char buf[CMD_REPORT_MAX];
+  formatSystemInfo(buf, sizeof(buf));
+  return String(buf);
 }

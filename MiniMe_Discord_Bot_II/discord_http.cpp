@@ -101,6 +101,19 @@ bool httpsAwaitHeaders(Client& client, unsigned long deadlineMs, bool pump, Stri
   return true;
 }
 
+bool httpsAwaitHeaders(Client& client, unsigned long deadlineMs, bool pump, char* outStatus,
+                       size_t statusCap, bool& chunked, int& contentLength,
+                       float* outRetryAfterSec) {
+  String status;
+  bool ok = httpsAwaitHeaders(client, deadlineMs, pump, status, chunked, contentLength,
+                              outRetryAfterSec);
+  if (outStatus && statusCap > 0) {
+    strncpy(outStatus, status.c_str(), statusCap - 1);
+    outStatus[statusCap - 1] = '\0';
+  }
+  return ok;
+}
+
 bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
                               String& outBody, unsigned long deadlineMs) {
   outBody = "";

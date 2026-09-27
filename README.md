@@ -39,7 +39,7 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 Interactive HTML (all four): [`docs/lcd-mock/all-four.html`](docs/lcd-mock/all-four.html).
 
-**Status:** Guition module firmware **v0.7.99** -- usable on the board today (Discord, LCD, LAN, Controls prefs). Still in active tuning and soak testing to harden edge cases; not a closed "final" product. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware **v0.8.1** -- usable on the board today (Discord, LCD, LAN, Controls prefs). Still in active tuning and soak testing to harden edge cases; not a closed "final" product. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 

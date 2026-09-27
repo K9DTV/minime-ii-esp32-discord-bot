@@ -1,7 +1,8 @@
 #ifndef DISPLAY_INTERNAL_H
 #define DISPLAY_INTERNAL_H
 
-// Private LCD modules: display.cpp / display_overlay.cpp / dash_snap.cpp / display_draw.cpp
+// Private LCD modules: display.cpp / display_overlay.cpp / dash_snap.cpp /
+// display_draw*.cpp (util / brand / controls / panels / orchestrator)
 #include "minime.h"
 #include "display_layout.h"
 #include <freertos/FreeRTOS.h>
@@ -81,6 +82,15 @@ DashPalette dashPalette();
 void loadPublishedSnap(DashSnap& out);
 bool snapLeftEqual(const DashSnap& a, const DashSnap& b);
 bool snapRightEqual(const DashSnap& a, const DashSnap& b);
+
+// Shared paint helpers (display_draw_util.cpp; logoBandHeight in _brand.cpp)
+void prtCol(uint16_t col, const char* text, int16_t x, int16_t y, uint8_t size = 1);
+int16_t textW(const char* text, uint8_t size = 1);
+void prtRight(uint16_t col, const char* text, int16_t rightX, int16_t y, uint8_t size = 1);
+void prtCenter(uint16_t col, const char* text, int16_t midX, int16_t y, uint8_t size = 1);
+int16_t logoBandHeight();
+int16_t panelBottomY();
+void drawPanelBox(int16_t x, int16_t y, int16_t w, int16_t h, const DashPalette& p);
 
 void drawBrandBar(const DashPalette& p);
 void drawDogFooter(const DashPalette& p);

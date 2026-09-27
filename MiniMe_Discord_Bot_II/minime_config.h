@@ -2,7 +2,7 @@
 #define MINIME_CONFIG_H
 
 // Single firmware version string (keep VERSION file in sync).
-#define MINIME_VERSION "0.7.99"
+#define MINIME_VERSION "0.8.1"
 #define MINIME_USER_AGENT "MiniMeBot/1.0"
 
 // Scratch TWDT proof only -- enables owner !hang (infinite loop). Never ship with this enabled.
@@ -11,6 +11,10 @@
 
 // Discord content max is 2000. !ask max_tokens / JSON buffer sized to fit one message.
 const int DISCORD_CONTENT_MAX = 2000;
+const size_t CMD_REPORT_MAX = (size_t)DISCORD_CONTENT_MAX + 1; // Discord reply / fetch report
+const size_t HTTP_FETCH_BODY_MAX = 12288; // weather/news/APOD/ISS/arXiv body (Core 1 static)
+const size_t ASK_QUESTION_MAX = 500;
+const size_t DISCORD_SNOWFLAKE_MAX = 24; // channel/guild/user id + NUL
 const int DEEPSEEK_MAX_TOKENS = 900;
 const size_t DEEPSEEK_JSON_DOC = 24576; // soft size hint for !ask (AJ7 grows; was AJ6 pool)
 // Discord REST: retry budget for 429 and header timeouts; keep Gateway alive while waiting.

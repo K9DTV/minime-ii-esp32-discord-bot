@@ -1,6 +1,14 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.99** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.8.1** (see `VERSION` and README).
+
+## 0.8.1
+
+- LCD paint split: `display_draw_util` / `_brand` / `_controls` / `_panels` + thin `display_draw` orchestrator (behavior unchanged). Confirm `Display  -  v0.8.1`.
+
+## 0.8.0
+
+- Cold HTTPS / command reply paths: fetch bodies, Discord posts, `!ask`, `!sys`, and related reports use fixed `char[]` (no heap-growing `String` on those paths). Confirm `Display  -  v0.8.0`.
 
 ## 0.7.99
 

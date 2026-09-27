@@ -165,7 +165,30 @@ static bool formatSummaryReport(String& out) {
 
 #endif // CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH
 
-bool formatCoreDumpReport(String& outReport) {
+static bool formatCoreDumpReportStr(String& outReport);
+static bool clearCoreDumpImageStr(String& outReport);
+
+bool formatCoreDumpReport(char* outReport, size_t outCap) {
+  String s;
+  bool ok = formatCoreDumpReportStr(s);
+  if (outReport && outCap > 0) {
+    strncpy(outReport, s.c_str(), outCap - 1);
+    outReport[outCap - 1] = '\0';
+  }
+  return ok;
+}
+
+bool clearCoreDumpImage(char* outReport, size_t outCap) {
+  String s;
+  bool ok = clearCoreDumpImageStr(s);
+  if (outReport && outCap > 0) {
+    strncpy(outReport, s.c_str(), outCap - 1);
+    outReport[outCap - 1] = '\0';
+  }
+  return ok;
+}
+
+static bool formatCoreDumpReportStr(String& outReport) {
   const esp_partition_t* part = esp_partition_find_first(
       ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_COREDUMP, NULL);
   if (!part) {
@@ -202,7 +225,7 @@ bool formatCoreDumpReport(String& outReport) {
 #endif
 }
 
-bool clearCoreDumpImage(String& outReport) {
+static bool clearCoreDumpImageStr(String& outReport) {
   const esp_partition_t* part = esp_partition_find_first(
       ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_COREDUMP, NULL);
   if (!part) {

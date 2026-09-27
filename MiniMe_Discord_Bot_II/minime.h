@@ -154,18 +154,21 @@ extern bool httpsInUse;
 bool httpsConnect(const char* host, uint32_t timeoutMs = 15000);
 bool httpsAcquire(const char* host, uint32_t timeoutMs = 15000); // claim + connect, or false if busy/fail
 void httpsRelease(); // stop shared client + clear httpsInUse
-uint8_t httpsGetOpen(const char* host, const String& path, unsigned long headerTimeoutMs,
+uint8_t httpsGetOpen(const char* host, const char* path, unsigned long headerTimeoutMs,
                      bool& outChunked, int& outContentLength,
                      const char* userAgent = MINIME_USER_AGENT,
                      const char* extraHeaders = nullptr);
-uint8_t httpGetOpen(WiFiClient& client, const char* host, const String& path,
+uint8_t httpGetOpen(WiFiClient& client, const char* host, const char* path,
                     unsigned long headerTimeoutMs, bool& outChunked, int& outContentLength);
-void setHttpOpenError(String& outReport, uint8_t err, const char* label);
+void setHttpOpenError(char* outReport, size_t outCap, uint8_t err, const char* label);
 bool httpSkipHeaders(Client& client, unsigned long timeoutMs,
                      bool& outChunked, int& outContentLength);
 void pumpNetWait(); // Gateway HB (+ drain cmds when shared HTTPS free)
 bool httpsAwaitHeaders(Client& client, unsigned long deadlineMs, bool pump, String& outStatus,
                        bool& chunked, int& contentLength,
+                       float* outRetryAfterSec = nullptr);
+bool httpsAwaitHeaders(Client& client, unsigned long deadlineMs, bool pump, char* outStatus,
+                       size_t statusCap, bool& chunked, int& contentLength,
                        float* outRetryAfterSec = nullptr);
 bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
                               String& outBody, unsigned long deadlineMs);
@@ -173,15 +176,20 @@ bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
 bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
                               char* outBuf, size_t outCap, size_t& outLen,
                               unsigned long deadlineMs);
+bool discordIdLooksValid(const char* id);
 bool discordIdLooksValid(const String& id);
-bool discordRestGet(const String& path, String& outBody, String& outStatus);
-String guildIdFromChannel(const String& channelId);
-bool appendMembersFromGuild(const String& guildId, uint8_t maxToAdd);
+bool discordRestGet(const char* path, char* outBody, size_t bodyCap, size_t& outLen,
+                    char* outStatus, size_t statusCap);
+bool guildIdFromChannel(const char* channelId, char* outGid, size_t gidCap);
+bool appendMembersFromGuild(const char* guildId, uint8_t maxToAdd);
 bool fetchGuildMembersAtStartup();
+bool sendDiscordMessage(const char* channelId, const char* content, bool suppressEmbeds = false);
 bool sendDiscordMessage(const String& channelId, const String& content, bool suppressEmbeds = false);
 // Same as sendDiscordMessage, but records into the cmd-error ring (operator diagnostics).
+bool sendDiscordCmdError(const char* channelId, const char* content, bool suppressEmbeds = false);
 bool sendDiscordCmdError(const String& channelId, const String& content, bool suppressEmbeds = false);
-String getSystemInfo();
+bool formatSystemInfo(char* out, size_t outCap);
+String getSystemInfo(); // thin wrapper for legacy callers
 void boardMemTotals(uint32_t& memFree, uint32_t& memTotal);   // internal SRAM
 void boardPsramTotals(uint32_t& psFree, uint32_t& psTotal);    // 0/0 if no PSRAM
 void uptimeDhms(unsigned long& days, unsigned long& hours, unsigned long& minutes, unsigned long& seconds);
@@ -318,19 +326,21 @@ void rememberGuildId(const String& gid);
 
 // ====== COMMANDS / BACKGROUND ======
 extern bool askNeedPost;
-extern String askPendingQuestion;
-extern String askPendingChannelId;
-String collapseWhitespace(String s);
+extern char askPendingQuestion[ASK_QUESTION_MAX + 1];
+extern char askPendingChannelId[DISCORD_SNOWFLAKE_MAX];
+void collapseWhitespaceBuf(char* s);
+void truncateTextBuf(char* s, size_t maxLen);
+String collapseWhitespace(String s); // legacy; prefer collapseWhitespaceBuf
 String truncateText(const String& s, int maxLen);
-bool getWeather(const String& zip, String& outReport);
-bool getScienceNews(String& outReport);
-bool getPhysicsPapers(String& outReport);
-bool getApod(String& outReport);
-bool getIssPosition(String& outReport);
-bool askDeepSeek(const String& question, String& outReport);
+bool getWeather(const char* zip, char* outReport, size_t outCap);
+bool getScienceNews(char* outReport, size_t outCap);
+bool getPhysicsPapers(char* outReport, size_t outCap);
+bool getApod(char* outReport, size_t outCap);
+bool getIssPosition(char* outReport, size_t outCap);
+bool askDeepSeek(const char* question, char* outReport, size_t outCap);
 void runAskFromLoop();
-bool formatCoreDumpReport(String& outReport);
-bool clearCoreDumpImage(String& outReport);
+bool formatCoreDumpReport(char* outReport, size_t outCap);
+bool clearCoreDumpImage(char* outReport, size_t outCap);
 void handleCommand(const String& content, const String& authorId, const String& authorName,
                    const String& channelId, bool isDM);
 
