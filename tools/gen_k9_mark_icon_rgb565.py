@@ -22,19 +22,23 @@ except ImportError:
     print("Pillow required: pip install Pillow", file=sys.stderr)
     sys.exit(1)
 
-OUT_W = 48
-OUT_H = 32  # dog+K9 only (no button); matches ~118x78 viewBox
+OUT_W = 72
+OUT_H = 48  # dog+K9 only (no button); matches ~118x78 viewBox; LCD DOG_BTN_* 
 
 ROOT = Path(__file__).resolve().parents[2]
 SKETCH = ROOT / "MinimeII" / "MiniMe_Discord_Bot_II"
 DST = SKETCH / "k9_mark_icon_rgb565.h"
 TOOLS = ROOT / "MinimeII" / "tools"
 
+# Outside dog = Controls panel fill (not page --k9-space). Match dashPalette / web --panel.
+BG_DARK_PANEL = (0x1A, 0x1A, 0x1A)   # #1a1a1a
+BG_LIGHT_PANEL = (0xF3, 0xF5, 0xF8)  # #f3f5f8
+
 SOURCES = [
-    ("K9_MARK_LEFT_RGB565", SKETCH / "k9_mark_icon_svg.h", (0x12, 0x12, 0x12)),
-    ("K9_MARK_LEFT_BRIGHT_RGB565", SKETCH / "k9_mark_icon_bright_svg.h", (0xE0, 0xF2, 0xF5)),
-    ("K9_MARK_RIGHT_RGB565", SKETCH / "k9_mark_icon_right_svg.h", (0x12, 0x12, 0x12)),
-    ("K9_MARK_RIGHT_BRIGHT_RGB565", SKETCH / "k9_mark_icon_right_bright_svg.h", (0xE0, 0xF2, 0xF5)),
+    ("K9_MARK_LEFT_RGB565", SKETCH / "k9_mark_icon_svg.h", BG_DARK_PANEL),
+    ("K9_MARK_LEFT_BRIGHT_RGB565", SKETCH / "k9_mark_icon_bright_svg.h", BG_LIGHT_PANEL),
+    ("K9_MARK_RIGHT_RGB565", SKETCH / "k9_mark_icon_right_svg.h", BG_DARK_PANEL),
+    ("K9_MARK_RIGHT_BRIGHT_RGB565", SKETCH / "k9_mark_icon_right_bright_svg.h", BG_LIGHT_PANEL),
 ]
 
 

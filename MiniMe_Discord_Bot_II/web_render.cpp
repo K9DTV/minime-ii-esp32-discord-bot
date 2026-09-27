@@ -175,7 +175,7 @@ static void streamRootHtml(Print& out) {
   out.print(F("</div></div></div>"));
   out.print(F("<div class=\"ctrl-slot\"><button type=\"button\" class=\"ctrl-clear-btn\" id=\"ctrl-clear\" aria-label=\"Clear DM mention and Msg\">Clear DM/Mention/Msg</button></div>"));
   out.print(F("<button type=\"button\" class=\"dog-btn dog-cancel\" id=\"ctrl-cancel\" aria-label=\"Cancel\">"));
-  out.print(F("<img id=\"dog-left-img\" width=\"48\" height=\"32\" alt=\"\">"));
+  out.print(F("<img id=\"dog-left-img\" width=\"72\" height=\"48\" alt=\"\">"));
   out.print(F("<span class=\"dog-lab\">Cancel</span></button>"));
   out.print(F("</div></section>"));
   out.print(F("<section class=\"box box-lcd-ctrl\" id=\"box-ctrl-toggles\">"));
@@ -185,7 +185,7 @@ static void streamRootHtml(Print& out) {
   out.print(F("<div class=\"ctrl-slot\"><button type=\"button\" class=\"tog\" id=\"ctrl-ticks\" aria-pressed=\"true\"><span class=\"lab\">Ticks</span><span class=\"st\">ON</span></button></div>"));
   out.print(F("<div class=\"ctrl-slot\"><button type=\"button\" class=\"tog\" id=\"ctrl-notify\" aria-pressed=\"true\"><span class=\"lab\">Notify</span><span class=\"st\">ON</span></button></div>"));
   out.print(F("<button type=\"button\" class=\"dog-btn dog-save\" id=\"ctrl-save\" aria-label=\"Save\">"));
-  out.print(F("<img id=\"dog-right-img\" width=\"48\" height=\"32\" alt=\"\">"));
+  out.print(F("<img id=\"dog-right-img\" width=\"72\" height=\"48\" alt=\"\">"));
   out.print(F("<span class=\"dog-lab\">Save</span></button>"));
   out.print(F("</div></section>"));
   out.print(F("<div id=\"err\" class=\"err\" hidden></div>"));

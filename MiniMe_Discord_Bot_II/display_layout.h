@@ -47,10 +47,10 @@ enum {
   CTRL_ROW_PITCH = 46, // 28, 74, 120
   CTRL_TOGGLE_H = 36,
 
-  DOG_BTN_W = 48,         // mark dog+K9 width (no button chrome)
-  DOG_BTN_H_ICON = 32,    // mark dog+K9 height
+  DOG_BTN_W = 72,         // == K9_MARK_W (regen gen_k9_mark_icon_rgb565.py)
+  DOG_BTN_H_ICON = 48,    // == K9_MARK_H
   DOG_BTN_PAD_X = 8,
-  DOG_BTN_H = 42,         // icon + label under dog outline
+  DOG_BTN_H = 58,         // icon + label under dog outline
 
 
   USER_PITCH = 9,           // line baseline step (unchanged); 22 rows leave margin at bottom

@@ -101,7 +101,7 @@ html[data-layout="controls"] #box-ctrl-sliders,html[data-layout="controls"] #box
 .dog-btn{margin:0;padding:0;border:none;border-radius:0;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;-webkit-tap-highlight-color:transparent;min-width:0;flex:0 0 auto}
 .dog-btn.dog-cancel{align-self:flex-start;margin-top:auto}
 .dog-btn.dog-save{align-self:flex-end;margin-top:auto}
-.dog-btn img{width:3rem;height:2rem;display:block;object-fit:contain}
+.dog-btn img{width:4.5rem;height:3rem;display:block;object-fit:contain}
 .dog-btn .dog-lab{font-family:var(--k9-mono);font-size:.85rem;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted);line-height:1}
 .dog-btn:focus{outline:none}
 .dog-btn:focus-visible{outline:2px solid var(--k9-cyan);outline-offset:3px}

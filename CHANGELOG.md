@@ -1,6 +1,14 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.96** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.7.98** (see `VERSION` and README).
+
+## 0.7.98
+
+- Cancel/Save marks re-rasterized from SVG at **72x48** (`gen_k9_mark_icon_rgb565.py`); panel bg dark/light; no upscale of old 48x32. Confirm `Display  -  v0.7.98`.
+
+## 0.7.97
+
+- Controls Cancel/Save: larger mark (72x48); outside dog matches panel (dark chromakey -- light was already close). Confirm `Display  -  v0.7.97`.
 
 ## 0.7.96
 
