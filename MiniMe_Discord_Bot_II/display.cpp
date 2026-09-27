@@ -9,6 +9,12 @@ bool lcdLayoutLog = false; // false = left metrics + right users; true = left LO
 uint8_t lcdLogScroll = 0;
 uint8_t lcdSerialScroll = 0;
 
+// Log/Serial scrollbar hit boxes (set in display_draw_panels while painting).
+int16_t logSbHitX = 0, logSbHitY = 0, logSbHitW = 0, logSbHitH = 0;
+int16_t serialSbHitX = 0, serialSbHitY = 0, serialSbHitW = 0, serialSbHitH = 0;
+uint8_t logSbMaxScroll = 0;
+uint8_t serialSbMaxScroll = 0;
+
 unsigned long lastDashMillis = 0;
 std::atomic<unsigned long> lastDisplayActivityMillis{0};
 unsigned long lastDashDrawMs = 0;
@@ -89,12 +95,47 @@ void setLcdThemeLight(bool light) {
 void lcdAdjustLogScroll(int deltaRows, bool serialPanel) {
   if (!lcdLayoutLog || deltaRows == 0) return;
   uint8_t& sc = serialPanel ? lcdSerialScroll : lcdLogScroll;
+  const uint8_t maxS = serialPanel ? serialSbMaxScroll : logSbMaxScroll;
   int v = (int)sc + deltaRows;
   if (v < 0) v = 0;
-  if (v > (int)DASH_LOG_ROWS) v = (int)DASH_LOG_ROWS;
+  if (v > (int)maxS) v = (int)maxS;
   if ((int)sc == v) return;
   sc = (uint8_t)v;
   // Core 0 paint picks up scroll via nowSnap overlay (no brand wipe).
+}
+
+bool lcdLogScrollbarHit(uint16_t x, uint16_t y, bool& serialOut) {
+  if (!lcdLayoutLog || lcdLayoutControls) return false;
+  if (serialSbHitW > 0 && x >= (uint16_t)serialSbHitX && x < (uint16_t)(serialSbHitX + serialSbHitW)
+      && y >= (uint16_t)serialSbHitY && y < (uint16_t)(serialSbHitY + serialSbHitH)) {
+    serialOut = true;
+    return true;
+  }
+  if (logSbHitW > 0 && x >= (uint16_t)logSbHitX && x < (uint16_t)(logSbHitX + logSbHitW)
+      && y >= (uint16_t)logSbHitY && y < (uint16_t)(logSbHitY + logSbHitH)) {
+    serialOut = false;
+    return true;
+  }
+  return false;
+}
+
+void lcdLogScrollFromTrackY(int16_t y, bool serialPanel) {
+  if (!lcdLayoutLog) return;
+  const int16_t ty = serialPanel ? serialSbHitY : logSbHitY;
+  const int16_t th = serialPanel ? serialSbHitH : logSbHitH;
+  const uint8_t maxS = serialPanel ? serialSbMaxScroll : logSbMaxScroll;
+  uint8_t& sc = serialPanel ? lcdSerialScroll : lcdLogScroll;
+  if (th <= 1 || maxS == 0) {
+    if (sc != 0) sc = 0;
+    return;
+  }
+  // Bottom of track = scroll 0 (newest); top = maxS (older).
+  int fromBottom = (int)(ty + th - 1) - (int)y;
+  if (fromBottom < 0) fromBottom = 0;
+  if (fromBottom > th - 1) fromBottom = th - 1;
+  uint8_t want = (uint8_t)((int32_t)fromBottom * (int32_t)maxS / (int32_t)(th - 1));
+  if (sc == want) return;
+  sc = want;
 }
 
 void applyLcdLayoutMode(uint8_t mode) {

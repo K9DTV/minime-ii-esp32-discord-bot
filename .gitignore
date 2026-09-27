@@ -15,3 +15,6 @@ tools/_k9dtv_logo_*.png
 
 __pycache__/
 *.pyc
+
+docs/.web_ui_pass
+docs/lan-monitor-auth.ps1

@@ -269,6 +269,39 @@ def main() -> int:
     if not wf_html.is_file() or "ci_html.py" not in wf_html.read_text(encoding="utf-8"):
         fail("html.yml missing or must run ci_html.py")
 
+    # Module splits (0.8.1 draw / 0.8.2 Gateway) -- sketch must ship these units
+    for name in (
+        "display_draw.cpp",
+        "display_draw_util.cpp",
+        "display_draw_brand.cpp",
+        "display_draw_controls.cpp",
+        "display_draw_panels.cpp",
+        "discord_gw_internal.h",
+        "discord_gw_state.cpp",
+        "discord_gw_log.cpp",
+        "discord_gw_session.cpp",
+        "discord_gw_outbound.cpp",
+        "discord_gw_pump.cpp",
+        "discord_gateway.cpp",
+    ):
+        if not (SKETCH / name).is_file():
+            fail(f"sketch missing module {name}")
+
+    # Log scrollbar overflow-only (0.8.3) + Src above IP on LCD (0.8.4)
+    panels = SKETCH / "display_draw_panels.cpp"
+    if panels.is_file():
+        pt = panels.read_text(encoding="utf-8", errors="replace")
+        if "drawLogScrollbar" not in pt:
+            fail("display_draw_panels.cpp missing drawLogScrollbar")
+        if "total <= vis" not in pt:
+            fail("display_draw_panels.cpp must hide scrollbar when total <= vis")
+        src_i = pt.find('drawSysRow(cx, y, "Src"')
+        ip_i = pt.find("drawIpSysRow(cx, y,")
+        if src_i < 0 or ip_i < 0:
+            fail("display_draw_panels.cpp missing Src or IP row paint")
+        elif src_i > ip_i:
+            fail("display_draw_panels.cpp: Src must be painted before IP")
+
     if fails:
         print("ci_sanity FAILED:")
         for f in fails:

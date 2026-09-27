@@ -72,6 +72,11 @@ extern int16_t ctrlToggle0X, ctrlToggle0Y, ctrlToggle0W, ctrlToggle0H;
 extern int16_t ctrlToggle1X, ctrlToggle1Y, ctrlToggle1W, ctrlToggle1H;
 extern int16_t ctrlToggle2X, ctrlToggle2Y, ctrlToggle2W, ctrlToggle2H;
 extern int16_t ctrlClearHitX, ctrlClearHitY, ctrlClearHitW, ctrlClearHitH;
+// Log/Serial scrollbar tracks (filled while painting Log layout).
+extern int16_t logSbHitX, logSbHitY, logSbHitW, logSbHitH;
+extern int16_t serialSbHitX, serialSbHitY, serialSbHitW, serialSbHitH;
+extern uint8_t logSbMaxScroll;
+extern uint8_t serialSbMaxScroll;
 extern std::atomic<bool> dashForceFull;
 extern bool dashBrandValid;
 extern DashSnap drawnSnap;

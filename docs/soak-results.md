@@ -21,7 +21,7 @@ Attested local soaks (GitHub Actions cannot reach the board). Playbook: [`HIL_SO
 | Temp / SD | `tempOk=false` (probe not on GPIO 18 yet); no `sdOk` on this build |
 | Mid pull | 00:39:52 PDT @ up **3h 40m 32s** (same ver) |
 | Result | **PASS** (Gateway soak) -- not a v0.7.83/0.7.84/0.7.85 feature PASS |
-| Next | Flash `Display  -  v0.7.86` then [`soak-0.7.85.md`](soak-0.7.85.md) |
+| Next | Flash `Display  -  v0.8.4` then [`soak-0.8.4.md`](soak-0.8.4.md) (covers 0.8.0-0.8.4). Prior SD checklist: [`soak-0.7.85.md`](soak-0.7.85.md) |
 
 ### lan-monitor.log (excerpt)
 

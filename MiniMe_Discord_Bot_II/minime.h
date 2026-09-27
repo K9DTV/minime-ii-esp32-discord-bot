@@ -117,9 +117,11 @@ extern WebSocketsClient gatewayWS;
 extern JsonDocument* gwDoc;
 extern bool gatewayConnected;
 extern bool identified;
+extern bool gotHello;
 extern int heartbeatIntervalMs;
 extern unsigned long lastHeartbeatMillis;
 extern int lastSeq;
+extern String sessionId;
 extern unsigned long lastBotActivityMillis;
 extern uint8_t botDiscordStatus;
 void noteBotActivity();       // Discord presence Online + activity timer
@@ -207,9 +209,11 @@ extern std::atomic<bool> alertMention;    // sticky until owner !clear
 extern bool lcdThemeLight;             // LCD palette only (web theme is independent)
 extern bool lcdLayoutLog;              // false=metrics|users; true=LOG|Serial overlay
 extern bool lcdLayoutControls;         // Controls page (right chip cycle)
-extern uint8_t lcdLogScroll;           // LOG: skip N newest (drag scroll; 0 = bottom)
+extern uint8_t lcdLogScroll;           // LOG: skip N newest (scrollbar; 0 = pinned bottom)
 extern uint8_t lcdSerialScroll;        // Serial: same
-void lcdAdjustLogScroll(int deltaRows, bool serialPanel); // + = older (web scroll up)
+void lcdAdjustLogScroll(int deltaRows, bool serialPanel); // + = older
+void lcdLogScrollFromTrackY(int16_t y, bool serialPanel); // map scrollbar track Y -> scroll
+bool lcdLogScrollbarHit(uint16_t x, uint16_t y, bool& serialOut); // Log layout only
 extern std::atomic<uint8_t> uiBrightPct; // UI 0..100 (duty maps to 10..100%)
 extern std::atomic<uint8_t> uiVolPct;    // 0..100 -> I2S peak scale
 extern std::atomic<bool> uiNotifyOn;     // DM/@mention alarm

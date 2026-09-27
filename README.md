@@ -39,7 +39,7 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 Interactive HTML (all four): [`docs/lcd-mock/all-four.html`](docs/lcd-mock/all-four.html).
 
-**Status:** Guition module firmware **v0.8.1** -- usable on the board today (Discord, LCD, LAN, Controls prefs). Still in active tuning and soak testing to harden edge cases; not a closed "final" product. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware **v0.8.4** -- usable on the board today (Discord, LCD, LAN, Controls prefs). Still in active tuning and soak testing to harden edge cases; not a closed "final" product. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
@@ -79,7 +79,7 @@ AI helped with firmware edits, multi-file layout, and GitHub updates. I owned th
 
 **Not closed out.** Work continues on hardening and a short roadmap (order matters):
 
-1. **Further soak / edge-case hardening** -- long runtimes, reconnect storms, heap pressure. Local soak: [`docs/HIL_SOAK.md`](docs/HIL_SOAK.md), [`docs/soak-results.md`](docs/soak-results.md). Fixed vs deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+1. **Further soak / edge-case hardening** -- long runtimes, reconnect storms, heap pressure. Local soak: [`docs/HIL_SOAK.md`](docs/HIL_SOAK.md), current batch [`docs/soak-0.8.4.md`](docs/soak-0.8.4.md), [`docs/soak-results.md`](docs/soak-results.md). Fixed vs deferred: [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 2. **Desk case / enclosure** -- last on the list (module board already; enclosure is packaging, not a breadboard prototype).
 
 **CI:** four badges -- **Compile** (Arduino), **Sanity** (fast host checks), **Python** (pytest + Pillow), **HTML** (LAN CSS/JS/SVG in headers).

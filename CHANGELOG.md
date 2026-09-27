@@ -1,6 +1,19 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.8.1** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.8.4** (see `VERSION` and README).
+
+## 0.8.4
+
+- Display metrics: **Src** above **IP** (LCD + web). Confirm `Display  -  v0.8.4`.
+- Testing: [`docs/soak-0.8.4.md`](docs/soak-0.8.4.md); CI asserts Src-before-IP (HTML + panels) and draw/Gateway module files.
+
+## 0.8.3
+
+- LCD Log/Serial: **scrollbar** (track + cyan thumb) only when lines overflow the panel (like web); thumb bottom = newest. Confirm `Display  -  v0.8.3`.
+
+## 0.8.2
+
+- Discord Gateway split: `discord_gw_state` / `_log` / `_session` / `_outbound` / `_pump` + `discord_gateway` event dispatch (behavior unchanged). Confirm `Display  -  v0.8.2`.
 
 ## 0.8.1
 

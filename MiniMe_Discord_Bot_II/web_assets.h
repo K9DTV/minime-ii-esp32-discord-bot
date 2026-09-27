@@ -337,8 +337,8 @@ mline('SD',j.sdOk?fmtM(j.sdFreeMb):'0M',j.sdOk?j.sdPct:0,j.sdOk?'':'bad')+
 '<div class="metric-3"><span class="'+al+'">DM:'+(dmOn?'ON':'off')+'</span><span></span><span class="r '+al+'">Mention:'+(menOn?'ON':'off')+'</span></div>'+
 '<div class="metric"><span class="k">Event:</span> '+esc(j.lastEvent||'-')+'</div>'+
 '<div class="sysrows">'+
-srow('IP',esc(j.ip),j.wifiOk?'':'ip-bad')+
 srow('Src',j.secretsFromSd?'SD card':'firmware')+
+srow('IP',esc(j.ip),j.wifiOk?'':'ip-bad')+
 srow('OTA',esc(j.ota))+srow('Ver',esc(j.ver))+srow('CPU',esc(j.cpuMhz)+' MHz')+
 '<div class="metric-3"><span><span class="k">LCD</span> '+esc(j.lcd)+'</span><span></span><span class="r muted">Refresh '+esc(j.dashFlushMs)+'/'+esc(j.dashDrawMs)+' ms</span></div>'+
 '</div>'+

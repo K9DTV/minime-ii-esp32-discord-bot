@@ -73,28 +73,82 @@ static void drawUpTempLine(int16_t cx, int16_t y, const DashSnap& s, const DashP
   }
 }
 
+// Scrollbar on the right of the log text area. Only when content overflows (like web).
+// scroll 0 = thumb at bottom (newest).
+static void drawLogScrollbar(int16_t panelX, int16_t panelW, int16_t trackTop, int16_t trackBottom,
+                             uint8_t total, uint8_t vis, uint8_t scroll, const DashPalette& p,
+                             int16_t& hitX, int16_t& hitY, int16_t& hitW, int16_t& hitH,
+                             uint8_t& outMaxScroll) {
+  hitX = 0;
+  hitY = 0;
+  hitW = 0;
+  hitH = 0;
+  outMaxScroll = 0;
+  if (!gfx) return;
+  if (total == 0 || vis == 0 || total <= vis) return; // fits -- no bar (web overflow:auto twin)
+  const int16_t h = (int16_t)(trackBottom - trackTop);
+  if (h < 8) return;
+  const int16_t sbW = (int16_t)LOG_SB_W;
+  const int16_t x = (int16_t)(panelX + panelW - PANEL_PAD - sbW);
+  uint8_t maxScroll = (uint8_t)(total - vis);
+  outMaxScroll = maxScroll;
+  // Slightly wider than the painted bar for touch.
+  hitX = (int16_t)(x - 2);
+  hitY = trackTop;
+  hitW = (int16_t)(sbW + 4);
+  hitH = h;
+
+  gfx->fillRect(x, trackTop, sbW, h, p.barTr);
+  gfx->drawRect(x, trackTop, sbW, h, p.line);
+  if (scroll > maxScroll) scroll = maxScroll;
+  int thumbH = (int)((int32_t)vis * (int32_t)h / (int32_t)total);
+  if (thumbH < LOG_SB_MIN_THUMB) thumbH = LOG_SB_MIN_THUMB;
+  if (thumbH > h) thumbH = h;
+  const int travel = h - thumbH;
+  // scroll 0 -> bottom; scroll max -> top
+  const int thumbY = (int)trackTop + travel
+                     - (int)((int32_t)scroll * (int32_t)travel / (int32_t)maxScroll);
+  gfx->fillRect(x + 1, (int16_t)thumbY, sbW - 2, (int16_t)thumbH, p.cyan);
+}
+
 static void drawLogLines(int16_t sx, int16_t sy, int16_t bottom, const DashPalette& p,
-                         const DashSnap& s, bool fullLog) {
+                         const DashSnap& s, bool fullLog,
+                         int16_t panelX, int16_t panelW) {
   const int16_t maxRows = (int16_t)((bottom - sy) / USER_PITCH);
   const uint8_t total = fullLog ? s.logRowCount : s.serialRowCount;
+  int16_t& hitX = fullLog ? logSbHitX : serialSbHitX;
+  int16_t& hitY = fullLog ? logSbHitY : serialSbHitY;
+  int16_t& hitW = fullLog ? logSbHitW : serialSbHitW;
+  int16_t& hitH = fullLog ? logSbHitH : serialSbHitH;
+  uint8_t& maxScrollOut = fullLog ? logSbMaxScroll : serialSbMaxScroll;
+
   if (total == 0) {
     prtCol(p.muted, "(empty)", sx, sy, 1);
+    hitX = hitY = hitW = hitH = 0;
+    maxScrollOut = 0;
     return;
   }
-  if (maxRows < 1) return;
+  if (maxRows < 1) {
+    hitW = 0;
+    maxScrollOut = 0;
+    return;
+  }
   uint8_t vis = total;
   if ((int16_t)vis > maxRows) vis = (uint8_t)maxRows;
   uint8_t maxScroll = (total > vis) ? (uint8_t)(total - vis) : 0;
   uint8_t scroll = fullLog ? s.logScroll : s.serialScroll;
   if (scroll > maxScroll) scroll = maxScroll;
-  // Newest at bottom; scroll skips N newest (drag up/down like web Log/Serial).
+  // Newest at bottom; scroll skips N newest (scrollbar thumb when overflow).
+  int16_t lineY = sy;
   for (uint8_t i = 0; i < vis; i++) {
     uint8_t fromNewest = (uint8_t)(scroll + vis - 1 - i);
     const char* line = fullLog ? s.logRows[fromNewest] : s.serialRows[fromNewest];
-    prtCol(p.text, line, sx, sy, 1);
-    sy += USER_PITCH;
-    if (sy + 8 > bottom) break;
+    prtCol(p.text, line, sx, lineY, 1);
+    lineY = (int16_t)(lineY + USER_PITCH);
+    if (lineY + 8 > bottom) break;
   }
+  drawLogScrollbar(panelX, panelW, sy, bottom, total, vis, scroll, p,
+                   hitX, hitY, hitW, hitH, maxScrollOut);
 }
 
 void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
@@ -113,13 +167,15 @@ void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
     // Log layout: LOG left (matches web #box-logfile)
     prtCol(p.muted, "LOG", cx, y, 1);
     y += ROW_PITCH_LOOSE;
-    drawLogLines(cx, y, bottom, p, s, true);
+    drawLogLines(cx, y, bottom, p, s, true, lx, lw);
     return;
   }
+  logSbHitW = 0;
+  logSbMaxScroll = 0;
 
   // Same order + formatting as web_assets.h #metrics:
   // MiniMe-II|GW|time, Bot|date, Up/T, Sig, PSRAM/SRAM, SD,
-  // Users, HTTPS, Id (one row), DM/Mention, Event, IP, Src, OTA, Ver, CPU, Write+LCD.
+  // Users, HTTPS, Id (one row), DM/Mention, Event, Src, IP, OTA, Ver, CPU, Write+LCD.
   prtCol(p.text, "MiniMe-II", cx, y, 1);
   const char* gwLabel = (s.gw < 0) ? "GW:Bad" : (s.gw > 0 ? "GW:Good" : "GW:Wait");
   uint16_t gwCol = (s.gw > 0) ? p.ok : (s.gw == 0 ? p.cyan : p.bad);
@@ -210,8 +266,8 @@ void drawLeftPanel(const DashSnap& s, const DashPalette& p) {
   char cpuBuf[16];
   snprintf(cpuBuf, sizeof(cpuBuf), "%u MHz", (unsigned)s.cpuMhz);
 
-  drawIpSysRow(cx, y, s, p); y += ROW_PITCH;
   drawSysRow(cx, y, "Src", s.secretsFromSd ? "SD card" : "firmware", p); y += ROW_PITCH;
+  drawIpSysRow(cx, y, s, p); y += ROW_PITCH;
   drawSysRow(cx, y, "OTA", otaHost, p); y += ROW_PITCH;
   drawSysRow(cx, y, "Ver", MINIME_VERSION, p); y += ROW_PITCH;
   drawSysRow(cx, y, "CPU", cpuBuf, p); y += ROW_PITCH;
@@ -245,9 +301,11 @@ void drawRightPanel(const DashSnap& s, const DashPalette& p) {
     // Log layout: Serial right (matches web #box-serial)
     prtCol(p.muted, "Serial", sx, sy, 1);
     sy += ROW_PITCH_LOOSE;
-    drawLogLines(sx, sy, bottom, p, s, false);
+    drawLogLines(sx, sy, bottom, p, s, false, rx, rw);
     return;
   }
+  serialSbHitW = 0;
+  serialSbMaxScroll = 0;
 
   // Display mode: users on the right (from published snap only).
   // Equal row gaps; last baseline sits on last paint line so slot 22 is the bottom row.

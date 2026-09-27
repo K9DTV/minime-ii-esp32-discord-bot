@@ -2,7 +2,7 @@
 
 See [`CHANGELOG.md`](../CHANGELOG.md) for the full per-version list; this document highlights only the durable architectural fixes.
 
-What we **fixed** vs what we **left** and why. Current: **v0.8.1**.
+What we **fixed** vs what we **left** and why. Current: **v0.8.4**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -73,6 +73,8 @@ What we **fixed** vs what we **left** and why. Current: **v0.8.1**.
 | LOG/Serial ring encapsulation | **0.7.85** -- web status uses `lcd*LogNewest` accessors; ring storage private to `web_ui.cpp` |
 | Cold HTTPS / command replies | **0.8.0** -- fetch bodies, Discord POST, `!ask`, `!sys` / reports on fixed `char[]` (closes deferred String cut) |
 | LCD draw module split | **0.8.1** -- `display_draw_util` / `_brand` / `_controls` / `_panels` + thin orchestrator |
+| Discord Gateway module split | **0.8.2** -- `discord_gw_state` / `_log` / `_session` / `_outbound` / `_pump` + event dispatch |
+| LCD Log/Serial scrollbar | **0.8.3** -- track + thumb only on overflow (web overflow:auto twin); not content drag |
 
 ## Known tradeoffs (not deferred bugs)
 

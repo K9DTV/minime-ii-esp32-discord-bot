@@ -86,6 +86,13 @@ def main() -> int:
         ):
             if needle not in app_js:
                 fail(f"WEB_UI_JS missing {needle}")
+        # Display metrics order (LCD parity): Src above IP
+        src_i = app_js.find("srow('Src'")
+        ip_i = app_js.find("srow('IP'")
+        if src_i < 0 or ip_i < 0:
+            fail("WEB_UI_JS missing srow('Src'...) or srow('IP'...)")
+        elif src_i > ip_i:
+            fail("WEB_UI_JS metrics: Src must appear before IP")
         if not brace_balance(app_js, "{", "}"):
             fail("WEB_UI_JS curly braces unbalanced")
 
