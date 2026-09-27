@@ -7,17 +7,36 @@
 static TaskHandle_t uiTaskHandle = nullptr;
 static SemaphoreHandle_t cmdMux = nullptr;
 static bool drainCmdsBusy = false;
+// millis() when drainCmdsBusy was last armed. Unsigned subtract wraps safely.
+static uint32_t drainCmdsBusyAt = 0;
+// Bumped each time a guard arms. The destructor clears the flag only for its
+// own epoch, so a late outer destructor cannot drop a newer drain after reclaim.
+static uint32_t drainBusyEpoch = 0;
 
 static DiscordCmdJob cmdQ[DISCORD_CMD_QUEUE_DEPTH];
 static uint8_t cmdHead = 0;
 static uint8_t cmdTail = 0;
 static uint8_t cmdCount = 0;
 
-// Clears drainCmdsBusy on every return path (not on panic -- noted in CODE_REVIEW_NOTES).
+// loopTask TWDT is TWDT_TIMEOUT_MS (90s) and is fed only when loop() returns.
+// Keep this strictly under that. Panic/abort on ESP32 Arduino does not unwind
+// ~DrainBusyGuard; drainDiscordCmds() reclaims a stale flag instead.
+static const uint32_t DRAIN_BUSY_STALE_MS = 75000UL;
+static_assert(DRAIN_BUSY_STALE_MS >= 60000UL, "drain stale window too short");
+static_assert(DRAIN_BUSY_STALE_MS < TWDT_TIMEOUT_MS, "drain reclaim must beat loop TWDT");
+
+// Sets drainCmdsBusy and stamps drainCmdsBusyAt. Clears the flag on every normal
+// return. Stale reclaim covers the no-unwind path (CODE_REVIEW_NOTES 0.7.38 / 0.8.5).
 struct DrainBusyGuard {
   bool& flag;
-  explicit DrainBusyGuard(bool& f) : flag(f) { flag = true; }
-  ~DrainBusyGuard() { flag = false; }
+  uint32_t epoch;
+  explicit DrainBusyGuard(bool& f) : flag(f), epoch(++drainBusyEpoch) {
+    flag = true;
+    drainCmdsBusyAt = millis();
+  }
+  ~DrainBusyGuard() {
+    if (epoch == drainBusyEpoch) flag = false;
+  }
   DrainBusyGuard(const DrainBusyGuard&) = delete;
   DrainBusyGuard& operator=(const DrainBusyGuard&) = delete;
 };
@@ -52,7 +71,15 @@ bool enqueueDiscordCmd(const String& content, const String& authorId,
 
 void drainDiscordCmds() {
   if (!cmdMux) return;
-  if (drainCmdsBusy) return;
+  if (drainCmdsBusy) {
+    uint32_t age = (uint32_t)millis() - drainCmdsBusyAt;
+    if (age <= DRAIN_BUSY_STALE_MS) return;
+    // No-unwind safety net. Nested pumpNetWait() returns above while this job's
+    // stamp is still inside DRAIN_BUSY_STALE_MS.
+    drainCmdsBusy = false;
+    MmLog.print(F("[CMD] drainCmdsBusy stale ms="));
+    MmLog.println(age);
+  }
   DrainBusyGuard guard(drainCmdsBusy);
   // At most 2 jobs per call. DeepSeek uses a dedicated TLS client, so httpsInUse stays
   // false during !ask and Discord/other HTTPS cmds can run. While shared httpsClient is
@@ -71,6 +98,10 @@ void drainDiscordCmds() {
       xSemaphoreGive(cmdMux);
     }
     if (!have) break;
+    // Each job gets its own stale window. Aging from the first job would let a nested
+    // pumpNetWait() reclaim during a second healthy command (httpsInUse is false for !ask
+    // and for Discord 429 waits).
+    drainCmdsBusyAt = millis();
     handleCommand(String(job.content), String(job.authorId), String(job.authorName),
                   String(job.channelId), job.isDM);
   }

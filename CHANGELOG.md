@@ -1,6 +1,10 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.8.4** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **0.8.5** (see `VERSION` and README).
+
+## 0.8.5
+
+- Discord command drain: if `drainCmdsBusy` stays set after a panic/abort inside `handleCommand` (ESP32 Arduino does not unwind `~DrainBusyGuard`), reclaim it after **75 s** so later commands are not stuck until reboot. RAII still clears the normal path. Confirm `Display  -  v0.8.5`. CI asserts `DRAIN_BUSY_STALE_MS` stays in [60 s, loop TWDT).
 
 ## 0.8.4
 

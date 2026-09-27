@@ -302,6 +302,31 @@ def main() -> int:
         elif src_i > ip_i:
             fail("display_draw_panels.cpp: Src must be painted before IP")
 
+    # Drain busy reclaim (0.8.5): stale window under loopTask TWDT, RAII still clears.
+    cores = SKETCH / "cores.cpp"
+    cfg_txt = cfg_path.read_text(encoding="utf-8") if cfg_path.is_file() else ""
+    if not cores.is_file():
+        fail("cores.cpp missing")
+    else:
+        ct = cores.read_text(encoding="utf-8", errors="replace")
+        stale_m = re.search(r"DRAIN_BUSY_STALE_MS\s*=\s*(\d+)UL", ct)
+        twdt_m = re.search(r"TWDT_TIMEOUT_MS\s*=\s*(\d+)UL", cfg_txt)
+        if "drainCmdsBusyAt" not in ct or "epoch == drainBusyEpoch" not in ct:
+            fail("cores.cpp drain reclaim must stamp drainCmdsBusyAt and clear only its guard epoch")
+        if "if (age <= DRAIN_BUSY_STALE_MS) return;" not in ct or "drainCmdsBusy stale" not in ct:
+            fail("cores.cpp must force-clear a stale drainCmdsBusy before draining")
+        if not stale_m:
+            fail("cores.cpp missing DRAIN_BUSY_STALE_MS")
+        elif not twdt_m:
+            fail("minime_config.h missing TWDT_TIMEOUT_MS")
+        else:
+            stale_ms = int(stale_m.group(1))
+            twdt_ms = int(twdt_m.group(1))
+            if not (60000 <= stale_ms < twdt_ms):
+                fail(
+                    f"DRAIN_BUSY_STALE_MS ({stale_ms}) must be in [60000, {twdt_ms})"
+                )
+
     if fails:
         print("ci_sanity FAILED:")
         for f in fails:
