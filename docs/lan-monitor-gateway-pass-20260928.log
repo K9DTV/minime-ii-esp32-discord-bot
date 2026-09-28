@@ -1,0 +1,37 @@
+# MiniMe II -- board LOG (Discord gateway) -- v1.00.01 PASS evidence
+# Date: 2026-09-28 PT
+# Boot wall-clock (from lan-monitor RELOGIN up=0m 44s at 05:08:34): ~05:07:50 PT
+# millis are board uptime ms since that boot.
+#
+# Wall-clock map (approx):
+#   [17428] ~05:08:07  BIND / early TCP cleanup drop
+#   [19470] ~05:08:10  READY session=yes   (monitor LOG line 05:09:05)
+#   [9067748] ~07:38:58  OP7_RECONNECT
+#   [9071755] ~07:39:02  READY session=yes (monitor LOG line 07:39:55)
+# Attested Gateway soak window: READY@19470 through READY@9071755 (~2 h 31 m continuous)
+
+[17428] BIND_HOST gateway.discord.gg
+[17503] DROP_START: WS_DISCONNECTED_WIFI_UP reason=TCP connection cleanup rssi=-52 seq=0 session
+[17504] DISCONNECT_AT millis=17504 rssi=-52 heap=70672 psram=8042640
+[17504] CLEAR_SESSION disconnect
+[17504] RECONNECT_INTERVAL_MS=200
+[19155] CONNECT_AT millis=19155 gap_ms=1651
+[19155] WS_CONNECTED
+[19159] OP10_HELLO hb_ms=41250
+[19161] SENT_IDENTIFY
+[19470] RECONNECT_INTERVAL_MS=3000
+[19470] RECOVERED
+[19470] READY session=yes
+[9067748] DROP_START: OP7_RECONNECT
+[9067748] CLEAR_SESSION op7
+[9067748] RECONNECT_INTERVAL_MS=200
+[9067752] WS_DISCONNECTED_WIFI_UP rssi=-59 seq=0 session=no
+[9067752] DISCONNECT_AT millis=9067752 rssi=-59 heap=82268 psram=8035536
+[9067752] RECONNECT_INTERVAL_MS=200
+[9069949] CONNECT_AT millis=9069949 gap_ms=2197
+[9069950] WS_CONNECTED
+[9069953] OP10_HELLO hb_ms=41250
+[9069955] SENT_IDENTIFY
+[9071755] RECONNECT_INTERVAL_MS=3000
+[9071755] RECOVERED
+[9071755] READY session=yes

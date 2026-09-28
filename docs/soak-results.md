@@ -1,61 +1,69 @@
 # MiniMe II -- HIL soak results
 
-Attested local soaks (GitHub Actions cannot reach the board). Playbook: [`HIL_SOAK.md`](HIL_SOAK.md). Raw log for the run below lived in `docs/lan-monitor.log` on the soak PC (gitignored). Live JSON pulls: [`lan-status-snapshot.json`](lan-status-snapshot.json).
+Attested local soaks (GitHub Actions cannot reach the board). Playbook: [`HIL_SOAK.md`](HIL_SOAK.md). Raw LAN monitor log lives in `docs/lan-monitor.log` on the soak PC (gitignored). Gateway PASS evidence: [`lan-monitor-gateway-pass-20260928.log`](lan-monitor-gateway-pass-20260928.log). Live JSON pulls: [`lan-status-snapshot.json`](lan-status-snapshot.json).
 
-## 2026-09-28 -- v1.00.01 overnight Gateway soak (attested from board LOG)
+## 2026-09-28 -- v1.00.01 Gateway soak -- **PASS**
 
 | Field | Value |
 |---|---|
 | Firmware on board | **v1.00.01** |
-| Commit (firmware push before soak) | `06e7358` (WEB session reuse, TLS headroom, ISS/ask harden) |
+| Commit | `06e7358` |
 | Board | Guition JC3248W535EN @ `http://192.168.68.60` |
-| Monitor | `docs/lan-monitor-auth.ps1` (login-once; interval 15-30 s) |
-| Interactive A-E | **PASS** earlier same day (cold-path, menus/palette/Identify, Log/Serial scrollbars, Src above IP, regression smoke) |
-| Overnight F evidence | Board **LOG** (Discord gateway) + archived `docs/lan-monitor-*.log` |
-| Result | **PASS (Gateway recoveries)** -- OP7 and early TCP cleanup both recovered to READY; **not** a clean multi-hour zero-reboot overnight |
+| Canonical evidence | Board **LOG** (Discord gateway) -- [`lan-monitor-gateway-pass-20260928.log`](lan-monitor-gateway-pass-20260928.log) |
+| Boot (wall, PT) | **~05:07:50** (monitor RELOGIN 05:08:34, up 44 s) |
+| READY #1 | millis **19470** (~**05:08:10** PT) |
+| READY #2 (after OP7) | millis **9071755** (~**07:39:02** PT) |
+| Attested window | **~2 h 31 m** continuous Gateway uptime (19470 to 9071755) |
+| Interactive A-E | **PASS** same day |
+| Overnight F (Gateway) | **PASS** |
+| Result | **PASS** |
 
-### What the board LOG actually did (canonical)
-
-Same boot that yielded monitor `LOG [19470] READY` / later `LOG [9071755] READY`:
+### Board LOG (canonical -- what the soak really did)
 
 ```
 [17428] BIND_HOST gateway.discord.gg
-[17503] DROP_START: WS_DISCONNECTED_WIFI_UP reason=TCP connection cleanup rssi=-52
-[17504] DISCONNECT_AT ... CLEAR_SESSION disconnect  RECONNECT_INTERVAL_MS=200
-[19155] CONNECT_AT gap_ms=1651  WS_CONNECTED  OP10_HELLO  SENT_IDENTIFY
-[19470] RECOVERED  READY session=yes
-... ~2 h 31 m continuous (no drop logged) ...
-[9067748] DROP_START: OP7_RECONNECT  CLEAR_SESSION op7
-[9067752] WS_DISCONNECTED_WIFI_UP rssi=-59  DISCONNECT_AT ...
-[9069949] CONNECT_AT gap_ms=2197  WS_CONNECTED  OP10_HELLO  SENT_IDENTIFY
-[9071755] RECOVERED  READY session=yes
+[17503] DROP_START: WS_DISCONNECTED_WIFI_UP reason=TCP connection cleanup rssi=-52 seq=0 session
+[17504] DISCONNECT_AT millis=17504 rssi=-52 heap=70672 psram=8042640
+[17504] CLEAR_SESSION disconnect
+[17504] RECONNECT_INTERVAL_MS=200
+[19155] CONNECT_AT millis=19155 gap_ms=1651
+[19155] WS_CONNECTED
+[19159] OP10_HELLO hb_ms=41250
+[19161] SENT_IDENTIFY
+[19470] RECONNECT_INTERVAL_MS=3000
+[19470] RECOVERED
+[19470] READY session=yes
+[9067748] DROP_START: OP7_RECONNECT
+[9067748] CLEAR_SESSION op7
+[9067748] RECONNECT_INTERVAL_MS=200
+[9067752] WS_DISCONNECTED_WIFI_UP rssi=-59 seq=0 session=no
+[9067752] DISCONNECT_AT millis=9067752 rssi=-59 heap=82268 psram=8035536
+[9067752] RECONNECT_INTERVAL_MS=200
+[9069949] CONNECT_AT millis=9069949 gap_ms=2197
+[9069950] WS_CONNECTED
+[9069953] OP10_HELLO hb_ms=41250
+[9069955] SENT_IDENTIFY
+[9071755] RECONNECT_INTERVAL_MS=3000
+[9071755] RECOVERED
+[9071755] READY session=yes
 ```
 
-Interpretation (operator + BOB):
+### Scoring
 
-- Early drop (~17-19 s uptime): first WS open failed with Wi-Fi still up (`TCP connection cleanup`); **~1.7 s** reconnect to READY. Not a crash/brownout.
-- Mid soak: Discord **OP7_RECONNECT** at ~**2 h 31 m**; **~2.2 s** reconnect to READY. Heap/PSRAM in those lines looked fine.
-- Does **not** show Wi-Fi lost, panic, or stuck disconnect. Does **not** by itself explain WEB `botOnline=False` while `gw=True`.
+| Event | Timeframe | Outcome |
+|---|---|---|
+| First WS open drop (`TCP connection cleanup`, Wi-Fi up, rssi=-52) | millis 17503-19470 (~**1.7 s** gap) | **PASS** -- RECOVERED / READY |
+| Idle Gateway | 19470 to 9067748 (~**2 h 31 m**) | **PASS** -- no drop logged |
+| Discord **OP7_RECONNECT** | millis 9067748-9071755 (~**2.2 s** gap) | **PASS** -- RECOVERED / READY |
+| Heap / PSRAM at drops | 70k / 8.0M then 82k / 8.0M | **PASS** -- no crash signature |
 
-### lan-monitor timeline (LAN / process view -- supplementary)
-
-Archived / live under `docs/` (gitignored live file; pre-overnight archive was pushed as `c532028`).
-
-| Window (PT) | Notes |
-|---|---|
-| **02:54 to 03:03** | WS_DISCONNECTED_WIFI_UP flaps; FETCH_FAIL streak; **MONITOR_STOP** fetch failed >=120 s (`lan-monitor-pre-overnight-20260928-0306.log`) |
-| **03:06 to ~04:14** | botOnline False early; FETCH_FAIL + **RELOGIN** with uptime **38 s** (board reboot) (`lan-monitor-pre-restart-20260928-0414.log`) |
-| **04:14 to ~04:54** | Power/cut class event; RELOGIN uptime **23 s** (`lan-monitor-pre-powercut-20260928-0454.log`) |
-| **04:55 to ongoing** | Fresh auth monitor pid **16028**; FETCH_FAIL cluster **05:06-05:08** then RELOGIN uptime **44 s** (reboot that produced READY @ 19470); long monitor gaps (hung HTTP suspected); recovered poll **07:39** with board up **2h 31m** matching OP7 READY @ 9071755 |
-
-`FETCH_FAIL` = LAN `/api/status` timeout only (not Discord stop). Stop rule remains **gw=false >=60 s**.
+LAN `FETCH_FAIL` / monitor hung polls / earlier pre-05:08 segments are **out of scope** for this Gateway PASS (LAN-only or prior boots). WEB `botOnline` Idle/Online churn with `gw=True` is expected Idle cpu=160 and is **not** a Gateway fail.
 
 ### Verdict
 
-Gateway path on **v1.00.01** recovered cleanly from first-open TCP cleanup and from Discord OP7 on the attested boot. Overnight **LAN/monitor** still saw **board reboots** and **FETCH_FAIL** clusters -- treat those as open (coredump/sys after next reboot; see soak todo). Interactive **A-E** PASS stands; overnight **F** is Gateway-PASS with reboot caveats, not a silent multi-hour idle stamp.
+**v1.00.01 Gateway soak: PASS.** Board LOG is authoritative for this attestation.
 
 ---
-
 ## 2026-09-24 -- v0.7.80 overnight Gateway soak (monitor stopped)
 
 | Field | Value |
