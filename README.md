@@ -5,7 +5,7 @@
 [![Python](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/python.yml/badge.svg)](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/python.yml)
 [![HTML](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/html.yml/badge.svg)](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/html.yml)
 
-**Project page:** https://k9dtv.com/project-minime.html  
+**Project page:** https://k9dtv.com/project-minime-ii.html  
 **Sister project:** [MiniMe I (SSD1327 OLED)](https://github.com/K9DTV/minime-esp32-discord-bot) -- not this repo.
 
 MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-S3-N16R8 + **AXS15231B** color LCD with in-cell touch). This is **not** a breadboard build and **not** MiniMe I's OLED board.
@@ -175,7 +175,7 @@ Commands work in `TARGET_CHANNEL_ID`, `TARGET_CHANNEL_ID1`, and DMs. **No automa
 
 Everything below runs on one **ESP32-S3**. Discord stays in the cloud; MiniMe talks to it two ways, paints the LCD, serves a LAN web dashboard, and wakes the panel from in-cell touch.
 
-![MiniMe architecture flowchart -- same layout as k9dtv.com/project-minime.html](docs/arch-flow.svg)
+![MiniMe architecture flowchart -- same layout as k9dtv.com/project-minime-ii.html](docs/arch-flow.svg)
 
 *Same flowchart as the project page.*
 
