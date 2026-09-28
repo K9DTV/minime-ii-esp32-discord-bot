@@ -1,0 +1,24 @@
+﻿=== MiniMe II monitor start 2026-09-28T02:54:35.5512301-07:00 base=http://192.168.68.60; auth=on login-once; interval=15s; stop only gw=false >=60s ===
+[02:54:36] LOGIN_OK token_reuse=on
+[02:54:36] gw=True botOnline=True cpu=240 rssi=-65 up=0d 0h 1m 18s lcd=awake heapPct=15 ver=1.00.01
+[02:54:36] LOG     [23917] READY session=yes
+[02:56:23] LOG     drop_start=WS_DISCONNECTED_WIFI_UP rssi=-73 seq=0 session=no
+[02:56:39] gw=True botOnline=False cpu=240 rssi=-67 up=0d 0h 3m 22s lcd=awake heapPct=11 ver=1.00.01
+[02:57:11] gw=True botOnline=True cpu=240 rssi=-67 up=0d 0h 3m 53s lcd=awake heapPct=13 ver=1.00.01
+[02:57:26] LOG     [220711] READY session=yes
+[02:57:42] gw=True botOnline=False cpu=240 rssi=-71 up=0d 0h 4m 26s lcd=awake heapPct=11 ver=1.00.01
+[02:58:19] LOG     drop_start=WS_DISCONNECTED_WIFI_UP rssi=-69 seq=0 session=no
+[02:58:35] gw=True botOnline=True cpu=240 rssi=-64 up=0d 0h 5m 18s lcd=awake heapPct=13 ver=1.00.01
+[02:59:22] LOG     [305079] READY session=yes
+[02:59:53] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[03:00:13] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[03:00:33] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[03:00:53] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[03:01:29] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[03:01:49] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[03:02:09] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[03:02:29] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[03:02:49] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[03:03:09] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[03:03:29] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+=== MONITOR_STOP fetch failed >=120s 2026-09-28T03:03:34.8135434-07:00 ===
