@@ -1,0 +1,28 @@
+﻿=== MiniMe II monitor start 2026-09-28T04:55:04.8438048-07:00 base=http://192.168.68.60; auth=on login-once; interval=30s; stop only gw=false >=60s ===
+[04:55:05] LOGIN_OK token_reuse=on
+[04:55:05] gw=True botOnline=True cpu=240 rssi=-65 up=0d 0h 2m 17s lcd=awake heapPct=15 ver=1.00.01
+[04:55:05] LOG     [21268] READY session=yes
+[04:58:37] gw=True botOnline=False cpu=160 rssi=-67 up=0d 0h 5m 49s lcd=awake heapPct=15 ver=1.00.01
+[05:06:14] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[05:06:49] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[05:07:24] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[05:07:59] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[05:08:34] RELOGIN_OK
+[05:08:34] gw=True botOnline=True cpu=240 rssi=-49 up=0d 0h 0m 44s lcd=awake heapPct=15 ver=1.00.01
+[05:09:05] LOG     [19470] READY session=yes
+[05:13:36] gw=True botOnline=False cpu=160 rssi=-62 up=0d 0h 5m 46s lcd=awake heapPct=15 ver=1.00.01
+[06:42:01] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[07:02:01] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[07:39:25] gw=True botOnline=True cpu=240 rssi=-58 up=0d 2h 31m 35s lcd=awake heapPct=16 ver=1.00.01
+[07:39:55] LOG     [9071755] READY session=yes
+[07:44:28] gw=True botOnline=False cpu=160 rssi=-58 up=0d 2h 36m 38s lcd=asleep heapPct=16 ver=1.00.01
+[08:14:45] gw=True botOnline=False cpu=240 rssi=-56 up=0d 3h 6m 55s lcd=awake heapPct=36 ver=1.00.01
+[08:15:16] gw=True botOnline=True cpu=240 rssi=-55 up=0d 3h 7m 26s lcd=awake heapPct=15 ver=1.00.01
+[08:15:16] LOG     [11219594] READY session=yes
+[08:16:16] LOG     [11253915] READY session=yes
+[08:17:17] LOG     [11287471] READY session=yes
+[08:19:48] RELOGIN_OK
+[08:19:48] gw=True botOnline=False cpu=240 rssi=-32 up=0d 0h 0m 18s lcd=awake heapPct=16 ver=1.00.01
+[08:20:23] gw=True botOnline=True cpu=240 rssi=-31 up=0d 0h 0m 48s lcd=awake heapPct=16 ver=1.00.01
+[08:20:53] LOG     [18850] READY session=yes
+[08:21:54] LOG     [71707] READY session=yes
