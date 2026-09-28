@@ -21,23 +21,45 @@ MiniMe II is firmware for the **Guition JC3248W535EN** all-in-one module (ESP32-
 
 **LCD <-> LAN web:** glass and `http://<board-ip>/` are one design -- same Display / Log / Controls pages, same fields and chrome roles (LCD fixed 480x320; web scales). Logos and Cancel/Save marks on the web are SVG twins of the LCD art. Light/Dark on the glass and in the browser stay **independent** (each has its own chip).
 
-### LCD UI preview
+### UI preview
 
-480x320 landscape from the current firmware (K9DTV logo + menu chips). Dark | Light side by side.
+Sample data, not a live board capture. Glass is 480x320. The LAN page is the same three pages at desktop width. Light and Dark stay independent on each. Regenerate with `python tools/render_ui_previews.py`.
 
-**Display** (metrics | users)
-
-| Dark | Light |
-|:----:|:-----:|
-| ![Display dark](docs/lcd-mock/display-dark.png) | ![Display light](docs/lcd-mock/display-light.png) |
-
-**Log** (LOG | Serial)
+**LCD -- Display** (metrics | users)
 
 | Dark | Light |
 |:----:|:-----:|
-| ![Log dark](docs/lcd-mock/log-dark.png) | ![Log light](docs/lcd-mock/log-light.png) |
+| ![LCD Display dark](docs/ui-preview/lcd-display-dark.png) | ![LCD Display light](docs/ui-preview/lcd-display-light.png) |
 
-Interactive HTML (all four): [`docs/lcd-mock/all-four.html`](docs/lcd-mock/all-four.html).
+**LCD -- Log** (LOG | Serial)
+
+| Dark | Light |
+|:----:|:-----:|
+| ![LCD Log dark](docs/ui-preview/lcd-log-dark.png) | ![LCD Log light](docs/ui-preview/lcd-log-light.png) |
+
+**LCD -- Controls** (sliders | toggles)
+
+| Dark | Light |
+|:----:|:-----:|
+| ![LCD Controls dark](docs/ui-preview/lcd-controls-dark.png) | ![LCD Controls light](docs/ui-preview/lcd-controls-light.png) |
+
+**LAN web -- Display**
+
+| Dark | Light |
+|:----:|:-----:|
+| ![Web Display dark](docs/ui-preview/web-display-dark.png) | ![Web Display light](docs/ui-preview/web-display-light.png) |
+
+**LAN web -- Log**
+
+| Dark | Light |
+|:----:|:-----:|
+| ![Web Log dark](docs/ui-preview/web-log-dark.png) | ![Web Log light](docs/ui-preview/web-log-light.png) |
+
+**LAN web -- Controls**
+
+| Dark | Light |
+|:----:|:-----:|
+| ![Web Controls dark](docs/ui-preview/web-controls-dark.png) | ![Web Controls light](docs/ui-preview/web-controls-light.png) |
 
 **Status:** Guition module firmware **v1.00.00** release -- Discord, LCD, LAN, Controls prefs. Soak testing continues for edge cases. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
