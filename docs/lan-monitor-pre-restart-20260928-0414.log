@@ -1,0 +1,9 @@
+﻿=== MiniMe II monitor start 2026-09-28T03:06:18.1111562-07:00 base=http://192.168.68.60; auth=on login-once; interval=30s; stop only gw=false >=60s ===
+[03:06:18] LOGIN_OK token_reuse=on
+[03:06:18] gw=True botOnline=True cpu=240 rssi=-24 up=0d 0h 1m 54s lcd=awake heapPct=15 ver=1.00.01
+[03:06:18] LOG     [19233] READY session=yes
+[03:09:49] gw=True botOnline=False cpu=160 rssi=-26 up=0d 0h 5m 25s lcd=awake heapPct=15 ver=1.00.01
+[04:13:05] FETCH_FAIL The operation has timed out. | cause: vbus=unknown (LAN only; not Discord stop)
+[04:13:40] RELOGIN_OK
+[04:13:40] gw=True botOnline=True cpu=240 rssi=-34 up=0d 0h 0m 38s lcd=awake heapPct=17 ver=1.00.01
+[04:14:10] LOG     [19447] READY session=yes

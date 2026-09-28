@@ -39,7 +39,7 @@ Behavior:
 4. Owner `!sys` -- `MmLog Core0 drops` should stay low unless the Core0 ring overflows
 5. Optional OTA once -- after reboot, confirm version + GW again
 
-**Current (v0.8.4 -- cold-path buffers, draw/Gateway splits, Log scrollbar, Src above IP):** use [`soak-0.8.4.md`](soak-0.8.4.md) after flash `Display  -  v0.8.4`.
+**Current (v1.00.01):** overnight Gateway attestation in [`soak-results.md`](soak-results.md) (board LOG: TCP cleanup + OP7 recoveries). Interactive A-E regression shape still in [`soak-0.8.4.md`](soak-0.8.4.md); glass must show **v1.00.01**.
 
 **v0.7.87 batch (SD red/0M, Wi-Fi-down IP red, Up/T above Sig, Src SD/firmware, HSPI SD):** use [`soak-0.7.85.md`](soak-0.7.85.md) after flash `Display  -  v0.7.87` (or as regression under 0.8.x). Older 0.7.84-only checklist: [`soak-0.7.83.md`](soak-0.7.83.md).
 
