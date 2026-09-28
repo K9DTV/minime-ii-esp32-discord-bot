@@ -202,9 +202,9 @@ extern char lastEventLine[UI_EVENT_COLS]; // sticky Event; copy under uiOverlay 
 extern char lastMsgLine[UI_MSG_COLS];     // sticky Msg (!msg); bottom left panel
 extern std::atomic<bool> alertDm;         // sticky until owner !clear
 extern std::atomic<bool> alertMention;    // sticky until owner !clear
-extern bool lcdThemeLight;             // LCD palette only (web theme is independent)
-extern bool lcdLayoutLog;              // false=metrics|users; true=LOG|Serial overlay
-extern bool lcdLayoutControls;         // Controls page (right chip cycle)
+extern std::atomic<bool> lcdThemeLight;             // LCD palette only (web theme is independent)
+extern std::atomic<bool> lcdLayoutLog;              // false=metrics|users; true=LOG|Serial overlay
+extern std::atomic<bool> lcdLayoutControls;         // Controls page (right chip cycle)
 extern uint8_t lcdLogScroll;           // LOG: skip N newest (scrollbar; 0 = pinned bottom)
 extern uint8_t lcdSerialScroll;        // Serial: same
 void lcdAdjustLogScroll(int deltaRows, bool serialPanel); // + = older
@@ -217,7 +217,7 @@ extern std::atomic<bool> uiTicksOn;      // touch ticks
 extern std::atomic<bool> uiSoundOn;      // master mute
 extern std::atomic<uint32_t> uiControlsGen;
 extern std::atomic<uint32_t> mmLogDropCore0; // Core0 log ring overflow (def in web_ui.cpp)
-extern unsigned long lastDashMillis;
+extern std::atomic<unsigned long> lastDashMillis;
 extern std::atomic<unsigned long> lastDisplayActivityMillis;
 extern unsigned long lastDashDrawMs;   // last full drawDashboard (incl flush)
 extern unsigned long lastDashFlushMs;  // last gfx->flush() only

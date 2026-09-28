@@ -1,11 +1,12 @@
 #include "minime.h"
 #include <ArduinoOTA.h>
+#include <atomic>
 
 static bool otaReady = false;
-static volatile bool otaInProgress = false;
+static std::atomic<bool> otaInProgress{false};
 
 bool otaIsBusy() {
-  return otaInProgress;
+  return otaInProgress.load();
 }
 
 void setupMiniMeOta() {
@@ -15,7 +16,7 @@ void setupMiniMeOta() {
   ArduinoOTA.setTimeout(60000);
 
   ArduinoOTA.onStart([]() {
-    otaInProgress = true;
+    otaInProgress.store(true);
     setCpuFrequencyMhz(CPU_MHZ_ACTIVE);
     noteBotActivity();
     // Stop Discord websocket so OTA owns Wi-Fi / CPU
@@ -43,7 +44,7 @@ void setupMiniMeOta() {
     MmLog.println(String("[OTA] ") + String(pct) + "%");
   });
   ArduinoOTA.onError([](ota_error_t err) {
-    otaInProgress = false;
+    otaInProgress.store(false);
     // onStart parked reconnect at 1h; restore so Gateway can recover without reboot.
     gwRestoreReconnectAfterOta();
     String e = "err ";

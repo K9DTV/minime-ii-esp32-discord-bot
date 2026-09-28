@@ -78,7 +78,7 @@ extern int16_t serialSbHitX, serialSbHitY, serialSbHitW, serialSbHitH;
 extern uint8_t logSbMaxScroll;
 extern uint8_t serialSbMaxScroll;
 extern std::atomic<bool> dashForceFull;
-extern bool dashBrandValid;
+extern std::atomic<bool> dashBrandValid;
 extern DashSnap drawnSnap;
 
 void displayCopyCapped(char* dst, size_t dstLen, const char* src);

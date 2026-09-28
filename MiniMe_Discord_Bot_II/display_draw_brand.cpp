@@ -14,7 +14,7 @@ static void drawMenuChip(int16_t ox, int16_t oy, const DashPalette& p) {
   };
 
   uint16_t body, stroke, die, dieIn, pad, pin;
-  if (lcdThemeLight) {
+  if (lcdThemeLight.load()) {
     body = 0xFFFF;
     stroke = 0x0413; // #0e8499
     die = 0xEF7D;    // #f0fafb
@@ -58,7 +58,7 @@ static void drawMenuChip(int16_t ox, int16_t oy, const DashPalette& p) {
   gfx->drawFastHLine(ox + S(21), cy, S(3), pin);
   gfx->drawFastHLine(ox + S(21), cy + S(4), S(3), pin);
 
-  if (lcdThemeLight) {
+  if (lcdThemeLight.load()) {
     gfx->fillCircle(cx, cy, S(1.35f), 0x99A2); // #9a3412 --k9-orange light
   }
   (void)p;
@@ -83,7 +83,7 @@ void drawBrandBar(const DashPalette& p) {
   gfx->fillRect(0, 0, LCD_LANDSCAPE_W, bandH, p.bg);
 
   const int16_t logoX = (LCD_LANDSCAPE_W - K9DTV_LOGO_W) / 2;
-  const uint16_t* logoBits = lcdThemeLight ? K9DTV_LOGO_BRIGHT_RGB565 : K9DTV_LOGO_RGB565;
+  const uint16_t* logoBits = lcdThemeLight.load() ? K9DTV_LOGO_BRIGHT_RGB565 : K9DTV_LOGO_RGB565;
   gfx->draw16bitRGBBitmap(logoX, LOGO_TOP_PAD, (uint16_t*)logoBits,
                           K9DTV_LOGO_W, K9DTV_LOGO_H);
   // Logo is brand only (not a Controls hit).
@@ -99,7 +99,7 @@ void drawBrandBar(const DashPalette& p) {
     const int16_t gapW = logoX;
     const int16_t chipX = (gapW - MENU_CHIP_S) / 2;
     char lab[16];
-    if (lcdThemeLight) snprintf(lab, sizeof(lab), ") Dark");
+    if (lcdThemeLight.load()) snprintf(lab, sizeof(lab), ") Dark");
     else snprintf(lab, sizeof(lab), "* Light");
     placeChip(chipX, chipY, lab, p, themeChipHitX, themeChipHitY, themeChipHitW, themeChipHitH);
   }
@@ -109,7 +109,7 @@ void drawBrandBar(const DashPalette& p) {
     const int16_t gapL = logoX + K9DTV_LOGO_W;
     const int16_t gapW = LCD_LANDSCAPE_W - gapL;
     const int16_t chipX = gapL + (gapW - MENU_CHIP_S) / 2;
-    const char* lab = lcdLayoutControls ? "Controls" : (lcdLayoutLog ? "Log" : "Display");
+    const char* lab = lcdLayoutControls.load() ? "Controls" : (lcdLayoutLog.load() ? "Log" : "Display");
     const int16_t menusY = chipY - CHIP_LABEL_TEXT_H - 1;
     if (menusY >= 0) prtCenter(p.muted, "Menus", chipX + MENU_CHIP_S / 2, menusY, 1);
     placeChip(chipX, chipY, lab, p,

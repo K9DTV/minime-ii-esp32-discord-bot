@@ -217,7 +217,7 @@ bool getPhysicsPapers(char* outReport, size_t outCap) {
     return reportSet(outReport, outCap, "arXiv response empty."), false;
   }
   httpsRelease();
-  if (bodyLen > 24000) bodyLen = 24000;
+  if (bodyLen > sizeof(gFetchBody) - 1) bodyLen = sizeof(gFetchBody) - 1;
   gFetchBody[bodyLen] = '\0';
   if (bodyLen < 50) {
     return reportSet(outReport, outCap, "arXiv response empty."), false;

@@ -4,8 +4,8 @@ Arduino_DataBus* lcdBus = nullptr;
 Arduino_GFX* lcdPanel = nullptr;
 Arduino_Canvas* gfx = nullptr;
 
-bool lcdThemeLight = false;
-bool lcdLayoutLog = false; // false = left metrics + right users; true = left LOG + right Serial
+std::atomic<bool> lcdThemeLight{false};
+std::atomic<bool> lcdLayoutLog{false}; // false = left metrics + right users; true = left LOG + right Serial
 uint8_t lcdLogScroll = 0;
 uint8_t lcdSerialScroll = 0;
 
@@ -15,7 +15,7 @@ int16_t serialSbHitX = 0, serialSbHitY = 0, serialSbHitW = 0, serialSbHitH = 0;
 uint8_t logSbMaxScroll = 0;
 uint8_t serialSbMaxScroll = 0;
 
-unsigned long lastDashMillis = 0;
+std::atomic<unsigned long> lastDashMillis{0};
 std::atomic<unsigned long> lastDisplayActivityMillis{0};
 unsigned long lastDashDrawMs = 0;
 unsigned long lastDashFlushMs = 0;
@@ -27,14 +27,15 @@ int16_t layoutChipHitX = 0, layoutChipHitY = 0, layoutChipHitW = 0, layoutChipHi
 int16_t dogLeftHitX = 0, dogLeftHitY = 0, dogLeftHitW = 0, dogLeftHitH = 0;
 int16_t dogRightHitX = 0, dogRightHitY = 0, dogRightHitW = 0, dogRightHitH = 0;
 std::atomic<bool> dashForceFull{true}; // boot / wake / theme / layout; Core 1 may set, Core 0 clears
-bool dashBrandValid = false;
+std::atomic<bool> dashBrandValid{false};
 
 static void lcdBacklightOn() {
   applyBacklightFromSettings();
 }
 
 static void lcdBacklightOff() {
-  ledcWrite(LCD_BL_PIN, 0);
+  // displayAsleep already true; serialize duty write via applyBacklightFromSettings mux
+  applyBacklightFromSettings();
 }
 
 bool setupDisplay() {
@@ -52,7 +53,7 @@ bool setupDisplay() {
   lastDisplayActivityMillis.store(millis());
   displayAsleep.store(false);
   dashForceFull.store(true);
-  dashBrandValid = false;
+  dashBrandValid.store(false);
   drawnSnap.valid = false;
   ledcAttach(LCD_BL_PIN, LCD_BL_PWM_HZ, LCD_BL_PWM_BITS);
   lcdBacklightOn();
@@ -64,7 +65,7 @@ void noteDisplayActivity() {
   if (displayAsleep.load()) {
     displayAsleep.store(false);
     lcdBacklightOn();
-    lastDashMillis = 0;
+    lastDashMillis.store(0);
     dashForceFull.store(true);
     // Paint only from Core 0 uiTask (do not drawDashboard here -- Core 1 may call this).
   }
@@ -83,17 +84,17 @@ bool lcdLayoutChipHit(uint16_t x, uint16_t y) {
 }
 
 void setLcdThemeLight(bool light) {
-  if (lcdThemeLight == light) return;
-  lcdThemeLight = light;
+  if (lcdThemeLight.load() == light) return;
+  lcdThemeLight.store(light);
   dashForceFull.store(true);
-  dashBrandValid = false;
-  lastDashMillis = 0;
+  dashBrandValid.store(false);
+  lastDashMillis.store(0);
   noteDisplayActivity();
   // Core 0 uiTask redraws; Core 1 must not call drawDashboard.
 }
 
 void lcdAdjustLogScroll(int deltaRows, bool serialPanel) {
-  if (!lcdLayoutLog || deltaRows == 0) return;
+  if (!lcdLayoutLog.load() || deltaRows == 0) return;
   uint8_t& sc = serialPanel ? lcdSerialScroll : lcdLogScroll;
   const uint8_t maxS = serialPanel ? serialSbMaxScroll : logSbMaxScroll;
   int v = (int)sc + deltaRows;
@@ -105,7 +106,7 @@ void lcdAdjustLogScroll(int deltaRows, bool serialPanel) {
 }
 
 bool lcdLogScrollbarHit(uint16_t x, uint16_t y, bool& serialOut) {
-  if (!lcdLayoutLog || lcdLayoutControls) return false;
+  if (!lcdLayoutLog.load() || lcdLayoutControls.load()) return false;
   if (serialSbHitW > 0 && x >= (uint16_t)serialSbHitX && x < (uint16_t)(serialSbHitX + serialSbHitW)
       && y >= (uint16_t)serialSbHitY && y < (uint16_t)(serialSbHitY + serialSbHitH)) {
     serialOut = true;
@@ -120,7 +121,7 @@ bool lcdLogScrollbarHit(uint16_t x, uint16_t y, bool& serialOut) {
 }
 
 void lcdLogScrollFromTrackY(int16_t y, bool serialPanel) {
-  if (!lcdLayoutLog) return;
+  if (!lcdLayoutLog.load()) return;
   const int16_t ty = serialPanel ? serialSbHitY : logSbHitY;
   const int16_t th = serialPanel ? serialSbHitH : logSbHitH;
   const uint8_t maxS = serialPanel ? serialSbMaxScroll : logSbMaxScroll;
@@ -141,10 +142,10 @@ void lcdLogScrollFromTrackY(int16_t y, bool serialPanel) {
 void applyLcdLayoutMode(uint8_t mode) {
   // 0 = Display, 1 = Log, 2 = Controls
   if (mode > 2) mode = 0;
-  const uint8_t prev = lcdLayoutControls ? 2u : (lcdLayoutLog ? 1u : 0u);
+  const uint8_t prev = lcdLayoutControls.load() ? 2u : (lcdLayoutLog.load() ? 1u : 0u);
   const bool wantCtrl = (mode == 2);
   const bool wantLog = (mode == 1);
-  if (lcdLayoutControls == wantCtrl && (wantCtrl || lcdLayoutLog == wantLog)) return;
+  if (lcdLayoutControls.load() == wantCtrl && (wantCtrl || lcdLayoutLog.load() == wantLog)) return;
 
   if (wantCtrl && prev != 2) {
     controlsSnapshotEnter(prev == 1 ? 1 : 0);
@@ -153,15 +154,15 @@ void applyLcdLayoutMode(uint8_t mode) {
     controlsRestoreSnapshot();
   }
 
-  lcdLayoutControls = wantCtrl;
-  if (!wantCtrl) lcdLayoutLog = wantLog;
+  lcdLayoutControls.store(wantCtrl);
+  if (!wantCtrl) lcdLayoutLog.store(wantLog);
   if (!wantLog) {
     lcdLogScroll = 0;
     lcdSerialScroll = 0;
   }
   dashForceFull.store(true);
-  dashBrandValid = false;
-  lastDashMillis = 0;
+  dashBrandValid.store(false);
+  lastDashMillis.store(0);
   noteDisplayActivity();
 }
 
@@ -171,15 +172,15 @@ void setLcdLayoutLog(bool logMode) {
 
 void setLcdControls(bool on) {
   if (on) applyLcdLayoutMode(2);
-  else if (lcdLayoutControls) applyLcdLayoutMode(0);
+  else if (lcdLayoutControls.load()) applyLcdLayoutMode(0);
 }
 
 void toggleLcdControls() {
-  setLcdControls(!lcdLayoutControls);
+  setLcdControls(!lcdLayoutControls.load());
 }
 
 void toggleLcdTheme() {
-  setLcdThemeLight(!lcdThemeLight);
+  setLcdThemeLight(!lcdThemeLight.load());
 }
 
 void toggleLcdLayout() {
@@ -187,7 +188,7 @@ void toggleLcdLayout() {
 }
 
 void cycleLcdLayout(int dir) {
-  uint8_t m = lcdLayoutControls ? 2u : (lcdLayoutLog ? 1u : 0u);
+  uint8_t m = lcdLayoutControls.load() ? 2u : (lcdLayoutLog.load() ? 1u : 0u);
   int next = (int)m + dir;
   while (next < 0) next += 3;
   next %= 3;
@@ -250,14 +251,15 @@ void updateDisplay() {
       dashTempStore(tc, tf);
     }
   }
-  if (displayAsleep) return;
+  if (displayAsleep.load()) return;
   unsigned long now = millis();
   if (uiOverlayExpireIfDue(now)) {
-    lastDashMillis = 0;
+    lastDashMillis.store(0);
   }
   // Normal 1 s refresh is enough for Wi-Fi / SD / meter dirty flags.
-  if (lastDashMillis == 0 || now - lastDashMillis >= DASH_REFRESH_MS) {
-    lastDashMillis = now;
+  const unsigned long lastDash = lastDashMillis.load();
+  if (lastDash == 0 || now - lastDash >= DASH_REFRESH_MS) {
+    lastDashMillis.store(now);
     // Users / logs / metrics from Core 1 publishDashSnap(); temp from Core 0 above.
     drawDashboard();
   }

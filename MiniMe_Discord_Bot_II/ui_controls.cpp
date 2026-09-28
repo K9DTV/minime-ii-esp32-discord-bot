@@ -1,5 +1,7 @@
 #include "minime.h"
 #include "mm_prefs.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 // Runtime UI controls + onboard-flash prefs (mm_prefs.cpp).
 // Save = write if dirty; Cancel = flash recall; both stay on Controls.
@@ -13,7 +15,7 @@ std::atomic<bool> uiTicksOn{true};    // touch ticks
 std::atomic<bool> uiSoundOn{true};    // master mute
 std::atomic<uint32_t> uiControlsGen{0};
 
-bool lcdLayoutControls = false;
+std::atomic<bool> lcdLayoutControls{false};
 
 // Hit boxes filled as a side effect of drawControlsLeft/Right (drawCtrlSlider /
 // drawCtrlToggle). Geometry mirrors display_layout.h + the ly/ry offsets in
@@ -34,7 +36,7 @@ static bool controlsLeavingCommit = false;
 
 static void bumpControls() {
   uiControlsGen.fetch_add(1);
-  lastDashMillis = 0;
+  lastDashMillis.store(0);
   dashForceFull.store(true);
 }
 
@@ -43,14 +45,19 @@ static uint8_t brightUiToDuty(uint8_t ui) {
   return (uint8_t)(LCD_BL_PCT_MIN + ((uint16_t)ui * (100 - LCD_BL_PCT_MIN)) / 100);
 }
 
+static portMUX_TYPE backlightMux = portMUX_INITIALIZER_UNLOCKED;
+
 void applyBacklightFromSettings() {
+  // Serialize asleep check + ledcWrite so sleep/wake cannot TOCTOU the duty.
+  portENTER_CRITICAL(&backlightMux);
   if (displayAsleep.load()) {
     ledcWrite(LCD_BL_PIN, 0);
-    return;
+  } else {
+    const uint8_t duty = brightUiToDuty(uiBrightPct.load());
+    const uint32_t maxDuty = (1UL << LCD_BL_PWM_BITS) - 1UL;
+    ledcWrite(LCD_BL_PIN, (duty * maxDuty) / 100UL);
   }
-  const uint8_t duty = brightUiToDuty(uiBrightPct.load());
-  const uint32_t maxDuty = (1UL << LCD_BL_PWM_BITS) - 1UL;
-  ledcWrite(LCD_BL_PIN, (duty * maxDuty) / 100UL);
+  portEXIT_CRITICAL(&backlightMux);
 }
 
 void setUiBrightPct(uint8_t pct) {
@@ -134,7 +141,7 @@ static uint8_t pctFromTrack(uint16_t x, int16_t trackX, int16_t trackW) {
 }
 
 bool handleControlsTouch(uint16_t x, uint16_t y, bool rising) {
-  if (!lcdLayoutControls) return false;
+  if (!lcdLayoutControls.load()) return false;
 
   if (hitBox(x, y, ctrlBrightTrackX, ctrlBrightTrackY - 8, ctrlBrightTrackW, ctrlBrightTrackH + 16)) {
     setUiBrightPct(pctFromTrack(x, ctrlBrightTrackX, ctrlBrightTrackW));

@@ -98,7 +98,7 @@ void pollTouchWake() {
   }
 
   // Log/Serial: scrollbar only (track tap / thumb drag) -- not content drag.
-  if (lcdLayoutLog && !lcdLayoutControls) {
+  if (lcdLayoutLog.load() && !lcdLayoutControls.load()) {
     bool serialHit = false;
     if (rising) {
       if (lcdLogScrollbarHit(x, y, serialHit)) {
@@ -123,7 +123,7 @@ void pollTouchWake() {
   }
 
   // Controls sliders: track while held (bypass debounce).
-  if (lcdLayoutControls && handleControlsTouch(x, y, rising)) {
+  if (lcdLayoutControls.load() && handleControlsTouch(x, y, rising)) {
     cancelHoldArmed = false;
     cancelHoldReset = false;
     noteDisplayActivity();
@@ -136,7 +136,7 @@ void pollTouchWake() {
   }
 
   // Cancel dog: tick on press; hold ~3 s = factory reset; short release = recall.
-  if (lcdLayoutControls && lcdDogLeftHit(x, y)) {
+  if (lcdLayoutControls.load() && lcdDogLeftHit(x, y)) {
     noteDisplayActivity();
     touchWasActive = true;
     if (rising) {
@@ -172,7 +172,7 @@ void pollTouchWake() {
   } else if (rising && lcdLayoutChipHit(x, y)) {
     cycleLcdLayout(1);
     audioTickButton();
-  } else if (rising && lcdLayoutControls && lcdDogRightHit(x, y)) {
+  } else if (rising && lcdLayoutControls.load() && lcdDogRightHit(x, y)) {
     controlsSave();
     audioTickButton();
   } else if (rising) {

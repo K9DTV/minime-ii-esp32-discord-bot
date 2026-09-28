@@ -6,9 +6,9 @@ static void blitMarkIcon(int16_t dx, int16_t dy, int16_t dw, int16_t dh, bool fa
   if (!gfx) return;
   const uint16_t* bits;
   if (faceRight) {
-    bits = lcdThemeLight ? K9_MARK_RIGHT_BRIGHT_RGB565 : K9_MARK_RIGHT_RGB565;
+    bits = lcdThemeLight.load() ? K9_MARK_RIGHT_BRIGHT_RGB565 : K9_MARK_RIGHT_RGB565;
   } else {
-    bits = lcdThemeLight ? K9_MARK_LEFT_BRIGHT_RGB565 : K9_MARK_LEFT_RGB565;
+    bits = lcdThemeLight.load() ? K9_MARK_LEFT_BRIGHT_RGB565 : K9_MARK_LEFT_RGB565;
   }
   if (dw == K9_MARK_W && dh == K9_MARK_H) {
     gfx->draw16bitRGBBitmap(dx, dy, (uint16_t*)bits, K9_MARK_W, K9_MARK_H);
@@ -55,7 +55,7 @@ static void drawPanelDog(int16_t panelX, int16_t panelY, int16_t panelW, int16_t
 void drawDogFooter(const DashPalette& p) {
   // Legacy name: dogs are drawn inside each Controls panel now (see drawControlsLeft/Right).
   (void)p;
-  if (!lcdLayoutControls) {
+  if (!lcdLayoutControls.load()) {
     dogLeftHitW = 0;
     dogRightHitW = 0;
   }

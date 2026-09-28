@@ -1,5 +1,6 @@
 #include "minime.h"
 #include "mm_prefs.h"
+#include "display_internal.h"
 #include <esp_partition.h>
 #include <atomic>
 
@@ -12,8 +13,6 @@ static const uint16_t SETTINGS_VERSION    = 1;
 static const uint32_t SETTINGS_TAIL_MAGIC = 0xCAFEBABEu;
 static const size_t   SETTINGS_SLOT_SIZE  = 0x1000; // one flash erase sector
 static const char*    PREFS_PART_LABEL    = "prefs";
-
-extern std::atomic<bool> dashForceFull;
 
 struct __attribute__((packed)) Settings {
   uint32_t signature;
@@ -124,7 +123,7 @@ static void applySettingsToRuntime(const Settings& s) {
   uiNotifyOn.store(s.notifyOn != 0);
   applyBacklightFromSettings();
   uiControlsGen.fetch_add(1);
-  lastDashMillis = 0;
+  lastDashMillis.store(0);
   dashForceFull.store(true);
 }
 
@@ -132,7 +131,7 @@ static void captureRuntimeToSettings(Settings& s) {
   s.signature = SETTINGS_SIGNATURE;
   s.version = SETTINGS_VERSION;
   s.structSize = (uint16_t)sizeof(Settings);
-  s.themeLight = lcdThemeLight ? 1 : 0;
+  s.themeLight = lcdThemeLight.load() ? 1 : 0;
   s.brightPct = uiBrightPct.load();
   s.volPct = uiVolPct.load();
   s.soundOn = uiSoundOn.load() ? 1 : 0;
@@ -146,7 +145,7 @@ static void captureRuntimeToSettings(Settings& s) {
 }
 
 bool isSettingsDirty() {
-  return (lcdThemeLight != (settings.themeLight != 0) ||
+  return (lcdThemeLight.load() != (settings.themeLight != 0) ||
           uiBrightPct.load() != settings.brightPct ||
           uiVolPct.load() != settings.volPct ||
           uiSoundOn.load() != (settings.soundOn != 0) ||

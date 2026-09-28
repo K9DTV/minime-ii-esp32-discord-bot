@@ -3,7 +3,7 @@
 DashPalette dashPalette() {
   // Match web_assets.h :root / html[data-theme=light] tokens (RGB888 -> RGB565).
   // Bar fill = cyan (same as .bar>i { background:var(--cyan) }).
-  if (lcdThemeLight) {
+  if (lcdThemeLight.load()) {
     return {
       0xDF1D, // #dde2ea --k9-space
       0xF7BF, // #f3f5f8 --k9-panel

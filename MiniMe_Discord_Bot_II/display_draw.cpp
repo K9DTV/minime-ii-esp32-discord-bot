@@ -7,9 +7,9 @@ void drawDashboard() {
   static DashSnap nowSnap; // static: ~4 KB -- keep off uiTask stack
   loadPublishedSnap(nowSnap);
   // Live chip toggles / Core 0 temp may be ahead of the last Core 1 publish.
-  nowSnap.themeLight = lcdThemeLight;
-  nowSnap.layoutLog = lcdLayoutLog;
-  nowSnap.layoutControls = lcdLayoutControls;
+  nowSnap.themeLight = lcdThemeLight.load();
+  nowSnap.layoutLog = lcdLayoutLog.load();
+  nowSnap.layoutControls = lcdLayoutControls.load();
   nowSnap.controlsGen = uiControlsGen.load();
   nowSnap.logScroll = lcdLogScroll;
   nowSnap.serialScroll = lcdSerialScroll;
@@ -39,7 +39,7 @@ void drawDashboard() {
   }
   DashPalette p = dashPalette();
 
-  bool needBrand = dashForceFull.load() || !dashBrandValid
+  bool needBrand = dashForceFull.load() || !dashBrandValid.load()
                 || !drawnSnap.valid
                 || drawnSnap.themeLight != nowSnap.themeLight
                 || drawnSnap.layoutLog != nowSnap.layoutLog
@@ -61,7 +61,7 @@ void drawDashboard() {
       dogLeftHitW = 0;
       dogRightHitW = 0;
     }
-    dashBrandValid = true;
+    dashBrandValid.store(true);
     needLeft = true;
     needRight = true;
   }

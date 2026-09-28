@@ -33,9 +33,9 @@ static uint32_t hashUsers() {
 static void captureSnap(DashSnap& s) {
   memset(&s, 0, sizeof(s));
   s.valid = true;
-  s.themeLight = lcdThemeLight;
-  s.layoutLog = lcdLayoutLog;
-  s.layoutControls = lcdLayoutControls;
+  s.themeLight = lcdThemeLight.load();
+  s.layoutLog = lcdLayoutLog.load();
+  s.layoutControls = lcdLayoutControls.load();
   s.controlsGen = uiControlsGen.load();
   s.logScroll = lcdLogScroll;
   s.serialScroll = lcdSerialScroll;

@@ -89,7 +89,7 @@ void noteLastEvent(const String& line) {
   displayCopyCapped(lastEventLine, sizeof(lastEventLine), tmp);
   portEXIT_CRITICAL(&uiOverlayMux);
   noteDisplayActivity();
-  lastDashMillis = 0;
+  lastDashMillis.store(0);
 }
 
 void noteLcdMessage(const String& line) {
@@ -99,7 +99,7 @@ void noteLcdMessage(const String& line) {
   displayCopyCapped(lastMsgLine, sizeof(lastMsgLine), tmp);
   portEXIT_CRITICAL(&uiOverlayMux);
   noteDisplayActivity();
-  lastDashMillis = 0;
+  lastDashMillis.store(0);
 }
 
 void showTransient(const String& line1, const String& line2, const String& line3, unsigned long durationMs) {
@@ -118,5 +118,5 @@ void showTransient(const String& line1, const String& line2, const String& line3
   // Web msg2 still shows the transient while untilMs; msg1/Event stay the last real event.
   portEXIT_CRITICAL(&uiOverlayMux);
   noteDisplayActivity();
-  lastDashMillis = 0;
+  lastDashMillis.store(0);
 }

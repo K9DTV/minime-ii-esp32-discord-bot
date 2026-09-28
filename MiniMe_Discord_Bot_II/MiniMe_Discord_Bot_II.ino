@@ -118,7 +118,7 @@ void setup() {
   // LCD + LAN up before Discord HTTPS/Identify so boot/web clocks match "ready to use".
   publishDashSnap();
   startUiCore(); // Core 0 owns LCD + touch from here
-  lastDashMillis = 0;
+  lastDashMillis.store(0);
 
   showTransient("Discord", "Loading users...");
   if (fetchGuildMembersAtStartup()) {
