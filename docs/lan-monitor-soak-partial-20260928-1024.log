@@ -1,0 +1,6 @@
+﻿=== MiniMe II monitor start 2026-09-28T08:22:16.0539619-07:00 base=http://192.168.68.60; auth=on login-once; interval=30s; stop only gw=false >=60s ===
+[08:22:16] LOGIN_OK token_reuse=on
+[08:22:16] gw=True botOnline=True cpu=240 rssi=-31 up=0d 0h 2m 41s lcd=awake heapPct=14 ver=1.00.01
+[08:22:16] LOG     [71707] READY session=yes
+[08:23:46] LOG     [213202] READY session=yes
+[08:28:18] gw=True botOnline=False cpu=160 rssi=-32 up=0d 0h 8m 42s lcd=awake heapPct=14 ver=1.00.01
