@@ -2,7 +2,7 @@
 
 See [`CHANGELOG.md`](../CHANGELOG.md) for the full per-version list; this document highlights only the durable architectural fixes.
 
-What we **fixed** vs what we **left** and why. Current: **v0.8.5**.
+What we **fixed** vs what we **left** and why. Current: **v1.00.00**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -75,11 +75,11 @@ What we **fixed** vs what we **left** and why. Current: **v0.8.5**.
 | LCD draw module split | **0.8.1** -- `display_draw_util` / `_brand` / `_controls` / `_panels` + thin orchestrator |
 | Discord Gateway module split | **0.8.2** -- `discord_gw_state` / `_log` / `_session` / `_outbound` / `_pump` + event dispatch |
 | LCD Log/Serial scrollbar | **0.8.3** -- track + thumb only on overflow (web overflow:auto twin); not content drag |
-| Drain busy reclaim | **0.8.5** -- stale `drainCmdsBusy` force-cleared after 75 s if panic skipped `~DrainBusyGuard` |
+| Drain busy reclaim | **0.8.5 / 1.00.00** -- stale `drainCmdsBusy` force-cleared after 75 s if panic skipped `~DrainBusyGuard` |
 
 ## Known tradeoffs (not deferred bugs)
 
-- **0.7.38 HOL:** mid-shared-fetch busy spam avoided by `!httpsInUse` gate; `!ask` unblocks Discord/`!weather`. Panic inside `handleCommand` skips `~DrainBusyGuard` (no C++ unwind). **0.8.5** reclaims `drainCmdsBusy` after 75 s (`DRAIN_BUSY_STALE_MS`, under the 90 s loopTask TWDT) and continues the drain; RAII still clears normal returns.
+- **0.7.38 HOL:** mid-shared-fetch busy spam avoided by `!httpsInUse` gate; `!ask` unblocks Discord/`!weather`. Panic inside `handleCommand` skips `~DrainBusyGuard` (no C++ unwind). **0.8.5 / 1.00.00** reclaims `drainCmdsBusy` after 75 s (`DRAIN_BUSY_STALE_MS`, under the 90 s loopTask TWDT) and continues the drain; RAII still clears normal returns.
 - **0.7.43 TWDT:** loopTask watched at 90 s. **Attested PASS** -- multi-hour soak + `!ask` hammer 23:10-00:16 PDT, no Discord drops, no TWDT panic ([`soak-results.md`](soak-results.md)).
 - **0.7.48 TWDT positive:** `!hang` scratch build -- `!coredump` shows Task WDT on `loopTask` (CPU 1). Mechanism proven.
 

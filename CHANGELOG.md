@@ -1,6 +1,11 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **0.8.5** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **1.00.00** (see `VERSION` and README).
+
+## 1.00.00
+
+- **Release** cut: Guition JC3248W535EN Discord bot / LCD / LAN stack marked **1.00.00**.
+- Includes Discord command-drain reclaim: stale `drainCmdsBusy` cleared after **75 s** if panic skipped `~DrainBusyGuard` (was staged as 0.8.5). Confirm `Display  -  v1.00.00`.
 
 ## 0.8.5
 
