@@ -31,7 +31,7 @@ What we **fixed** vs what we **left** and why. Current: **v1.00.01**.
 | Discord 429 / Retry-After | **0.7.18** -- `sendDiscordMessage` waits + retries (header / JSON); Gateway pumped |
 | UI overlay cross-core | **0.7.23** -- transient/Event `char[]` + `portMUX`; DM/Mention atomic; **0.7.24** until expire under mux; temp store/snapshot |
 | FULL LOG / Core0 MmLog | **0.7.23/0.7.24** -- `[GW] ===` prefix; drop count after null check; counter in `web_ui.cpp` |
-| Event vs transient | **0.7.25** -- `showTransient` does not clobber sticky Event (`lastEventLine`) |
+| Event vs transient | **0.7.25** -- `setTransient` does not clobber sticky Event (`lastEventLine`) |
 | Mid-TLS Wi-Fi reconnect | **0.7.25** -- `ensureWifiForGateway` no-op if `gwPumping` \|\| `httpsInUse` |
 | Command use != Online | **0.7.25** -- `recordUserUse` leaves Discord status alone |
 | CPU idle without identify | **0.7.25** -- `updateBotPresenceIdle` can drop 240->160 even if never identified |
@@ -81,6 +81,7 @@ What we **fixed** vs what we **left** and why. Current: **v1.00.01**.
 
 ## Known tradeoffs (not deferred bugs)
 
+- **Prefs durability:** dual-slot CRC Controls prefs follow the same signature/version/tailMagic/CRC32 A/B pattern as the VFO settings store; implemented here via esp_partition `prefs` (not external 47L16 EERAM).
 - **0.7.38 HOL:** mid-shared-fetch busy spam avoided by `!httpsInUse` gate; `!ask` unblocks Discord/`!weather`. Panic inside `handleCommand` skips `~DrainBusyGuard` (no C++ unwind). **0.8.5 / 1.00.00** reclaims `drainCmdsBusy` after 75 s (`DRAIN_BUSY_STALE_MS`, under the 90 s loopTask TWDT) and continues the drain; RAII still clears normal returns.
 - **0.7.43 TWDT:** loopTask watched at 90 s. **Attested PASS** -- multi-hour soak + `!ask` hammer 23:10-00:16 PDT, no Discord drops, no TWDT panic ([`soak-results.md`](soak-results.md)).
 - **0.7.48 TWDT positive:** `!hang` scratch build -- `!coredump` shows Task WDT on `loopTask` (CPU 1). Mechanism proven.

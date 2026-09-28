@@ -11,7 +11,7 @@
   users.cpp                        -- tracked users, guild cache, presence
   display.cpp                      -- LCD setup/sleep/theme/bars; updateDisplay
   display_overlay.cpp              -- transient/Event/temp mux helpers
-  dash_snap.cpp                    -- DashSnap capture/publish seqlock
+  display_snap.cpp                    -- DashSnap capture/publish seqlock
   display_draw.cpp                 -- palette, panels, drawDashboard
   display_internal.h               -- private LCD types shared by the four files above
   ui_controls.cpp                  -- Controls page: bright/vol/toggles
@@ -23,7 +23,7 @@
   board_info.cpp                   -- boardMemTotals / getSystemInfo (!sys)
   discord_rest.cpp                 -- HTTPS client lifecycle, sendDiscordMessage, members
   discord_http.cpp                 -- HTTP header/body reader (await + readHttpBodyAfterHeaders)
-  discord_gateway.cpp              -- websocket, heartbeat, identify, events (filter init at connect)
+  discord_gw_event.cpp               -- Gateway WStype_* event dispatcher (filter init at connect)
   serial_log.cpp                   -- MmLog -> web UI only (no USB Serial / UART0)
   ota.cpp                          -- Wi-Fi ArduinoOTA firmware update
   web_ui.cpp                       -- LAN routing + log rings
@@ -36,8 +36,8 @@
   k9_mark_icon_svg.h (+ bright/right) -- Cancel/Save dog+K9 SVGs (web)
   k9_mark_icon_rgb565.h            -- LCD Cancel/Save mark-icons left/right RGB565
   menu_chip_svg.h                  -- dark/light IC chips for theme toggle
-  commands.cpp                     -- tokenizer + handleCommand dispatch
-  command_fetch.cpp                -- weather/news/arxiv/APOD/ISS/DeepSeek fetches
+  cmd_dispatch.cpp                   -- tokenizer + handleCommand dispatch
+  cmd_fetch.cpp                      -- weather/news/arxiv/APOD/ISS/DeepSeek fetches
   wifi_connect.cpp                 -- connectWiFi()
   coredump_cmd.cpp                 -- owner !coredump flash panic summary
   MiniMe_Discord_Bot_II.ino        -- setup / loop only (must be the only .ino in the sketch folder)
@@ -93,20 +93,20 @@ void setup() {
   setupTouch();
   lastDisplayActivityMillis = millis();
 #if MM_USB_CDC_ON_BOOT
-  showTransient("Serial", "CDC ON 115200");
+  setTransient("Serial", "CDC ON 115200");
 #else
-  showTransient("Serial", "CDC OFF+USB");
+  setTransient("Serial", "CDC OFF+USB");
 #endif
   delay(800); // hold boot transient so it's visible
-  showTransient("Booting...", "MiniMe II Discord");
+  setTransient("Booting...", "MiniMe II Discord");
   setupPins();
   setupSdCard();
   if (!loadSecrets()) {
-    showTransient("Secrets", secretsFromSd ? "bad SD file" : "need SD secrets.h");
+    setTransient("Secrets", secretsFromSd ? "bad SD file" : "need SD secrets.h");
   } else if (secretsFromSd) {
-    showTransient("Secrets", "from SD card");
+    setTransient("Secrets", "from SD card");
   } else {
-    showTransient("Secrets", "compile-time");
+    setTransient("Secrets", "compile-time");
   }
   delay(600);
   sensors.begin();
@@ -120,17 +120,17 @@ void setup() {
   startUiCore(); // Core 0 owns LCD + touch from here
   lastDashMillis.store(0);
 
-  showTransient("Discord", "Loading users...");
+  setTransient("Discord", "Loading users...");
   if (fetchGuildMembersAtStartup()) {
     String n0 = trackedUsers[0].userName[0] ? String(trackedUsers[0].userName) : "ok";
-    showTransient("Users loaded", n0);
+    setTransient("Users loaded", n0);
   } else {
-    showTransient("Users", "Fetch failed");
+    setTransient("Users", "Fetch failed");
   }
   delay(400); // brief hold (was 1200) -- UI already live
   connectGateway();
-  if (identified) showTransient("Ready", "GW identified");
-  else showTransient("Ready", "GW waiting...");
+  if (identified) setTransient("Ready", "GW identified");
+  else setTransient("Ready", "GW waiting...");
   // Identify/resume continues in loop(); do not block setup up to 25s for Hello.
   // TWDT after long setup waits: reconfigure timeout + enable loopTask only.
   // Do not subscribe uiTask (0.7.30/0.7.34 panic path). No mid-HTTPS reset sprinkle.

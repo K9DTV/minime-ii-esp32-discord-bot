@@ -4,9 +4,8 @@
 #include <esp_partition.h>
 #include <atomic>
 
-// ESP32-S3 onboard flash prefs for Controls (rules from Vfo memory.cpp; storage is
-// chip flash via esp_partition -- not 47L16 I2C EERAM).
-// Partition label "prefs": 8 KB = two 4 KB erase sectors (slot A / slot B).
+// ESP32-S3 onboard flash prefs for Controls (partition "prefs").
+// Dual 4 KB A/B erase sectors with signature/version/CRC32 durability.
 
 static const uint32_t SETTINGS_SIGNATURE  = 0x4D4D4932u; // "MMI2"
 static const uint16_t SETTINGS_VERSION    = 1;

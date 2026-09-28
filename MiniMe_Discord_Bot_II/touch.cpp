@@ -150,7 +150,7 @@ void pollTouchWake() {
       cancelHoldReset = true;
       cancelHoldArmed = false;
       factoryResetSettings();
-      showTransient("Prefs", "factory reset");
+      setTransient("Prefs", "factory reset");
       audioTickButton(); // second tick confirms factory reset fired
     }
     return;

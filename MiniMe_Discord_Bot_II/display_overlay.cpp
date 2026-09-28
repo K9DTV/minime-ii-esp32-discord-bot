@@ -1,5 +1,7 @@
 #include "display_internal.h"
 
+// LCD/web UI overlay: transient flash, sticky Event/Msg, temp snapshot (cross-core mux).
+
 static float dashTempC = -999.0f;
 static float dashTempF = -999.0f;
 static unsigned long dashTempLastMs = 0; // with C/F under tempMux only
@@ -102,7 +104,7 @@ void noteLcdMessage(const String& line) {
   lastDashMillis.store(0);
 }
 
-void showTransient(const String& line1, const String& line2, const String& line3, unsigned long durationMs) {
+void setTransient(const String& line1, const String& line2, const String& line3, unsigned long durationMs) {
   char t1[UI_TRANSIENT_COLS], t2[UI_TRANSIENT_COLS], t3[UI_TRANSIENT_COLS];
   displayCopyCapped(t1, sizeof(t1), line1.c_str());
   displayCopyCapped(t2, sizeof(t2), line2.c_str());

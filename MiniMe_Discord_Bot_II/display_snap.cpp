@@ -1,6 +1,8 @@
 #include "display_internal.h"
 #include <string.h>
 
+// DashSnap capture/publish seqlock (Core 1 writer, Core 0 reader).
+
 // Seqlock: Core 1 writes publishedSnap between odd/even seq; Core 0 retries if torn.
 static DashSnap publishedSnap = {};
 static volatile uint32_t snapSeq = 0;

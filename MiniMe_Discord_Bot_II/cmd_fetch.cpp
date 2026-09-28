@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
-// External API fetchers + DeepSeek (Core 1). Dispatch stays in commands.cpp.
+// External API fetchers + DeepSeek (Core 1). Dispatch stays in cmd_dispatch.cpp.
 // Cold path: fixed body/report buffers -- no String growth for HTTPS bodies or Discord replies.
 
 static JsonDocument* deepSeekDoc = nullptr;
@@ -536,19 +536,19 @@ void runAskFromLoop() {
       const char* fallback =
           "DeepSeek answered, but Discord rejected the post (try a shorter question).";
       if (!sendDiscordCmdError(channelId, fallback)) {
-        showTransient("DeepSeek", "Post fail");
+        setTransient("DeepSeek", "Post fail");
         return;
       }
     }
-    showTransient("DeepSeek", "Sent");
+    setTransient("DeepSeek", "Sent");
   } else {
     if (!sendDiscordCmdError(channelId, report)) {
       truncateTextBuf(report, (size_t)DISCORD_CONTENT_MAX);
       if (!sendDiscordCmdError(channelId, report)) {
-        showTransient("DeepSeek", "Post fail");
+        setTransient("DeepSeek", "Post fail");
         return;
       }
     }
-    showTransient("DeepSeek", "Error");
+    setTransient("DeepSeek", "Error");
   }
 }

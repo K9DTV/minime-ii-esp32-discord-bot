@@ -2,7 +2,7 @@
 #define DISCORD_GW_INTERNAL_H
 
 // Private Discord Gateway modules (Core 1):
-//   discord_gw_state.cpp / _log / _session / _outbound / _pump / discord_gateway.cpp
+//   discord_gw_state.cpp / _log / _session / _outbound / _pump / discord_gw_event.cpp
 // Public API stays in minime.h.
 #include "minime.h"
 #include "cores.h"

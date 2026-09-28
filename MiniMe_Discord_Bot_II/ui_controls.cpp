@@ -3,8 +3,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-// Runtime UI controls + onboard-flash prefs (mm_prefs.cpp).
-// Save = write if dirty; Cancel = flash recall; both stay on Controls.
+// Controls page runtime state (bright/vol/toggles) + Save/Cancel via mm_prefs.
+// Save writes only if dirty; Cancel recalls flash; both stay on Controls.
 
 extern std::atomic<bool> dashForceFull;
 

@@ -207,7 +207,7 @@ Shared UI state is a published **DashSnap** (seqlock; Core 1 writes, Core 0 pain
 
 ## LCD dashboard
 
-**Panel:** Guition JC3248W535EN AXS15231B, native **320x480**, firmware canvas **480x320** landscape (`Arduino_Canvas`). Layout in `display_draw.cpp` / `dash_snap.cpp` (`drawDashboard` + `DashSnap` dirty tracking).
+**Panel:** Guition JC3248W535EN AXS15231B, native **320x480**, firmware canvas **480x320** landscape (`Arduino_Canvas`). Layout in `display_draw.cpp` / `display_snap.cpp` (`drawDashboard` + `DashSnap` dirty tracking).
 
 The LAN page matches this layout (Display = metrics|users, Log = LOG|Serial, Controls = sliders|toggles). Glass and browser Light/Dark stay independent.
 

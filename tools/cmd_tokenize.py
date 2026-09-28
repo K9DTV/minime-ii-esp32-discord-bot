@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Host-side mirror of commands.cpp tokenize + CMD_CONSUMES_REST (spec for CI)."""
+"""Host-side mirror of cmd_dispatch.cpp tokenize + CMD_CONSUMES_REST (spec for CI)."""
 from __future__ import annotations
 
 import re
@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-COMMANDS_CPP = ROOT / "MiniMe_Discord_Bot_II" / "commands.cpp"
+COMMANDS_CPP = ROOT / "MiniMe_Discord_Bot_II" / "cmd_dispatch.cpp"
 
-# Must match kCmds[] CMD_CONSUMES_REST rows in commands.cpp.
+# Must match kCmds[] CMD_CONSUMES_REST rows in cmd_dispatch.cpp.
 CONSUMES_REST: frozenset[str] = frozenset({"!ask", "!msg"})
 
 # Known command names from kCmds (for "known vs unknown" checks).
@@ -50,7 +50,7 @@ def strip_trailing_punct(s: str) -> str:
 
 
 def tokenize(content: str) -> TokenizeResult:
-    """Mirror tokenizeCommand (commands.cpp). cmd lowercased; args keep case."""
+    """Mirror tokenizeCommand (cmd_dispatch.cpp). cmd lowercased; args keep case."""
     raw = content.strip()
     if not raw:
         return TokenizeResult(False, "", "", False, False)

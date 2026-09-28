@@ -25,11 +25,11 @@ void setupMiniMeOta() {
     gatewayConnected = false;
     identified = false;
     String t = (ArduinoOTA.getCommand() == U_FLASH) ? "Firmware" : "FS";
-    showTransient("OTA", String("Start ") + t);
+    setTransient("OTA", String("Start ") + t);
     MmLog.println(String("[OTA] start ") + t);
   });
   ArduinoOTA.onEnd([]() {
-    showTransient("OTA", "Done reboot");
+    setTransient("OTA", "Done reboot");
     MmLog.println("[OTA] end");
     // reboot follows; leave otaInProgress set
   });
@@ -40,7 +40,7 @@ void setupMiniMeOta() {
     if (pct == lastPct) return;
     if (pct % 10U != 0U && pct != 100U) return;
     lastPct = pct;
-    showTransient("OTA", String(pct) + "%");
+    setTransient("OTA", String(pct) + "%");
     MmLog.println(String("[OTA] ") + String(pct) + "%");
   });
   ArduinoOTA.onError([](ota_error_t err) {
@@ -54,7 +54,7 @@ void setupMiniMeOta() {
     else if (err == OTA_CONNECT_ERROR) e = "Connect fail";
     else if (err == OTA_RECEIVE_ERROR) e = "Receive fail";
     else if (err == OTA_END_ERROR) e = "End fail";
-    showTransient("OTA fail", e);
+    setTransient("OTA fail", e);
     MmLog.println(String("[OTA] ") + e);
   });
 
@@ -64,7 +64,7 @@ void setupMiniMeOta() {
   MmLog.print(OTA_HOSTNAME);
   MmLog.print(" ip=");
   MmLog.println(WiFi.localIP().toString());
-  showTransient("OTA", WiFi.localIP().toString());
+  setTransient("OTA", WiFi.localIP().toString());
 }
 
 void pumpOta() {

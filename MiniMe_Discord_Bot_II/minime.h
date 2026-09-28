@@ -236,7 +236,7 @@ void noteLastEvent(const String& line); // sticky Event line (+ wakes display)
 void noteLcdMessage(const String& line); // sticky Msg for !msg (+ wakes; no timed clear)
 void drawDashboard();
 void updateDisplay();
-void showTransient(const String& line1, const String& line2 = "", const String& line3 = "",
+void setTransient(const String& line1, const String& line2 = "", const String& line3 = "",
                    unsigned long durationMs = 3000); // durationMs=0 -> 3s
 
 bool lcdThemeChipHit(uint16_t x, uint16_t y);

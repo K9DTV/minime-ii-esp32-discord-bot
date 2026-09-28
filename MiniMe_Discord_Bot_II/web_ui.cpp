@@ -416,7 +416,7 @@ void setupWebUi() {
   }
   if (!statusDoc) {
     MmLog.println(F("Fatal: statusDoc alloc failed (PSRAM?)"));
-    showTransient("Fatal", "No statusDoc");
+    setTransient("Fatal", "No statusDoc");
     while (true) {
       delay(1000);
     }
@@ -425,7 +425,7 @@ void setupWebUi() {
     void* probe = mmSpiRamJsonAlloc().allocate(256);
     if (!probe) {
       MmLog.println(F("Fatal: statusDoc PSRAM probe failed"));
-      showTransient("Fatal", "No statusDoc");
+      setTransient("Fatal", "No statusDoc");
       while (true) {
         delay(1000);
       }

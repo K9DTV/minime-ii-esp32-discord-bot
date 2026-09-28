@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
+// Discord command tokenizer + handleCommand dispatch table (kCmds).
+
 bool askNeedPost = false;
 char askPendingQuestion[ASK_QUESTION_MAX + 1] = "";
 char askPendingChannelId[DISCORD_SNOWFLAKE_MAX] = "";
@@ -12,16 +14,16 @@ static void sendFetchResult(const char* channelId, const char* label, bool ok, c
                             const char* okLine2 = "Sent", const char* okLine3 = "") {
   if (!ok) {
     sendDiscordCmdError(channelId, report);
-    showTransient(label, "Error");
+    setTransient(label, "Error");
     return;
   }
   const bool posted = sendDiscordMessage(channelId, report);
-  if (posted) showTransient(label, okLine2, okLine3);
+  if (posted) setTransient(label, okLine2, okLine3);
   else {
     char note[48];
     snprintf(note, sizeof(note), "Post fail: %s", label ? label : "?");
     noteCmdErrorReply(note);
-    showTransient(label, "Post fail");
+    setTransient(label, "Post fail");
   }
 }
 
@@ -29,18 +31,18 @@ static void runFetchCommand(const char* channelId, const char* label, const char
                             FetchReportFn fetch) {
   char report[CMD_REPORT_MAX];
   report[0] = '\0';
-  showTransient(label, fetching);
+  setTransient(label, fetching);
   sendFetchResult(channelId, label, fetch(report, sizeof(report)), report);
 }
 
 // LCD value only if Discord accepted the post (same rule as sendFetchResult / !help).
 static void showIfPosted(const char* label, const char* okLine2, bool posted) {
-  if (posted) showTransient(label, okLine2);
+  if (posted) setTransient(label, okLine2);
   else {
     char note[48];
     snprintf(note, sizeof(note), "Post fail: %s", label ? label : "?");
     noteCmdErrorReply(note);
-    showTransient(label, "Post fail");
+    setTransient(label, "Post fail");
   }
 }
 
@@ -111,7 +113,7 @@ static void cmdWeather(const CmdCtx& ctx) {
   }
   char report[CMD_REPORT_MAX];
   report[0] = '\0';
-  showTransient("Weather", "Fetching...");
+  setTransient("Weather", "Fetching...");
   bool ok = getWeather(zip.c_str(), report, sizeof(report));
   sendFetchResult(ctx.channelId.c_str(), "Weather", ok, report, zip.c_str(), "Sent");
 }
@@ -174,7 +176,7 @@ static void cmdCoredump(const CmdCtx& ctx) {
                     : sendDiscordCmdError(ctx.channelId.c_str(), report, true));
     return;
   }
-  showTransient("Coredump", "Reading...");
+  setTransient("Coredump", "Reading...");
   bool ok = formatCoreDumpReport(report, sizeof(report));
   showIfPosted("Coredump", ok ? "Sent" : "Empty",
                ok ? sendDiscordMessage(ctx.channelId.c_str(), report, true)
@@ -207,7 +209,7 @@ static void cmdAsk(const CmdCtx& ctx) {
   strncpy(askPendingChannelId, ctx.channelId.c_str(), sizeof(askPendingChannelId) - 1);
   askPendingChannelId[sizeof(askPendingChannelId) - 1] = '\0';
   askNeedPost = true;
-  showTransient("DeepSeek", "Queued"); // local queue; Discord reply checked in runAskFromLoop
+  setTransient("DeepSeek", "Queued"); // local queue; Discord reply checked in runAskFromLoop
 }
 
 static void cmdMessage(const CmdCtx& ctx) {
@@ -224,7 +226,7 @@ static void cmdMessage(const CmdCtx& ctx) {
   snprintf(reply, sizeof(reply), "Msg updated (%d/%d chars).", (int)text.length(), maxChars);
   if (!sendDiscordMessage(ctx.channelId, reply)) {
     noteCmdErrorReply("Post fail: Msg");
-    showTransient("Msg", "Post fail");
+    setTransient("Msg", "Post fail");
   }
 }
 
@@ -236,7 +238,7 @@ static void cmdClear(const CmdCtx& ctx) {
 
 static void cmdResetPrefs(const CmdCtx& ctx) {
   const bool ok = factoryResetSettings();
-  showTransient("Prefs", ok ? "factory reset" : "reset fail");
+  setTransient("Prefs", ok ? "factory reset" : "reset fail");
   showIfPosted("resetprefs", ok ? "factory OK" : "write fail",
                sendDiscordMessage(ctx.channelId,
                                   ok ? "Controls prefs reset to factory defaults."
@@ -246,7 +248,7 @@ static void cmdResetPrefs(const CmdCtx& ctx) {
 #ifdef MINIME_TEST_TWDT
 // Scratch only: never returns so Core 1 loop() stops feeding TWDT (~90 s panic).
 static void cmdHang(const CmdCtx&) {
-  showTransient("TWDT", "hang...");
+  setTransient("TWDT", "hang...");
   while (true) {
     delay(1);
   }
@@ -356,7 +358,7 @@ void handleCommand(const String& content, const String& authorId, const String& 
 
   if (!e) {
     sendDiscordMessage(channelId, "That is not a command.");
-    showTransient("Unknown", cmdWord);
+    setTransient("Unknown", cmdWord);
     return;
   }
 

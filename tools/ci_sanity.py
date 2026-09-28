@@ -282,7 +282,7 @@ def main() -> int:
         "discord_gw_session.cpp",
         "discord_gw_outbound.cpp",
         "discord_gw_pump.cpp",
-        "discord_gateway.cpp",
+        "discord_gw_event.cpp",
     ):
         if not (SKETCH / name).is_file():
             fail(f"sketch missing module {name}")

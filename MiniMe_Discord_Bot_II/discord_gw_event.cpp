@@ -1,5 +1,7 @@
 #include "discord_gw_internal.h"
 
+// Discord Gateway WebSocket event dispatcher (WStype_* to session/state/log helpers).
+
 void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
     case WStype_DISCONNECTED: {
@@ -51,7 +53,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
         gwSetReconnectBackoff(false);
       }
       ensureWifiForGateway();
-      // No LCD showTransient here: full-frame QSPI flush on every drop starves TLS/HB.
+      // No LCD setTransient here: full-frame QSPI flush on every drop starves TLS/HB.
       break;
     }
     case WStype_CONNECTED: {

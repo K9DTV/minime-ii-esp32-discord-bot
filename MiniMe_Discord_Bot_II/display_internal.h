@@ -1,7 +1,7 @@
 #ifndef DISPLAY_INTERNAL_H
 #define DISPLAY_INTERNAL_H
 
-// Private LCD modules: display.cpp / display_overlay.cpp / dash_snap.cpp /
+// Private LCD modules: display.cpp / display_overlay.cpp / display_snap.cpp /
 // display_draw*.cpp (util / brand / controls / panels / orchestrator)
 #include "minime.h"
 #include "display_layout.h"
