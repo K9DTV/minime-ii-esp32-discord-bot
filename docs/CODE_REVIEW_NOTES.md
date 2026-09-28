@@ -2,7 +2,7 @@
 
 See [`CHANGELOG.md`](../CHANGELOG.md) for the full per-version list; this document highlights only the durable architectural fixes.
 
-What we **fixed** vs what we **left** and why. Current: **v1.00.00**.
+What we **fixed** vs what we **left** and why. Current: **v1.00.01**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -76,6 +76,7 @@ What we **fixed** vs what we **left** and why. Current: **v1.00.00**.
 | Discord Gateway module split | **0.8.2** -- `discord_gw_state` / `_log` / `_session` / `_outbound` / `_pump` + event dispatch |
 | LCD Log/Serial scrollbar | **0.8.3** -- track + thumb only on overflow (web overflow:auto twin); not content drag |
 | Drain busy reclaim | **0.8.5 / 1.00.00** -- stale `drainCmdsBusy` force-cleared after 75 s if panic skipped `~DrainBusyGuard` |
+| HTTP header/chunk String removal | **1.00.01** -- `discord_http.cpp` header/status/chunk-size/trailer parsing now uses stack `char[]`; no heap growth on any network path. Callers updated to `char*`+size API. |
 
 ## Known tradeoffs (not deferred bugs)
 
@@ -89,4 +90,3 @@ What we **fixed** vs what we **left** and why. Current: **v1.00.00**.
 
 Theme chips stay independent (no `/api/ui` sync). **0.7.51** aligns Display metrics formatting and Log LOG|Serial pairing; still not one shared layout codegen.
 
-Header/chunk size lines in `discord_http.cpp` still use small `String` helpers; body payload itself is fixed-buffer on the cold paths above.

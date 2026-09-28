@@ -166,14 +166,10 @@ void setHttpOpenError(char* outReport, size_t outCap, uint8_t err, const char* l
 bool httpSkipHeaders(Client& client, unsigned long timeoutMs,
                      bool& outChunked, int& outContentLength);
 void pumpNetWait(); // Gateway HB (+ drain cmds when shared HTTPS free)
-bool httpsAwaitHeaders(Client& client, unsigned long deadlineMs, bool pump, String& outStatus,
-                       bool& chunked, int& contentLength,
-                       float* outRetryAfterSec = nullptr);
+// Status line is a fixed buffer (capped, NUL-terminated). Null outStatus skips the copy.
 bool httpsAwaitHeaders(Client& client, unsigned long deadlineMs, bool pump, char* outStatus,
                        size_t statusCap, bool& chunked, int& contentLength,
                        float* outRetryAfterSec = nullptr);
-bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
-                              String& outBody, unsigned long deadlineMs);
 // Fixed-buffer body read (no String growth). outLen set on success; empty => false.
 bool readHttpBodyAfterHeaders(Client& client, bool chunked, int contentLength,
                               char* outBuf, size_t outCap, size_t& outLen,

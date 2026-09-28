@@ -61,7 +61,7 @@ Sample data, not a live board capture. Glass is 480x320. The LAN page is the sam
 |:----:|:-----:|
 | ![Web Controls dark](docs/ui-preview/web-controls-dark.png) | ![Web Controls light](docs/ui-preview/web-controls-light.png) |
 
-**Status:** Guition module firmware **v1.00.00** release -- Discord, LCD, LAN, Controls prefs. Soak testing continues for edge cases. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware **v1.00.01** release -- Discord, LCD, LAN, Controls prefs. Soak testing continues for edge cases. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
