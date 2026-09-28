@@ -90,7 +90,9 @@ void webUiHandleLogin() {
     webServer.send(401, "application/json", "{\"err\":\"badpass\",\"needAuth\":true}");
     return;
   }
-  webAuthMintToken();
+  // Reuse live session on correct password. Reminting every login kicks other clients
+  // (browser + LAN monitor) into a password loop.
+  if (!webSessionToken[0]) webAuthMintToken();
   String cookie = String("mm_tok=") + webSessionToken + "; Path=/; SameSite=Strict";
   webServer.sendHeader("Set-Cookie", cookie);
   char buf[80];

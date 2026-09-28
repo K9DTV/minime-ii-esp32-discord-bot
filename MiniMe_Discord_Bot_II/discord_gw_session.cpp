@@ -98,3 +98,22 @@ void gwParkReconnectForOta() {
 void gwRestoreReconnectAfterOta() {
   gwSetReconnectIntervalMs(GW_RECONNECT_BASE_MS);
 }
+
+
+void gwYieldForTlsHeadroom() {
+  const uint32_t minMaxAlloc = 24576UL;
+  uint32_t maxAlloc = ESP.getMaxAllocHeap();
+  if (maxAlloc >= minMaxAlloc) return;
+  MmLog.print(F("[TLS] low maxAlloc="));
+  MmLog.print(maxAlloc);
+  MmLog.println(F(" drop GW for headroom"));
+  // Same pattern as OP7/HB: arm library reconnect, then disconnect.
+  gwBeginDropEpisode("tls_headroom");
+  gwSetReconnectBackoff(true); // base interval, not climbing backoff
+  gatewayWS.disconnect();
+  delay(20);
+  MmLog.print(F("[TLS] after GW drop heap="));
+  MmLog.print(ESP.getFreeHeap());
+  MmLog.print(F(" maxAlloc="));
+  MmLog.println(ESP.getMaxAllocHeap());
+}

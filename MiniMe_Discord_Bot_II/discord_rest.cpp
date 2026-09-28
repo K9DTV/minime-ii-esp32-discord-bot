@@ -1,4 +1,4 @@
-#include "minime.h"
+﻿#include "minime.h"
 #include "cores.h"
 #include "esp_crt_bundle.h"
 #include <new>
@@ -71,7 +71,10 @@ bool sendDiscordMessage(const char* channelId, const char* content, bool suppres
                          "{\"content\":\"%s\",\"tts\":false%s}",
                          esc,
                          suppressEmbeds ? ",\"flags\":4" : "");
-  if (bodyLen < 0 || (size_t)bodyLen >= sizeof(body)) return false;
+  if (bodyLen < 0 || (size_t)bodyLen >= sizeof(body)) {
+    MmLog.println(F("[REST] Discord body snprintf fail"));
+    return false;
+  }
 
   int reqLen = snprintf(request, sizeof(request),
                         "POST /api/v10/channels/%s/messages HTTP/1.1\r\n"
@@ -83,11 +86,24 @@ bool sendDiscordMessage(const char* channelId, const char* content, bool suppres
                         "Connection: close\r\n\r\n"
                         "%s",
                         channelId, BOT_TOKEN, bodyLen, body);
-  if (reqLen < 0 || (size_t)reqLen >= sizeof(request)) return false;
+  if (reqLen < 0 || (size_t)reqLen >= sizeof(request)) {
+    MmLog.println(F("[REST] Discord request snprintf fail"));
+    return false;
+  }
 
   for (uint8_t attempt = 0; attempt < DISCORD_REST_MAX_ATTEMPTS; attempt++) {
-    if ((millis() - startedAt) > 60000UL) return false;
-    if (!httpsAcquire("discord.com")) return false;
+    if ((millis() - startedAt) > 60000UL) {
+      MmLog.println(F("[REST] Discord wall 60s"));
+      return false;
+    }
+    if (!httpsAcquire("discord.com")) {
+      MmLog.print(F("[REST] Discord connect fail attempt "));
+      MmLog.print((unsigned)(attempt + 1));
+      MmLog.print(F("/"));
+      MmLog.println((unsigned)DISCORD_REST_MAX_ATTEMPTS);
+      if (attempt + 1 >= DISCORD_REST_MAX_ATTEMPTS) return false;
+      continue;
+    }
     httpsClient.write((const uint8_t*)request, (size_t)reqLen);
     unsigned long deadline = millis() + 8000UL;
     char statusLine[160];
@@ -167,9 +183,14 @@ bool sendDiscordMessage(const char* channelId, const char* content, bool suppres
       continue;
     }
 
+    MmLog.print(F("[REST] Discord HTTP "));
+    MmLog.print(code);
+    MmLog.print(F(" status="));
+    MmLog.println(statusLine[0] ? statusLine : "(empty)");
     httpsRelease();
     return false;
   }
+  MmLog.println(F("[REST] Discord attempts exhausted"));
   return false;
 }
 
@@ -184,6 +205,24 @@ bool httpsConnect(const char* host, uint32_t timeoutMs) {
   // Arduino-ESP32 3.3.12+: useBuiltinCACertBundle() (IDF Mozilla bundle in the core).
   // Older 3.x (incl. many IDE installs): setCACertBundle with IDF-linked
   // _binary_x509_crt_bundle_* symbols + size (required since ~3.0.4).
+  MmLog.print(F("[REST] connect "));
+  MmLog.print(host ? host : "(null)");
+  MmLog.print(F(" heap="));
+  MmLog.print(ESP.getFreeHeap());
+  MmLog.print(F(" maxAlloc="));
+  MmLog.println(ESP.getMaxAllocHeap());
+  if (host && host[0]) {
+    IPAddress ip;
+    if (WiFi.hostByName(host, ip)) {
+      MmLog.print(F("[REST] DNS "));
+      MmLog.print(host);
+      MmLog.print(F(" -> "));
+      MmLog.println(ip);
+    } else {
+      MmLog.print(F("[REST] DNS fail "));
+      MmLog.println(host);
+    }
+  }
 #if defined(ESP_ARDUINO_VERSION) && (ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 3, 12))
   httpsClient.useBuiltinCACertBundle();
 #else
@@ -194,7 +233,17 @@ bool httpsConnect(const char* host, uint32_t timeoutMs) {
 #endif
   httpsClient.setTimeout(timeoutMs);
   httpsClient.setHandshakeTimeout((timeoutMs + 999UL) / 1000UL);
-  return httpsClient.connect(host, 443);
+  gwYieldForTlsHeadroom();
+  bool ok = httpsClient.connect(host, 443);
+  if (!ok) {
+    MmLog.print(F("[REST] TLS fail "));
+    MmLog.print(host ? host : "(null)");
+    MmLog.print(F(" heap="));
+    MmLog.print(ESP.getFreeHeap());
+    MmLog.print(F(" maxAlloc="));
+    MmLog.println(ESP.getMaxAllocHeap());
+  }
+  return ok;
 }
 
 void httpsRelease() {

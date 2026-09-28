@@ -133,6 +133,7 @@ void sendHeartbeat();
 void pumpGateway();
 void gwParkReconnectForOta();      // 1h reconnect during flash
 void gwRestoreReconnectAfterOta(); // restore after OTA error (success reboots)
+void gwYieldForTlsHeadroom();    // drop GW if maxAlloc tight; arm fast reconnect
 void gwSerialService();
 void gatewayEvent(WStype_t type, uint8_t* payload, size_t length);
 void requestTrackedUserPresences();

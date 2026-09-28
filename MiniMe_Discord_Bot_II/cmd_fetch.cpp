@@ -321,33 +321,49 @@ bool getApod(char* outReport, size_t outCap) {
 
 bool getIssPosition(char* outReport, size_t outCap) {
   if (!outReport || outCap == 0) return false;
-  WiFiClient client;
+  // HTTPS (same path as !news). open-notify HTTP is flaky on some LANs; wheretheiss.at is stable.
   bool chunked = false;
   int contentLength = -1;
   uint8_t openErr =
-      httpGetOpen(client, "api.open-notify.org", "/iss-now.json", 5000, chunked, contentLength);
+      httpsGetOpen("api.wheretheiss.at", "/v1/satellites/25544", 8000, chunked, contentLength);
   if (openErr) {
     setHttpOpenError(outReport, outCap, openErr, "ISS tracker");
     return false;
   }
   size_t bodyLen = 0;
-  if (!readOpenBodyPumped(client, chunked, contentLength, gFetchBody, sizeof(gFetchBody), bodyLen,
-                          5000UL)) {
-    client.stop();
+  if (!readOpenBodyPumped(httpsClient, chunked, contentLength, gFetchBody, sizeof(gFetchBody),
+                          bodyLen, 8000UL)) {
+    httpsRelease();
     return reportSet(outReport, outCap, "ISS tracker empty response."), false;
   }
-  client.stop();
+  httpsRelease();
+  JsonDocument filter;
+  filter["latitude"] = true;
+  filter["longitude"] = true;
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, gFetchBody, bodyLen);
+  DeserializationError err =
+      deserializeJson(doc, gFetchBody, bodyLen, DeserializationOption::Filter(filter));
   if (err) {
     return reportSet(outReport, outCap, "ISS tracker JSON parse error."), false;
   }
-  const char* lat = doc["iss_position"]["latitude"] | "?";
-  const char* lon = doc["iss_position"]["longitude"] | "?";
+  char lat[24];
+  char lon[24];
+  if (doc["latitude"].is<float>() || doc["latitude"].is<double>()) {
+    snprintf(lat, sizeof(lat), "%.4f", (double)(doc["latitude"] | 0.0));
+  } else {
+    strncpy(lat, doc["latitude"] | "?", sizeof(lat) - 1);
+    lat[sizeof(lat) - 1] = '\0';
+  }
+  if (doc["longitude"].is<float>() || doc["longitude"].is<double>()) {
+    snprintf(lon, sizeof(lon), "%.4f", (double)(doc["longitude"] | 0.0));
+  } else {
+    strncpy(lon, doc["longitude"] | "?", sizeof(lon) - 1);
+    lon[sizeof(lon) - 1] = '\0';
+  }
   size_t len = 0;
   outReport[0] = '\0';
   reportPrintf(outReport, outCap, len,
-               "🌍 **ISS now:**\n- **Latitude:** %s\n- **Longitude:** %s", lat, lon);
+               "**ISS now:**\n- **Latitude:** %s\n- **Longitude:** %s", lat, lon);
   return true;
 }
 
@@ -360,7 +376,11 @@ bool askDeepSeek(const char* question, char* outReport, size_t outCap) {
            false;
   }
 
-  char q[ASK_QUESTION_MAX + 1];
+  MmLog.print(F("[ASK] begin heap="));
+  MmLog.print(ESP.getFreeHeap());
+  MmLog.print(F(" maxAlloc="));
+  MmLog.println(ESP.getMaxAllocHeap());
+  static char q[ASK_QUESTION_MAX + 1];
   size_t qn = question ? strlen(question) : 0;
   if (qn > ASK_QUESTION_MAX) qn = ASK_QUESTION_MAX;
   if (qn) memcpy(q, question, qn);
@@ -379,7 +399,8 @@ bool askDeepSeek(const char* question, char* outReport, size_t outCap) {
     return reportSet(outReport, outCap, "Usage: !ask <question>"), false;
   }
 
-  JsonDocument req;
+  static JsonDocument req;
+  req.clear();
   req["model"] = "deepseek-chat";
   req["max_tokens"] = DEEPSEEK_MAX_TOKENS;
   req["temperature"] = 0.7;
@@ -414,7 +435,13 @@ bool askDeepSeek(const char* question, char* outReport, size_t outCap) {
 #endif
   deepSeekTls.setTimeout(25000);
   deepSeekTls.setHandshakeTimeout(15);
+  gwYieldForTlsHeadroom();
+  MmLog.print(F("[ASK] TLS connect heap="));
+  MmLog.print(ESP.getFreeHeap());
+  MmLog.print(F(" maxAlloc="));
+  MmLog.println(ESP.getMaxAllocHeap());
   if (!deepSeekTls.connect("api.deepseek.com", 443)) {
+    MmLog.println(F("[ASK] TLS fail"));
     deepSeekTls.stop();
     return reportSet(outReport, outCap, "DeepSeek connection failed."), false;
   }
@@ -495,7 +522,7 @@ bool askDeepSeek(const char* question, char* outReport, size_t outCap) {
     reportPrintf(outReport, outCap, len, "DeepSeek error: %s", emsg);
     return false;
   }
-  char answer[DISCORD_CONTENT_MAX + 1];
+  static char answer[DISCORD_CONTENT_MAX + 1];
   strncpy(answer, (*deepSeekDoc)["choices"][0]["message"]["content"] | "", sizeof(answer) - 1);
   answer[sizeof(answer) - 1] = '\0';
   collapseWhitespaceBuf(answer);
@@ -522,10 +549,10 @@ bool askDeepSeek(const char* question, char* outReport, size_t outCap) {
 void runAskFromLoop() {
   if (!askNeedPost) return;
   askNeedPost = false;
-  char channelId[DISCORD_SNOWFLAKE_MAX];
+  static char channelId[DISCORD_SNOWFLAKE_MAX];
   strncpy(channelId, askPendingChannelId, sizeof(channelId) - 1);
   channelId[sizeof(channelId) - 1] = '\0';
-  char report[CMD_REPORT_MAX];
+  static char report[CMD_REPORT_MAX];
   report[0] = '\0';
   bool ok = askDeepSeek(askPendingQuestion, report, sizeof(report));
   askPendingQuestion[0] = '\0';
