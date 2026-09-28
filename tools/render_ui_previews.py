@@ -283,7 +283,8 @@ LCD_HTML = r"""<!DOCTYPE html>
   .dog { margin-top: auto; width: 72px; text-align: center; flex: 0 0 auto; }
   .dog img { width: 72px; height: 48px; display: block; }
   .dog span { color: var(--muted); font-size: 10px; }
-  .dog.cancel { left: 6px; } .dog.save { right: 6px; }
+  .dog.cancel { align-self: flex-start; }
+  .dog.save { align-self: flex-end; }
 </style></head><body>
 <div class="lcd dark" id="lcd-display-dark"></div>
 <div class="lcd light" id="lcd-display-light"></div>
