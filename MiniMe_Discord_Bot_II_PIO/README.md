@@ -129,6 +129,27 @@ them end-of-line agnostically:
 git diff --no-index --ignore-cr-at-eol ..\MiniMe_Discord_Bot_II src
 ```
 
+## Troubleshooting
+
+- `pio run -t upload` aborts with
+  `UnicodeEncodeError: 'charmap' codec can't encode characters` when its output
+  is piped or redirected (and builds print `Firmware metrics can not be shown.
+  Set the terminal codepage to "utf-8" or "cp65001"`): PlatformIO echoes esptool
+  progress characters that the Windows console codepage cannot encode. Use a
+  UTF-8 console (`chcp 65001`), or in PowerShell set
+  `$env:PYTHONUTF8 = 1` and `[Console]::OutputEncoding = [Text.Encoding]::UTF8`
+  before running the command.
+- An interrupted upload can leave a stale `esptool`/`pio` process holding
+  `.pio\build\minime-ii\*.bin` (upload then fails with
+  `The process cannot access the file`). Close the PlatformIO terminal, make
+  sure no `esptool`/`python` process is left, then upload again.
+- To check what is really in the app slot:
+
+```
+%USERPROFILE%\.platformio\penv\Scripts\esptool.exe --chip esp32s3 --port COMx ^
+    verify-flash 0x10000 .pio\build\minime-ii\firmware.bin
+```
+
 ## Host checks and CI
 
 `.github/workflows/compile.yml` compiles the Arduino sketch, so the PlatformIO
