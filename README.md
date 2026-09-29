@@ -491,6 +491,15 @@ Capacitive touch on the AXS15231B wakes the LCD after backlight-off and hits the
 
 ## Arduino IDE setup
 
+### Optional PlatformIO build
+
+`MiniMe_Discord_Bot_II_PIO/` is an optional PlatformIO route beside the Arduino
+sketch. Its shared source files are content-identical to
+`MiniMe_Discord_Bot_II/`; the PIO copy uses LF line endings, while an Arduino
+checkout may use CRLF. Keep the Arduino tree as the source of truth for
+development; see [`MiniMe_Discord_Bot_II_PIO/README.md`](MiniMe_Discord_Bot_II_PIO/README.md)
+for PlatformIO build and refresh instructions.
+
 GitHub Actions runs **Compile**, **Sanity**, **Python**, and **HTML** on push (badges above). None upload or talk to the board. Local soak: [`docs/HIL_SOAK.md`](docs/HIL_SOAK.md). Attested results: [`docs/soak-results.md`](docs/soak-results.md).
 
 1. Install [Arduino IDE](https://www.arduino.cc/en/software) and the **esp32** board package (Espressif).

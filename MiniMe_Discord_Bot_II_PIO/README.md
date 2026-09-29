@@ -2,13 +2,13 @@
 
 Second way to build the firmware that also lives in the Arduino IDE sketch next
 to this folder. The Arduino route (`../MiniMe_Discord_Bot_II`, compiled by
-upstream CI) stays the canonical one; this project exists so that users who
-prefer PlatformIO can build and flash the same firmware. Nothing in this folder
-changes the sketch, `docs/` or `tools/`.
+upstream CI) remains the canonical source of truth for development; this project
+exists so that users who prefer PlatformIO can build and flash the same firmware.
+Nothing in this folder changes the sketch, `docs/` or `tools`.
 
 | | Arduino IDE route | PlatformIO route (this folder) |
 | --- | --- | --- |
-| Sources | `../MiniMe_Discord_Bot_II/*` | `src/*` (byte-identical copy) |
+| Sources | `../MiniMe_Discord_Bot_II/*` | `src/*` (content-identical copy; LF line endings) |
 | Version | `VERSION` and `MINIME_VERSION` in `src/minime_config.h` | same |
 | Board options | `esp32:esp32:esp32s3:FlashSize=16M,PartitionScheme=custom,PSRAM=opi,CDCOnBoot=cdc` | `board = esp32-s3-devkitc1-n16r8`, `board_build.partitions`, `build_flags` |
 | Framework | Arduino-ESP32 core installed by Board Manager (3.3.12+) | pinned pioarduino platform 55.03.312-1 (Arduino-ESP32 3.3.12, IDF 5.5.5) |
@@ -16,7 +16,8 @@ changes the sketch, `docs/` or `tools/`.
 
 ## Contents
 
-- `src/` - copy of the sketch sources (same files, including `partitions.csv`).
+- `src/` - content-identical copy of the sketch sources (same files, including
+  `partitions.csv`); this copy uses LF line endings.
 - `platformio.ini` - pinned platform, board options and libraries.
 - `src/secrets.h` - not in git; you create it (see below).
 
@@ -117,13 +118,13 @@ robocopy ..\MiniMe_Discord_Bot_II src /MIR /XF secrets.h /NFL /NDL /NJH /NJS
 Copy-Item ..\MiniMe_Discord_Bot_II\* .\src\ -Recurse -Force
 ```
 
-`src/` and `../MiniMe_Discord_Bot_II/` must stay byte-identical apart from
-`secrets.h`, which is gitignored - check with `git status --short` before
-committing.
+`src/` and `../MiniMe_Discord_Bot_II/` must stay content-identical apart from
+`secrets.h`, which is gitignored. The PIO copy uses LF line endings; an Arduino
+checkout may use CRLF. Keep the Arduino tree as the source of truth for
+development, and refresh `src/` from it after sketch changes. Check with
+`git status --short` before committing.
 
-On Windows checkouts git may report line-ending-only differences between the
-two folders for files that the repository stores with CRLF endings; compare
-them end-of-line agnostically:
+On Windows checkouts, compare the folders end-of-line agnostically:
 
 ```
 git diff --no-index --ignore-cr-at-eol ..\MiniMe_Discord_Bot_II src
