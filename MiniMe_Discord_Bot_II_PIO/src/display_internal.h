@@ -1,0 +1,107 @@
+#ifndef DISPLAY_INTERNAL_H
+#define DISPLAY_INTERNAL_H
+
+// Private LCD modules: display.cpp / display_overlay.cpp / display_snap.cpp /
+// display_draw*.cpp (util / brand / controls / panels / orchestrator)
+#include "minime.h"
+#include "display_layout.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+struct DashPalette {
+  uint16_t bg, panel, line, text, muted, cyan, ok, bad, barTr, barFl;
+};
+
+struct DashUserRow {
+  char name[16];
+  char status[8];
+  char bot[12];
+};
+
+struct DashSnap {
+  bool valid;
+  bool themeLight;
+  bool layoutLog;
+  bool layoutControls;
+  uint32_t controlsGen;
+  char timeStr[10];
+  char dateStr[20];
+  char upStr[24];
+  int8_t gw; // -1 bad, 0 wait, 1 good
+  int8_t bot; // 2 online else idle
+  long rssi;
+  uint32_t memFree, memTotal;
+  uint32_t psFree, psTotal; // 0/0 if no PSRAM
+  bool sdPresent;
+  uint32_t sdFreeMb, sdTotalMb; // 0/0 if no card
+  bool wifiOk; // Wi-Fi associated; IP line red when false
+  bool secretsFromSd; // boot credentials from SD /secrets.h vs compile-time firmware
+  int tempC10; // -9990 = error
+  bool identified;
+  uint8_t nActive;
+  bool dm, mention, httpsBusy;
+  char event[37];
+  char msg[UI_MSG_COLS];
+  char ip[16];
+  uint32_t cpuMhz;
+  uint32_t dashFlushMs;
+  uint32_t dashDrawMs;
+  bool lcdAsleep;
+  uint32_t userHash;
+  uint32_t logGen;
+  uint8_t logScroll;     // skip N newest in LOG (0 = pinned to bottom)
+  uint8_t serialScroll;  // skip N newest in Serial
+  DashUserRow users[MAX_TRACKED_USERS];
+  char logRows[DASH_LOG_ROWS][33];
+  uint8_t logRowCount;
+  char serialRows[DASH_LOG_ROWS][33];
+  uint8_t serialRowCount;
+};
+
+extern Arduino_DataBus* lcdBus;
+extern Arduino_GFX* lcdPanel;
+
+extern int16_t themeChipHitX, themeChipHitY, themeChipHitW, themeChipHitH;
+extern int16_t layoutChipHitX, layoutChipHitY, layoutChipHitW, layoutChipHitH;
+extern int16_t dogLeftHitX, dogLeftHitY, dogLeftHitW, dogLeftHitH;
+extern int16_t dogRightHitX, dogRightHitY, dogRightHitW, dogRightHitH;
+extern int16_t logoHitX, logoHitY, logoHitW, logoHitH;
+extern int16_t ctrlBrightTrackX, ctrlBrightTrackY, ctrlBrightTrackW, ctrlBrightTrackH;
+extern int16_t ctrlVolTrackX, ctrlVolTrackY, ctrlVolTrackW, ctrlVolTrackH;
+extern int16_t ctrlToggle0X, ctrlToggle0Y, ctrlToggle0W, ctrlToggle0H;
+extern int16_t ctrlToggle1X, ctrlToggle1Y, ctrlToggle1W, ctrlToggle1H;
+extern int16_t ctrlToggle2X, ctrlToggle2Y, ctrlToggle2W, ctrlToggle2H;
+extern int16_t ctrlClearHitX, ctrlClearHitY, ctrlClearHitW, ctrlClearHitH;
+// Log/Serial scrollbar tracks (filled while painting Log layout).
+extern int16_t logSbHitX, logSbHitY, logSbHitW, logSbHitH;
+extern int16_t serialSbHitX, serialSbHitY, serialSbHitW, serialSbHitH;
+extern uint8_t logSbMaxScroll;
+extern uint8_t serialSbMaxScroll;
+extern std::atomic<bool> dashForceFull;
+extern std::atomic<bool> dashBrandValid;
+extern DashSnap drawnSnap;
+
+void displayCopyCapped(char* dst, size_t dstLen, const char* src);
+
+DashPalette dashPalette();
+void loadPublishedSnap(DashSnap& out);
+bool snapLeftEqual(const DashSnap& a, const DashSnap& b);
+bool snapRightEqual(const DashSnap& a, const DashSnap& b);
+
+// Shared paint helpers (display_draw_util.cpp; logoBandHeight in _brand.cpp)
+void prtCol(uint16_t col, const char* text, int16_t x, int16_t y, uint8_t size = 1);
+int16_t textW(const char* text, uint8_t size = 1);
+void prtRight(uint16_t col, const char* text, int16_t rightX, int16_t y, uint8_t size = 1);
+void prtCenter(uint16_t col, const char* text, int16_t midX, int16_t y, uint8_t size = 1);
+int16_t logoBandHeight();
+int16_t panelBottomY();
+void drawPanelBox(int16_t x, int16_t y, int16_t w, int16_t h, const DashPalette& p);
+
+void drawBrandBar(const DashPalette& p);
+void drawDogFooter(const DashPalette& p);
+void drawLeftPanel(const DashSnap& s, const DashPalette& p);
+void drawRightPanel(const DashSnap& s, const DashPalette& p);
+void drawControlsLeft(const DashPalette& p);
+void drawControlsRight(const DashPalette& p);
+
+#endif
