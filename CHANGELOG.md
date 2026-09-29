@@ -6,6 +6,7 @@ Older sections are append-only history (as written when that release shipped). C
 
 - `discord_http.cpp` fixed-buffer rewrite: header lines, status line, chunk-size lines, and chunk trailers all use stack `char[]`. Removed the `String&` overloads of `httpsAwaitHeaders` / `readHttpBodyAfterHeaders`; all callers now pass `char*` + size. This closes the last `String` growth on the HTTPS path (`fetch` bodies, Discord POST, `!ask` were already fixed in 0.8.0). Confirm `Display  -  v1.00.01`.
 - `CODE_REVIEW_NOTES.md` updated: header/chunk String removal moved from deferred to fixed.
+- License: original MiniMe II files relicensed from non-commercial to **MIT** (matches `space-wars-tang-primer-20k`); `LICENSE` and README updated.
 
 ## 1.00.00
 

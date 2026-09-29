@@ -90,7 +90,7 @@ GFX version and ESP32 core mismatch. Update GFX to latest, or pin the esp32 core
 
 After Wi-Fi connects, open `http://<board-ip>/` for the LAN dashboard (same Display/Log idea as the LCD).
 
-License: see `LICENSE` (non-commercial for original MiniMe II files only; commercial use requires express written permission).
+License: see `LICENSE` (MIT).
 
 This is my second iteration of MiniMe. The board build is meant to be useful and reliable for day-to-day Discord + LCD use. I am still hardening (soaks, edge cases, polish) -- not declaring the project closed.
 AI helped with firmware edits, multi-file layout, and GitHub updates. I owned the architecture, wiring, Discord Gateway/LCD design, commands, power/idle trade-offs, and what shipped on the board.
@@ -536,8 +536,8 @@ GitHub Actions runs **Compile**, **Sanity**, **Python**, and **HTML** on push (b
 
 ## License
 
-Original MiniMe II source, README, changelog, and docs in this repo are under a
-**non-commercial** license: personal and educational use is allowed; commercial
-use requires the copyright holder's prior express written permission. See `LICENSE`.
+Original MiniMe II source, README, changelog, and docs in this repo are under the
+**MIT** license: use, copy, modify, merge, publish, and distribute freely,
+including commercially. See `LICENSE`.
 
 That grant does **not** cover Arduino/ESP32 libraries, Discord, or other APIs. Install the libraries under **Arduino IDE setup** and follow each service's rules for keys and bots.
