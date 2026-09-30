@@ -9,7 +9,7 @@ secrets*.bak
 config_local.h
 restore/
 docs/lan-monitor.log
-# lan-monitor.ps1 is tracked (HIL soak); only the log is local
+# lan-monitor.ps1 and lan-monitor-auth.ps1 are tracked; only the log and password file stay local
 tools/_logo_render.html
 tools/_k9dtv_logo_*.png
 docs/ui-preview/_build/
@@ -18,4 +18,3 @@ __pycache__/
 *.pyc
 
 docs/.web_ui_pass
-docs/lan-monitor-auth.ps1
