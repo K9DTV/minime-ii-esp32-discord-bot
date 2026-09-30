@@ -1,4 +1,4 @@
-﻿# MiniMe II LAN monitor with WEB_UI_PASSWORD login (X-MiniMe-Token).
+# MiniMe II LAN monitor with WEB_UI_PASSWORD login (X-MiniMe-Token).
 # Login once, reuse token; re-login only on 401. Avoids reminting session every poll.
 param(
   [string]$BaseUrl = $(if ($env:MINIME_LAN) { $env:MINIME_LAN } else { "http://192.168.68.60" }),
