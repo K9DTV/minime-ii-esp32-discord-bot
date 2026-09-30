@@ -40,7 +40,8 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       gwLogAppend(discAt);
       noteLastEvent(wifiUp ? "GW drop" : "GW wifi down");
 
-      // Identify-only after drops. Do not beginSslWithBundle again -- library reconnects to BIND_HOST.
+      // Identify-only after drops. Library reconnects to BIND_HOST; stuck-client rebind is
+      // pump-side (gwMaybeRebindIfStuck), never from this callback.
       // Wifi up: few fast tries, then climb (3/7/12..40s). Wifi down: same climb (no fast flood).
       if (wifiUp) {
         if (!gwFastIdentifyPending) {
@@ -60,6 +61,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       gatewayConnected = true;
       gwFastIdentifyPending = false;
       unsigned long nowMs = millis();
+      gwLastConnectOrRebindMillis = nowMs;
       unsigned long gapMs = gwLastDisconnectMillis ? (nowMs - gwLastDisconnectMillis) : 0;
       char connAt[64];
       snprintf(connAt, sizeof(connAt), "CONNECT_AT millis=%lu gap_ms=%lu",
@@ -120,7 +122,8 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
         return;
       }
 
-      // Reconnect: clear session; library reconnects to same BIND_HOST (no second beginSslWithBundle)
+      // Reconnect: clear session; library reconnects to same BIND_HOST.
+      // If that stalls, pump-side gwMaybeRebindIfStuck rebinds (not here).
       if (op == 7) {
         gwNoteDrop("OP7_RECONNECT", "OP7_RECONNECT");
         gwBeginDropEpisode("op7");

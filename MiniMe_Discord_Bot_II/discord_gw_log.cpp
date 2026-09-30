@@ -27,7 +27,8 @@ void gwLogEvent(const String& ev) {
   gwLogAppend(ev.c_str());
 }
 
-// kind = coarse category (dedupe); detail = full text for first DROP_START / new kinds
+// kind = coarse category; detail = full text. Log DROP_START once, then only when
+// kind OR detail changes (identical lines suppressed). 5s DROP still reminder separate.
 void gwNoteDrop(const char* kind, const char* detail) {
   if (!kind) kind = "";
   if (!detail) detail = "";
@@ -38,13 +39,17 @@ void gwNoteDrop(const char* kind, const char* detail) {
     gwDropStartEvent[GW_LOG_COLS] = '\0';
     strncpy(gwLastDropKind, kind, sizeof(gwLastDropKind) - 1);
     gwLastDropKind[sizeof(gwLastDropKind) - 1] = '\0';
+    strncpy(gwLastDropDetail, detail, GW_LOG_COLS);
+    gwLastDropDetail[GW_LOG_COLS] = '\0';
     gwLastDropRemindMillis = millis();
     char start[GW_LOG_COLS + 1];
     snprintf(start, sizeof(start), "DROP_START: %s", detail);
     gwLogAppend(start);
-  } else if (strcmp(kind, gwLastDropKind) != 0) {
+  } else if (strcmp(kind, gwLastDropKind) != 0 || strcmp(detail, gwLastDropDetail) != 0) {
     strncpy(gwLastDropKind, kind, sizeof(gwLastDropKind) - 1);
     gwLastDropKind[sizeof(gwLastDropKind) - 1] = '\0';
+    strncpy(gwLastDropDetail, detail, GW_LOG_COLS);
+    gwLastDropDetail[GW_LOG_COLS] = '\0';
     gwLogAppend(detail);
   }
 }
@@ -55,6 +60,7 @@ void gwClearDropState() {
   gwInDropState = false;
   gwDropStartEvent[0] = '\0';
   gwLastDropKind[0] = '\0';
+  gwLastDropDetail[0] = '\0';
   gwLoggedConnectDuringDrop = false;
   gwDropStartedMillis = 0;
   gwFastIdentifyPending = false;

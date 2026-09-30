@@ -6,6 +6,9 @@ void pumpGatewayKeepAlive() {
   if (!gatewayConnected && WiFi.status() != WL_CONNECTED) {
     ensureWifiForGateway();
   }
+  // Stuck drop with wifi up: rebind SSL client if library reconnect never yields CONNECTED.
+  // Does not call WiFi.disconnect() while wifi is already up (ensureWifiForGateway guards that).
+  gwMaybeRebindIfStuck();
   if (heartbeatIntervalMs <= 0 || !gatewayConnected || !gotHello) return;
   unsigned long now = millis();
   unsigned long hbInterval = (unsigned long)heartbeatIntervalMs;

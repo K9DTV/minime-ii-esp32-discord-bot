@@ -21,6 +21,8 @@ static const unsigned long GW_RECONNECT_FAST_MS = 200UL;
 static const uint8_t GW_RECONNECT_FAST_TRIES = 3;
 static const unsigned long GW_RECONNECT_BASE_MS = 3000UL;
 static const unsigned long GW_RECONNECT_MAX_MS = 40000UL;
+// Stuck-client rebind: wait max(2 * current reconnect interval, this floor).
+static const unsigned long GW_REBIND_MIN_MS = 90000UL;
 
 // Shared Gateway state (defined in discord_gw_state.cpp)
 extern char gwLog[GW_LOG_MAX][GW_LOG_COLS + 1];
@@ -34,9 +36,11 @@ extern unsigned long gwReconnectIntervalMs;
 extern uint8_t gwReconnectFailCount;
 extern unsigned long gwLastWifiKickMillis;
 extern char gwLastDropKind[32];
+extern char gwLastDropDetail[GW_LOG_COLS + 1];
 extern bool gwLoggedConnectDuringDrop;
 extern unsigned long gwDropStartedMillis;
 extern unsigned long gwLastDisconnectMillis;
+extern unsigned long gwLastConnectOrRebindMillis;
 extern bool gwFastIdentifyPending;
 extern bool hbAckPending;
 extern unsigned long hbSentMillis;
@@ -56,6 +60,7 @@ void gwSetReconnectIntervalMs(unsigned long ms);
 void gwBeginDropEpisode(const char* reason);
 void gwSetReconnectBackoff(bool reset);
 void ensureWifiForGateway();
+void gwMaybeRebindIfStuck();
 
 // discord_gw_outbound.cpp
 void initGwJsonFilter();

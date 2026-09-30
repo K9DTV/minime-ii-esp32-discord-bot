@@ -83,11 +83,36 @@ static void bindGatewayHost(const char* host) {
 }
 
 void connectGateway() {
-  // One beginSslWithBundle for the life of the bot. After drops, only setReconnectInterval +
-  // disconnect(); do not beginSslWithBundle again (fights the library reconnect timer).
+  // Initial bind. After normal drops the library reconnects on its timer; if that stalls
+  // (no CONNECTED while wifi-up in a drop), pumpGatewayKeepAlive calls gwMaybeRebindIfStuck()
+  // which re-runs beginSslWithBundle + onEvent + setReconnectInterval.
   initGwJsonFilter();
   MmLog.print("[GW] intents=");
   MmLog.println(INTENTS_MINIME);
+  bindGatewayHost("gateway.discord.gg");
+  gwLastConnectOrRebindMillis = millis();
+}
+
+void gwMaybeRebindIfStuck() {
+  // Pump/keepalive only -- never from the websocket callback.
+  if (!gwInDropState || gatewayConnected) return;
+  if (WiFi.status() != WL_CONNECTED) return;
+  // Leave OTA park alone (1h interval); do not rebind into a flash window.
+  if (gwReconnectIntervalMs >= 3600000UL) return;
+
+  unsigned long now = millis();
+  unsigned long waitMs = 2UL * gwReconnectIntervalMs;
+  if (waitMs < GW_REBIND_MIN_MS) waitMs = GW_REBIND_MIN_MS;
+  // Anchor = last CONNECTED/rebind, but never before this drop started (else a long
+  // prior session would make OP7 rebind on the very next pump).
+  unsigned long anchor = gwLastConnectOrRebindMillis;
+  if (gwDropStartedMillis && (anchor == 0 || anchor < gwDropStartedMillis))
+    anchor = gwDropStartedMillis;
+  if (anchor == 0) anchor = now;
+  if (now - anchor < waitMs) return;
+
+  gwLastConnectOrRebindMillis = now;
+  gwLogAppend("GW_REBIND");
   bindGatewayHost("gateway.discord.gg");
 }
 
