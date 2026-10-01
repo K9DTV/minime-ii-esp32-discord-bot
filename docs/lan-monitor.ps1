@@ -98,7 +98,7 @@ while ($true) {
     }
 
     if ($null -ne $logTail -and $logTail -ne $prevLog) {
-      if ($logTail -match "DROP|RECOVER|DISCONNECT|OP7|READY|VBUS") {
+      if ($logTail -match "DROP|RECOVER|DISCONNECT|OP7|READY|RESUME|VBUS") {
         Add-Content -Path $out -Value "[$ts] LOG   $logTail"
       }
       $prevLog = $logTail

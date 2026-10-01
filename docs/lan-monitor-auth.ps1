@@ -118,7 +118,7 @@ while ($true) {
     $prevGw = $gw; $prevBot = $bot; $prevCpu = $cpu
     if ($null -ne $logTail -and $logTail -ne $prevLog) {
       if ($logTail -notmatch 'DS18') {
-        if ($logTail -match 'DROP|RECOVER|DISCONNECT|OP7|READY|GW_REBIND|CONNECT_AT|SENT_IDENTIFY|VBUS') {
+        if ($logTail -match 'DROP|RECOVER|DISCONNECT|OP7|READY|RESUME|GW_REBIND|CONNECT_AT|SENT_IDENTIFY|VBUS') {
           Add-Content -Path $LogPath -Value "[$ts] LOG   $logTail"
         }
       }
