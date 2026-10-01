@@ -104,6 +104,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       int op = (*gwDoc)["op"] | -1;
       if (!(*gwDoc)["s"].isNull()) {
         lastSeq = (*gwDoc)["s"].as<int>();
+        if (gwResumeSent) gwResumeProgressMillis = millis();
       }
 
       // Hello: start HB (jittered first), then RESUME or IDENTIFY

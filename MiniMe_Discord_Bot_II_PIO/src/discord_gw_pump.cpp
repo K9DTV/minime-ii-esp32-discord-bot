@@ -14,6 +14,19 @@ static void gwCheckHelloTimeout() {
   gatewayWS.disconnectWithCode(GW_RESUME_CLOSE_CODE);
 }
 
+// Counts as one unanswered RESUME (gwBeginDropEpisode -> gwResumeLostOnDrop).
+static void gwCheckResumeReplyTimeout() {
+  if (!gwResumeSent || !gatewayConnected) return;
+  unsigned long idle = millis() - gwResumeProgressMillis;
+  if (idle < GW_RESUME_REPLY_TIMEOUT_MS) return;
+  char msg[48];
+  snprintf(msg, sizeof(msg), "RESUME_TIMEOUT idle_ms=%lu", idle);
+  gwNoteDrop("RESUME_TIMEOUT", msg);
+  gwBeginDropEpisode("resume_timeout", true);
+  gwSetReconnectBackoff(false);
+  gatewayWS.disconnectWithCode(GW_RESUME_CLOSE_CODE);
+}
+
 // Heartbeat / wifi kick. Called from the outer pumpGateway only (not nested).
 // Wi-Fi reconnect is skipped while gwPumping/httpsInUse (see ensureWifiForGateway).
 void pumpGatewayKeepAlive() {
@@ -24,6 +37,7 @@ void pumpGatewayKeepAlive() {
   // Does not call WiFi.disconnect() while wifi is already up (ensureWifiForGateway guards that).
   gwMaybeRebindIfStuck();
   gwCheckHelloTimeout();
+  gwCheckResumeReplyTimeout();
   if (heartbeatIntervalMs <= 0 || !gatewayConnected || !gotHello) return;
   unsigned long now = millis();
   unsigned long hbInterval = (unsigned long)heartbeatIntervalMs;

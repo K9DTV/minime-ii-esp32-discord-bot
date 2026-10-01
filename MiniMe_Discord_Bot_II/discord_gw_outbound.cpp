@@ -146,6 +146,7 @@ void sendResume() {
   d["seq"] = lastSeq;
   gwSendJson(doc);
   gwResumeSent = true;
+  gwResumeProgressMillis = millis();
   char sent[48];
   snprintf(sent, sizeof(sent), "SENT_RESUME seq=%d try=%u/%u",
            lastSeq, (unsigned)gwResumeTries, (unsigned)GW_RESUME_MAX_TRIES);

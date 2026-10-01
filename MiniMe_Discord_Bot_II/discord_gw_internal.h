@@ -30,8 +30,9 @@ static const unsigned long GW_REBIND_MIN_MS = 90000UL;
 //   - while a session is held the library auto-reconnects to gwResumeHost, else GW_PRIMARY_HOST
 //   - OP10 Hello sends RESUME (op 6) when gwCanResume(), else IDENTIFY (op 2)
 //   - gwResumeTries counts RESUMEs sent since the last READY/RESUMED; gwClearSession resets it
-//   - a socket that sent RESUME and drops before RESUMED/OP9 is counted by gwResumeLostOnDrop();
-//     once GW_RESUME_MAX_TRIES RESUMEs went unanswered it clears the session
+//   - a socket that sent RESUME and drops (or hits GW_RESUME_REPLY_TIMEOUT_MS) before RESUMED/OP9
+//     is counted by gwResumeLostOnDrop(); once GW_RESUME_MAX_TRIES RESUMEs went unanswered it
+//     clears the session
 //   - gwSessionClearReason is the why= on SENT_IDENTIFY; sendIdentify resets it to no_session
 static const char GW_PRIMARY_HOST[] = "gateway.discord.gg";
 // Discord ends the session on close 1000/1001, and WebSocketsClient::disconnect() always sends 1000.
@@ -39,6 +40,9 @@ static const uint16_t GW_RESUME_CLOSE_CODE = 4000;
 static const uint8_t GW_RESUME_MAX_TRIES = 2;
 // WS upgrade done but no OP10 Hello: give up on this socket and IDENTIFY on the primary host.
 static const unsigned long GW_HELLO_TIMEOUT_MS = 20000UL;
+// RESUME sent, then this long with no replayed event, RESUMED or OP9 (HB ACKs alone keep the
+// socket looking healthy). Each replayed event restarts the wait, so a long replay is not cut off.
+static const unsigned long GW_RESUME_REPLY_TIMEOUT_MS = 30000UL;
 static const size_t GW_HOST_MAX = 64;
 
 // Shared Gateway state (defined in discord_gw_state.cpp)
@@ -62,6 +66,7 @@ extern bool gwFastReconnectPending;
 extern char gwResumeHost[GW_HOST_MAX];
 extern uint8_t gwResumeTries;
 extern bool gwResumeSent;           // this socket sent RESUME; waiting for RESUMED / OP9
+extern unsigned long gwResumeProgressMillis; // SENT_RESUME, then each replayed event
 extern uint8_t gwBotStatusBeforeDrop;
 extern char gwSessionClearReason[20]; // why the next Hello sends IDENTIFY instead of RESUME
 extern bool hbAckPending;

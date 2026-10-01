@@ -34,6 +34,7 @@ bool gwFastReconnectPending = false;
 char gwResumeHost[GW_HOST_MAX] = "";
 uint8_t gwResumeTries = 0;
 bool gwResumeSent = false;
+unsigned long gwResumeProgressMillis = 0;
 uint8_t gwBotStatusBeforeDrop = 0;
 char gwSessionClearReason[20] = "boot";
 bool hbAckPending = false;
