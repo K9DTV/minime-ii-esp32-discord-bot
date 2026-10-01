@@ -63,7 +63,7 @@ void gwClearDropState() {
   gwLastDropDetail[0] = '\0';
   gwLoggedConnectDuringDrop = false;
   gwDropStartedMillis = 0;
-  gwFastIdentifyPending = false;
+  gwFastReconnectPending = false;
 }
 
 void gwSerialService() {

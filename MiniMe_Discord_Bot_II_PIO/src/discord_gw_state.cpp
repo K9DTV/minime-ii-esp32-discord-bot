@@ -1,7 +1,7 @@
 #include "discord_gw_internal.h"
 
 // Public Gateway globals (declared in minime.h)
-WebSocketsClient gatewayWS;
+GatewayWsClient gatewayWS;
 JsonDocument* gwDoc = nullptr;
 bool gatewayConnected     = false;
 bool identified           = false;
@@ -30,7 +30,12 @@ bool gwLoggedConnectDuringDrop = false;
 unsigned long gwDropStartedMillis = 0;
 unsigned long gwLastDisconnectMillis = 0;
 unsigned long gwLastConnectOrRebindMillis = 0;
-bool gwFastIdentifyPending = false;
+bool gwFastReconnectPending = false;
+char gwResumeHost[GW_HOST_MAX] = "";
+uint8_t gwResumeTries = 0;
+bool gwResumeSent = false;
+uint8_t gwBotStatusBeforeDrop = 0;
+char gwSessionClearReason[20] = "boot";
 bool hbAckPending = false;
 unsigned long hbSentMillis = 0;
 bool gwPumping = false;

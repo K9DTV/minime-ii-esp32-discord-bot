@@ -113,7 +113,14 @@ void formatLocalTimeStr(char* buf, size_t bufLen);
 void formatUptimeStr(char* buf, size_t bufLen);
 
 // ====== DISCORD GATEWAY ======
-extern WebSocketsClient gatewayWS;
+// WebSocketsClient::disconnect() always sends close 1000, and Discord ends the session on
+// 1000/1001. disconnectWithCode keeps it resumable; setReconnectHost aims the auto-reconnect.
+class GatewayWsClient : public WebSocketsClient {
+ public:
+  void disconnectWithCode(uint16_t code);
+  void setReconnectHost(const char* host);
+};
+extern GatewayWsClient gatewayWS;
 extern JsonDocument* gwDoc;
 extern bool gatewayConnected;
 extern bool identified;

@@ -5,6 +5,7 @@
 void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
     case WStype_DISCONNECTED: {
+      if (botDiscordStatus != 0) gwBotStatusBeforeDrop = botDiscordStatus; // RESUMED keeps presence
       gatewayConnected = false;
       identified       = false;
       gotHello         = false;
@@ -40,17 +41,18 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
       gwLogAppend(discAt);
       noteLastEvent(wifiUp ? "GW drop" : "GW wifi down");
 
-      // Identify-only after drops. Library reconnects to BIND_HOST; stuck-client rebind is
-      // pump-side (gwMaybeRebindIfStuck), never from this callback.
+      // Session survives the drop (Wi-Fi blips too): library reconnects to the resume host and
+      // Hello sends RESUME. Stuck-client rebind (IDENTIFY on the primary host) is pump-side
+      // (gwMaybeRebindIfStuck), never from this callback.
       // Wifi up: few fast tries, then climb (3/7/12..40s). Wifi down: same climb (no fast flood).
+      gwResumeLostOnDrop();
       if (wifiUp) {
-        if (!gwFastIdentifyPending) {
-          gwBeginDropEpisode("disconnect");
+        if (!gwFastReconnectPending) {
+          gwBeginDropEpisode("disconnect", true);
         }
         gwSetReconnectBackoff(false);
       } else {
-        gwClearSession("wifi_down");
-        gwFastIdentifyPending = false;
+        gwFastReconnectPending = false;
         gwSetReconnectBackoff(false);
       }
       ensureWifiForGateway();
@@ -59,7 +61,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
     }
     case WStype_CONNECTED: {
       gatewayConnected = true;
-      gwFastIdentifyPending = false;
+      gwFastReconnectPending = false;
       unsigned long nowMs = millis();
       gwLastConnectOrRebindMillis = nowMs;
       unsigned long gapMs = gwLastDisconnectMillis ? (nowMs - gwLastDisconnectMillis) : 0;
@@ -104,7 +106,7 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
         lastSeq = (*gwDoc)["s"].as<int>();
       }
 
-      // Hello: start HB (jittered first), then Identify
+      // Hello: start HB (jittered first), then RESUME or IDENTIFY
       if (op == 10) {
         heartbeatIntervalMs = (*gwDoc)["d"]["heartbeat_interval"] | 0;
         hbAckPending = false;
@@ -118,21 +120,21 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
         char hello[40];
         snprintf(hello, sizeof(hello), "OP10_HELLO hb_ms=%d", heartbeatIntervalMs);
         gwLogAppend(hello);
-        sendIdentify();
+        gwSendResumeOrIdentify();
         return;
       }
 
-      // Reconnect: clear session; library reconnects to same BIND_HOST.
-      // If that stalls, pump-side gwMaybeRebindIfStuck rebinds (not here).
+      // Reconnect: keep session, close with 4000 (not 1000) so it stays resumable; library
+      // reconnects to the resume host. If that stalls, pump-side gwMaybeRebindIfStuck rebinds.
       if (op == 7) {
         gwNoteDrop("OP7_RECONNECT", "OP7_RECONNECT");
-        gwBeginDropEpisode("op7");
+        gwBeginDropEpisode("op7", true);
         gwSetReconnectBackoff(false);
-        gatewayWS.disconnect();
+        gatewayWS.disconnectWithCode(GW_RESUME_CLOSE_CODE);
         return;
       }
 
-      // Invalid Session: fresh IDENTIFY
+      // Invalid Session: d=true may RESUME again, d=false needs a fresh IDENTIFY
       if (op == 9) {
         bool resumable = false;
         JsonDocument small;
@@ -143,9 +145,16 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
         snprintf(detail, sizeof(detail), "OP9_INVALID_SESSION resumable=%c",
                  resumable ? '1' : '0');
         gwNoteDrop(detail, detail);
-        gwBeginDropEpisode("op9");
+        if (gwResumeSent) {
+          gwResumeSent = false;
+          char rejected[64];
+          snprintf(rejected, sizeof(rejected), "RESUME_REJECTED op9 resumable=%c next=%s",
+                   resumable ? '1' : '0', (resumable && gwCanResume()) ? "RESUME" : "IDENTIFY");
+          gwLogAppend(rejected);
+        }
+        gwBeginDropEpisode("op9", resumable);
         gwSetReconnectBackoff(false);
-        gatewayWS.disconnect();
+        gatewayWS.disconnectWithCode(GW_RESUME_CLOSE_CODE);
         return;
       }
 
@@ -160,6 +169,9 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
         if (strcmp(t, "READY") == 0) {
           identified = true;
           sessionId = (*gwDoc)["d"]["session_id"] | "";
+          gwResumeTries = 0;
+          gwResumeSent = false;
+          gwSetResumeHost((*gwDoc)["d"]["resume_gateway_url"] | "");
           gwSetReconnectBackoff(true);
           gwClearDropState();
           gwLogAppend(sessionId.length() ? "READY session=yes" : "READY session=no");
@@ -173,11 +185,16 @@ void gatewayEvent(WStype_t type, uint8_t* payload, size_t length) {
           return;
         }
         if (strcmp(t, "RESUMED") == 0) {
-          // Identify-only firmware should not see RESUMED; treat like READY cleanup.
+          // Missed events were replayed above; Discord kept the presence we last sent.
           identified = true;
+          gwResumeTries = 0;
+          gwResumeSent = false;
+          if (gwBotStatusBeforeDrop) botDiscordStatus = gwBotStatusBeforeDrop;
           gwSetReconnectBackoff(true);
           gwClearDropState();
-          gwLogAppend("RESUMED");
+          char resumed[32];
+          snprintf(resumed, sizeof(resumed), "RESUMED seq=%d", lastSeq);
+          gwLogAppend(resumed);
           requestTrackedUserPresences();
           return;
         }

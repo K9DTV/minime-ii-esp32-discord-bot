@@ -1,5 +1,19 @@
 #include "discord_gw_internal.h"
 
+// WS upgrade done but no OP10 Hello: neither RESUME nor IDENTIFY can go out on this socket.
+// Runs after gatewayWS.loop(), so a Hello already buffered has been handled first.
+static void gwCheckHelloTimeout() {
+  if (!gatewayConnected || gotHello) return;
+  unsigned long waited = millis() - gwLastConnectOrRebindMillis;
+  if (waited < GW_HELLO_TIMEOUT_MS) return;
+  char msg[48];
+  snprintf(msg, sizeof(msg), "HELLO_TIMEOUT after_ms=%lu", waited);
+  gwNoteDrop("HELLO_TIMEOUT", msg);
+  gwBeginDropEpisode("hello_timeout", false);
+  gwSetReconnectBackoff(false);
+  gatewayWS.disconnectWithCode(GW_RESUME_CLOSE_CODE);
+}
+
 // Heartbeat / wifi kick. Called from the outer pumpGateway only (not nested).
 // Wi-Fi reconnect is skipped while gwPumping/httpsInUse (see ensureWifiForGateway).
 void pumpGatewayKeepAlive() {
@@ -9,6 +23,7 @@ void pumpGatewayKeepAlive() {
   // Stuck drop with wifi up: rebind SSL client if library reconnect never yields CONNECTED.
   // Does not call WiFi.disconnect() while wifi is already up (ensureWifiForGateway guards that).
   gwMaybeRebindIfStuck();
+  gwCheckHelloTimeout();
   if (heartbeatIntervalMs <= 0 || !gatewayConnected || !gotHello) return;
   unsigned long now = millis();
   unsigned long hbInterval = (unsigned long)heartbeatIntervalMs;
@@ -19,10 +34,10 @@ void pumpGatewayKeepAlive() {
       snprintf(toMsg, sizeof(toMsg), "HB_ACK_TIMEOUT after_ms=%lu",
                (unsigned long)(now - hbSentMillis));
       gwLogAppend(toMsg);
-      gwBeginDropEpisode("hb_ack");
+      gwBeginDropEpisode("hb_ack", true); // zombie socket: Discord says close non-1000, then RESUME
       gwSetReconnectBackoff(false);
       hbAckPending = false;
-      gatewayWS.disconnect();
+      gatewayWS.disconnectWithCode(GW_RESUME_CLOSE_CODE);
     }
     return;
   }

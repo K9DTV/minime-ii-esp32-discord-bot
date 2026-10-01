@@ -14,7 +14,7 @@ static const uint8_t GW_LOG_COLS = 96;
 // Reconnect state invariants:
 //   - gwReconnectFailCount resets on READY/RESUMED (gwSetReconnectBackoff(true))
 //   - gwReconnectFailCount resets at the start of every drop episode (gwBeginDropEpisode)
-//   - gwFastIdentifyPending resets on WStype_CONNECTED and on gwClearDropState()
+//   - gwFastReconnectPending resets on WStype_CONNECTED and on gwClearDropState()
 //   - gwReconnectIntervalMs is written only through gwSetReconnectIntervalMs()
 // Fast tries after a drop (wifi up), then climb: 3s -> 7s -> 12s, +8s steps, cap 40s.
 static const unsigned long GW_RECONNECT_FAST_MS = 200UL;
@@ -23,6 +23,23 @@ static const unsigned long GW_RECONNECT_BASE_MS = 3000UL;
 static const unsigned long GW_RECONNECT_MAX_MS = 40000UL;
 // Stuck-client rebind: wait max(2 * current reconnect interval, this floor).
 static const unsigned long GW_REBIND_MIN_MS = 90000UL;
+
+// Session invariants (RESUME vs IDENTIFY):
+//   - sessionId / lastSeq / gwResumeHost survive drops; only gwClearSession() wipes them
+//     (OP9 d=false, RESUME tries used up, GW_REBIND, HELLO_TIMEOUT, OTA)
+//   - while a session is held the library auto-reconnects to gwResumeHost, else GW_PRIMARY_HOST
+//   - OP10 Hello sends RESUME (op 6) when gwCanResume(), else IDENTIFY (op 2)
+//   - gwResumeTries counts RESUMEs sent since the last READY/RESUMED; gwClearSession resets it
+//   - a socket that sent RESUME and drops before RESUMED/OP9 is counted by gwResumeLostOnDrop();
+//     once GW_RESUME_MAX_TRIES RESUMEs went unanswered it clears the session
+//   - gwSessionClearReason is the why= on SENT_IDENTIFY; sendIdentify resets it to no_session
+static const char GW_PRIMARY_HOST[] = "gateway.discord.gg";
+// Discord ends the session on close 1000/1001, and WebSocketsClient::disconnect() always sends 1000.
+static const uint16_t GW_RESUME_CLOSE_CODE = 4000;
+static const uint8_t GW_RESUME_MAX_TRIES = 2;
+// WS upgrade done but no OP10 Hello: give up on this socket and IDENTIFY on the primary host.
+static const unsigned long GW_HELLO_TIMEOUT_MS = 20000UL;
+static const size_t GW_HOST_MAX = 64;
 
 // Shared Gateway state (defined in discord_gw_state.cpp)
 extern char gwLog[GW_LOG_MAX][GW_LOG_COLS + 1];
@@ -41,7 +58,12 @@ extern bool gwLoggedConnectDuringDrop;
 extern unsigned long gwDropStartedMillis;
 extern unsigned long gwLastDisconnectMillis;
 extern unsigned long gwLastConnectOrRebindMillis;
-extern bool gwFastIdentifyPending;
+extern bool gwFastReconnectPending;
+extern char gwResumeHost[GW_HOST_MAX];
+extern uint8_t gwResumeTries;
+extern bool gwResumeSent;           // this socket sent RESUME; waiting for RESUMED / OP9
+extern uint8_t gwBotStatusBeforeDrop;
+extern char gwSessionClearReason[20]; // why the next Hello sends IDENTIFY instead of RESUME
 extern bool hbAckPending;
 extern unsigned long hbSentMillis;
 extern bool gwPumping;
@@ -56,14 +78,19 @@ void gwClearDropState();
 
 // discord_gw_session.cpp
 void gwClearSession(const char* reason);
+bool gwCanResume();
+void gwResumeLostOnDrop();
+void gwSetResumeHost(const char* resumeGatewayUrl);
+void gwSendResumeOrIdentify();
 void gwSetReconnectIntervalMs(unsigned long ms);
-void gwBeginDropEpisode(const char* reason);
+void gwBeginDropEpisode(const char* reason, bool tryResume);
 void gwSetReconnectBackoff(bool reset);
 void ensureWifiForGateway();
 void gwMaybeRebindIfStuck();
 
 // discord_gw_outbound.cpp
 void initGwJsonFilter();
+void sendResume();
 
 // discord_gw_pump.cpp
 void pumpGatewayKeepAlive();

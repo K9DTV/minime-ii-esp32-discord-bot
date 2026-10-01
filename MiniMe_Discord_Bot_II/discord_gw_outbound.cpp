@@ -8,6 +8,7 @@ void initGwJsonFilter() {
   gwFilter["t"] = true;
   gwFilter["d"]["heartbeat_interval"] = true;
   gwFilter["d"]["session_id"] = true;
+  gwFilter["d"]["resume_gateway_url"] = true;
   gwFilter["d"]["status"] = true; // PRESENCE_UPDATE top-level status (not only d.presences[])
   gwFilter["d"]["user"]["id"] = true;
   gwFilter["d"]["user"]["username"] = true;
@@ -128,8 +129,27 @@ void sendIdentify() {
   gwSendJson(doc);
   lastBotActivityMillis = millis();
   botDiscordStatus = 2;
-  gwLogAppend("SENT_IDENTIFY");
+  char sent[48];
+  snprintf(sent, sizeof(sent), "SENT_IDENTIFY why=%s", gwSessionClearReason);
+  gwLogAppend(sent);
+  snprintf(gwSessionClearReason, sizeof(gwSessionClearReason), "no_session");
   applyCpuForBotOnline(true);
+}
+
+// Op 6: Discord replays missed events after seq, then sends RESUMED (or OP9 if too late).
+void sendResume() {
+  JsonDocument doc;
+  doc["op"] = 6;
+  JsonObject d = doc["d"].to<JsonObject>();
+  d["token"] = BOT_TOKEN;
+  d["session_id"] = sessionId;
+  d["seq"] = lastSeq;
+  gwSendJson(doc);
+  gwResumeSent = true;
+  char sent[48];
+  snprintf(sent, sizeof(sent), "SENT_RESUME seq=%d try=%u/%u",
+           lastSeq, (unsigned)gwResumeTries, (unsigned)GW_RESUME_MAX_TRIES);
+  gwLogAppend(sent);
 }
 
 void sendHeartbeat() {
