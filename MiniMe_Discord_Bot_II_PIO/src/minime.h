@@ -119,6 +119,8 @@ class GatewayWsClient : public WebSocketsClient {
  public:
   void disconnectWithCode(uint16_t code);
   void setReconnectHost(const char* host);
+  // TCP/TLS up, from connect through the WS upgrade (gatewayConnected only flips at the upgrade).
+  bool socketOpen() const;
 };
 extern GatewayWsClient gatewayWS;
 extern JsonDocument* gwDoc;
@@ -173,7 +175,7 @@ uint8_t httpGetOpen(WiFiClient& client, const char* host, const char* path,
 void setHttpOpenError(char* outReport, size_t outCap, uint8_t err, const char* label);
 bool httpSkipHeaders(Client& client, unsigned long timeoutMs,
                      bool& outChunked, int& outContentLength);
-void pumpNetWait(); // Gateway HB (+ drain cmds when shared HTTPS free)
+void pumpNetWait(); // Gateway HB while its socket is up, never a reconnect (+ drain cmds when shared HTTPS free)
 // Status line is a fixed buffer (capped, NUL-terminated). Null outStatus skips the copy.
 bool httpsAwaitHeaders(Client& client, unsigned long deadlineMs, bool pump, char* outStatus,
                        size_t statusCap, bool& chunked, int& contentLength,

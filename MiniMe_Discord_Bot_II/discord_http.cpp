@@ -6,9 +6,11 @@
 // HTTP header/body helpers (split from discord_rest.cpp). Core 1 only.
 // Line and status scratch live on the stack (pumpNetWait may re-enter HTTPS on the other client).
 
-// Gateway HB always; drain cmds only when shared HTTPS is free (DeepSeek has its own TLS).
+// Gateway HB while its socket is up; drain cmds only when shared HTTPS is free (DeepSeek has its
+// own TLS). A down Gateway is left for loop() to reconnect after the command returns: a reconnect
+// here runs its TLS handshake beside the HTTPS session being waited on, and blocks that wait.
 void pumpNetWait() {
-  pumpGateway();
+  if (gatewayWS.socketOpen()) pumpGateway();
   if (!httpsInUse) drainDiscordCmds();
 }
 

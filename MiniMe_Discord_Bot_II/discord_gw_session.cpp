@@ -11,6 +11,10 @@ void GatewayWsClient::setReconnectHost(const char* host) {
   _host = host;
 }
 
+bool GatewayWsClient::socketOpen() const {
+  return _client.status != WSC_NOT_CONNECTED;
+}
+
 static bool gwSessionHeld() {
   return sessionId.length() || lastSeq != 0 || gwResumeHost[0];
 }
