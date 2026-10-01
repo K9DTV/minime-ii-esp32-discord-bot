@@ -1,0 +1,29 @@
+=== MiniMe II soak interim (compact) 2026-10-01T06:07:00-07:00 ===
+SOAK_START: 2026-09-30T12:45:46-07:00
+monitor: docs/lan-monitor-auth.ps1 PID 25100 (still running)
+board: http://192.168.68.60
+firmware: v1.00.01
+poll_interval: 2s (full stream local only: docs/lan-monitor.log gitignored)
+ignore: DS18 lines
+result_so_far: PASS (continuous; no operator MONITOR_STOP yet)
+
+=== latest status ===
+[06:11:10] gw=True presence=idle cpu=160 rssi=-47 up=0d 17h 36m 12s lcd=asleep heapPct=15 ver=1.00.01
+
+=== health ===
+lasting_gw_False: none
+MONITOR_STOP: none
+GW_REBIND: none (not observed in LAN log)
+uptime_reset/unexpected_reboot: none (continuous climb from soak start)
+LOGIN: once at start (LOGIN_OK token_reuse=on)
+
+=== abnormals (entire soak through draft cut) ===
+only brief recovered FETCH_FAIL (LAN timeout; next poll gw=True within ~7s):
+  [13:02:16] FETCH_FAIL timeout
+  [15:08:15] FETCH_FAIL timeout
+  [16:32:15] FETCH_FAIL timeout
+  [17:02:16] FETCH_FAIL timeout
+  [19:23:14] FETCH_FAIL timeout
+  [19:29:14] FETCH_FAIL timeout
+no lasting FETCH_FAIL; no gw=False; no reconnect storm
+presence: mostly idle; online windows when Discord/LCD showed online (normal)

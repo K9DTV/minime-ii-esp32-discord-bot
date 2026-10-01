@@ -2,6 +2,30 @@
 
 Attested local soaks (GitHub Actions cannot reach the board). Playbook: [`HIL_SOAK.md`](HIL_SOAK.md). Gateway PASS evidence: [`lan-monitor-gateway-pass-20260928.log`](lan-monitor-gateway-pass-20260928.log). Final LAN archive for the post-reboot daytime soak: [`lan-monitor-soak-final-20260928-1423.log`](lan-monitor-soak-final-20260928-1423.log). Live JSON: [`lan-status-snapshot.json`](lan-status-snapshot.json).
 
+## 2026-09-30 to 2026-10-01 -- v1.00.01 overnight LAN soak (2 s poll) -- **PASS** (still running at draft time)
+
+| Field | Value |
+|---|---|
+| Firmware | **v1.00.01** |
+| Monitor | `lan-monitor-auth.ps1` pid **25100**, interval **2 s** |
+| Start | **2026-09-30T12:45:46** PT |
+| Draft cut | **2026-10-01T06:07** PT (~**17 h 33 m** board uptime) |
+| Compact archive | [`lan-monitor-soak-interim-20261001-0607.log`](lan-monitor-soak-interim-20261001-0607.log) |
+| Prior partials | `lan-monitor-soak-partial-20260930-1616.log` (full dump, pre rule), `...-2216.log`, `...-20261001-0423.log` (compact) |
+| Board | Guition @ `http://192.168.68.60` |
+| Gateway | **Good** whenever polled (`gw=True`); no lasting `gw=False` |
+| Result | **PASS** so far -- no MONITOR_STOP; no gw=false >=60 s; six brief LAN FETCH_FAIL only |
+
+### Notes
+
+- Full 2 s status stream stays local in gitignored `docs/lan-monitor.log`.
+- GitHub artifacts are compact: poll rate noted; only abnormal events listed.
+- `FETCH_FAIL` is LAN HTTP timeout to `/api/status`, not a Discord drop; each recovered on the next poll.
+- Presence idle vs online is Discord/LCD state, not gateway down.
+- No `GW_REBIND` line in this LAN soak (rebind path not exercised or not visible on status poll).
+
+---
+
 ## 2026-09-28 -- v1.00.01 daytime soak (08:22 start) -- **PASS** (operator stop)
 
 | Field | Value |
