@@ -1,6 +1,13 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **1.00.01** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **1.01.00** (see `VERSION` and README).
+
+## 1.01.00
+
+- Discord Gateway reconnect rewrite: **Resume first** (op 6), fresh **Identify** (op 2) as the fallback. After OP7 Reconnect, a heartbeat-ACK timeout, a Wi-Fi blip or a TLS-headroom yield, the bot keeps `session_id` + last `seq`, closes with code **4000** and reconnects to READY's `resume_gateway_url`; Discord replays missed events, then `RESUMED`, and the LCD/web Online/Idle state carries over. Resume could never work before: `WebSocketsClient::disconnect()` always closes with **1000**, which ends the Discord session. The new `GatewayWsClient::disconnectWithCode()` avoids that.
+- Fresh **Identify** on `gateway.discord.gg` when there is no session, on OP9 `d=false`, after **2** unanswered Resumes, when no Hello arrives within **20 s** of connect, or on `GW_REBIND`. A Resume counts as unanswered when its socket drops, or after **30 s** with no replayed event, `RESUMED` or OP9 (`RESUME_TIMEOUT`); each replayed event restarts the wait.
+- `GW_REBIND` (Wi-Fi up but no CONNECT for max(2x reconnect interval, 90 s)) is kept. It now clears the session and frees the half-open TLS client before re-binding.
+- New `[GW]` log lines: `RESUME_HOST`, `RESUME_ARMED`, `SENT_RESUME seq= try=`, `RESUMED seq=`, `RESUME_REJECTED`, `RESUME_NO_REPLY`, `RESUME_TIMEOUT`, `HELLO_TIMEOUT`, `CLEAR_SESSION`, and `SENT_IDENTIFY why=`. The LAN monitor scripts show `RESUME` lines. Confirm `Display  -  v1.01.00`.
 
 ## 1.00.01
 
