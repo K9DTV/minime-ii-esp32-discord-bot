@@ -23,6 +23,10 @@ const size_t DEEPSEEK_JSON_DOC = 24576; // soft size hint for !ask (AJ7 grows; w
 #define DISCORD_429_WAIT_MIN_MS 500UL
 #define DISCORD_429_WAIT_MAX_MS 60000UL
 #define DISCORD_HEADER_RETRY_WAIT_MS 500UL
+// 1: mbedTLS blocks >= 4 KB (the ~16 KB TLS record buffers) live in PSRAM, so the Gateway and an
+// HTTPS session fit in internal SRAM together. 0: every TLS block internal (core default); each
+// HTTPS call then closes the Gateway for headroom (gwYieldForTlsHeadroom).
+#define MINIME_TLS_PSRAM 1
 
 // ====== GPIO CONFIG (Guition JC3248W535EN / AXS15231B) ======
 // Display QSPI (Arduino_ESP32QSPI + Arduino_AXS15231B): CS 45, SCK 47, D0 21, D1 48, D2 40, D3 39

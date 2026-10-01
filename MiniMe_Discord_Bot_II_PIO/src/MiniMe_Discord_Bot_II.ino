@@ -67,6 +67,7 @@ static_assert(ARDUINO_LOOP_STACK_SIZE == 16384, "keep minime.h ARDUINO_LOOP_STAC
 
 void setup() {
   mmSerialBegin();
+  tlsUsePsramForLargeBlocks(); // before Wi-Fi or any TLS allocates
   gwDoc = newSpiRamJsonDoc();
   if (!gwDoc) {
     MmLog.println(F("Fatal: gwDoc alloc failed (PSRAM?)"));

@@ -163,6 +163,7 @@ void pumpWebUi();
 // On 0, outChunked / outContentLength reflect response headers for readHttpBodyAfterHeaders.
 extern WiFiClientSecure httpsClient;
 extern bool httpsInUse;
+void tlsUsePsramForLargeBlocks(); // setup(), before Wi-Fi / any TLS; MINIME_TLS_PSRAM in minime_config.h
 bool httpsConnect(const char* host, uint32_t timeoutMs = 15000);
 bool httpsAcquire(const char* host, uint32_t timeoutMs = 15000); // claim + connect, or false if busy/fail
 void httpsRelease(); // stop shared client + clear httpsInUse

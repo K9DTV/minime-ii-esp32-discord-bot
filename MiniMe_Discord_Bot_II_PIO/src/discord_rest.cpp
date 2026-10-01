@@ -1,12 +1,52 @@
 ﻿#include "minime.h"
 #include "cores.h"
 #include "esp_crt_bundle.h"
+#include "mbedtls/platform.h"
 #include <new>
 
 // Discord REST client lifecycle + messaging (body reader lives in discord_http.cpp).
 
 WiFiClientSecure httpsClient;
 bool httpsInUse = false;
+
+#if MINIME_TLS_PSRAM
+// This core builds mbedTLS with CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC: every TLS block comes from
+// internal SRAM (~45 KB per session), too much for the Gateway and an HTTPS session together.
+// Blocks this size and up (chiefly the two ~16 KB record buffers per session) go to PSRAM;
+// smaller ones stay internal.
+static const size_t TLS_PSRAM_MIN_BLOCK = 4096;
+
+static void* tlsCalloc(size_t n, size_t size) {
+  size_t total = 0;
+  if (__builtin_mul_overflow(n, size, &total)) return nullptr;
+  void* p = nullptr;
+  if (total >= TLS_PSRAM_MIN_BLOCK) p = heap_caps_calloc(n, size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!p) p = heap_caps_calloc(n, size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  return p;
+}
+
+static void tlsFree(void* p) {
+  heap_caps_free(p);
+}
+#endif
+
+void tlsUsePsramForLargeBlocks() {
+#if MINIME_TLS_PSRAM
+  if (!psramFound()) {
+    MmLog.println(F("[TLS] no PSRAM: mbedTLS blocks stay internal"));
+    return;
+  }
+  if (mbedtls_platform_set_calloc_free(tlsCalloc, tlsFree) != 0) {
+    MmLog.println(F("[TLS] mbedTLS allocator hook failed: blocks stay internal"));
+    return;
+  }
+  MmLog.print(F("[TLS] mbedTLS blocks >= "));
+  MmLog.print((unsigned)TLS_PSRAM_MIN_BLOCK);
+  MmLog.println(F(" B in PSRAM"));
+#else
+  MmLog.println(F("[TLS] MINIME_TLS_PSRAM 0: mbedTLS blocks stay internal"));
+#endif
+}
 
 bool sendDiscordCmdError(const char* channelId, const char* content, bool suppressEmbeds) {
   noteCmdErrorReply(content ? content : "");
