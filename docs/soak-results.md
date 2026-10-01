@@ -1,4 +1,4 @@
-﻿# MiniMe II -- HIL soak results
+# MiniMe II -- HIL soak results
 
 Attested local soaks (GitHub Actions cannot reach the board). Playbook: [`HIL_SOAK.md`](HIL_SOAK.md). Gateway PASS evidence: [`lan-monitor-gateway-pass-20260928.log`](lan-monitor-gateway-pass-20260928.log). Final LAN archive for the post-reboot daytime soak: [`lan-monitor-soak-final-20260928-1423.log`](lan-monitor-soak-final-20260928-1423.log). Live JSON: [`lan-status-snapshot.json`](lan-status-snapshot.json).
 
@@ -32,7 +32,7 @@ Attested local soaks (GitHub Actions cannot reach the board). Playbook: [`HIL_SO
 | 2026-10-01 11:22:15 | FETCH_FAIL timeout | recovered ~11:22:22 |
 | 2026-10-01 11:28:57 | FETCH_FAIL timeout | recovered ~11:29:04 |
 
-After the 10:23 PT partial: three new FETCH_FAIL only (11:22–11:28); no lasting gw=False, no GW_REBIND, no uptime reset.
+After the 10:23 PT partial: three new FETCH_FAIL only (11:22-11:28); no lasting gw=False, no GW_REBIND, no uptime reset.
 
 ### Notes
 
