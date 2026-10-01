@@ -1,26 +1,46 @@
-# MiniMe II -- HIL soak results
+﻿# MiniMe II -- HIL soak results
 
 Attested local soaks (GitHub Actions cannot reach the board). Playbook: [`HIL_SOAK.md`](HIL_SOAK.md). Gateway PASS evidence: [`lan-monitor-gateway-pass-20260928.log`](lan-monitor-gateway-pass-20260928.log). Final LAN archive for the post-reboot daytime soak: [`lan-monitor-soak-final-20260928-1423.log`](lan-monitor-soak-final-20260928-1423.log). Live JSON: [`lan-status-snapshot.json`](lan-status-snapshot.json).
 
-## 2026-09-30 to 2026-10-01 -- v1.00.01 overnight LAN soak (2 s poll) -- **PASS** (still running at draft time)
+## 2026-09-30 to 2026-10-01 -- v1.00.01 overnight/daytime LAN soak (2 s poll) -- **PASS** (operator stop)
 
 | Field | Value |
 |---|---|
 | Firmware | **v1.00.01** |
 | Monitor | `lan-monitor-auth.ps1` pid **25100**, interval **2 s** |
 | Start | **2026-09-30T12:45:46** PT |
-| Draft cut | **2026-10-01T06:07** PT (~**17 h 33 m** board uptime) |
-| Compact archive | [`lan-monitor-soak-interim-20261001-0607.log`](lan-monitor-soak-interim-20261001-0607.log) |
-| Prior partials | `lan-monitor-soak-partial-20260930-1616.log` (full dump, pre rule), `...-2216.log`, `...-20261001-0423.log` (compact) |
+| Stop | **2026-10-01T12:02:04** PT (operator request) |
+| Wall duration | ~**23 h 16 m** |
+| Board up (last poll) | **0d 23h 27m 4s** at **12:02:03** (`gw=True`, rssi=-40, heapPct=15, presence=idle) |
+| Final archive | [`lan-monitor-soak-final-20261001-1202.log`](lan-monitor-soak-final-20261001-1202.log) |
+| Prior partials | interim `...-0607.log`; compact `...-0423.log`, `...-1023.log` |
 | Board | Guition @ `http://192.168.68.60` |
 | Gateway | **Good** whenever polled (`gw=True`); no lasting `gw=False` |
-| Result | **PASS** so far -- no MONITOR_STOP; no gw=false >=60 s; six brief LAN FETCH_FAIL only |
+| Result | **PASS** -- no MONITOR_STOP; no gw=false >=60 s; nine brief LAN FETCH_FAIL only (all recovered) |
+
+### Abnormals (all recovered)
+
+| When (PT) | Event | Recovery |
+|---|---|---|
+| 2026-09-30 13:02:16 | FETCH_FAIL timeout | next poll gw=True |
+| 2026-09-30 15:08:15 | FETCH_FAIL timeout | next poll gw=True |
+| 2026-09-30 16:32:15 | FETCH_FAIL timeout | next poll gw=True |
+| 2026-09-30 17:02:16 | FETCH_FAIL timeout | next poll gw=True |
+| 2026-09-30 19:23:14 | FETCH_FAIL timeout | next poll gw=True |
+| 2026-09-30 19:29:14 | FETCH_FAIL timeout | next poll gw=True |
+| 2026-10-01 11:22:08 | FETCH_FAIL timeout | (paired with next) |
+| 2026-10-01 11:22:15 | FETCH_FAIL timeout | recovered ~11:22:22 |
+| 2026-10-01 11:28:57 | FETCH_FAIL timeout | recovered ~11:29:04 |
+
+After the 10:23 PT partial: three new FETCH_FAIL only (11:22–11:28); no lasting gw=False, no GW_REBIND, no uptime reset.
 
 ### Notes
 
+- Monitor stopped by operator request at end of soak (not by gw=false rule).
+- Poll rate was **2 seconds** throughout.
 - Full 2 s status stream stays local in gitignored `docs/lan-monitor.log`.
 - GitHub artifacts are compact: poll rate noted; only abnormal events listed.
-- `FETCH_FAIL` is LAN HTTP timeout to `/api/status`, not a Discord drop; each recovered on the next poll.
+- `FETCH_FAIL` is LAN HTTP timeout to `/api/status`, not a Discord drop; each recovered on the next poll(s).
 - Presence idle vs online is Discord/LCD state, not gateway down.
 - No `GW_REBIND` line in this LAN soak (rebind path not exercised or not visible on status poll).
 

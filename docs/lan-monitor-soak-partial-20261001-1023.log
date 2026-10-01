@@ -1,0 +1,21 @@
+﻿=== MiniMe II soak partial (compact) 2026-10-01T10:23:40-07:00 ===
+SOAK_START: 2026-09-30T12:45:46-07:00 (PID 25100 still running)
+poll_interval: 2s (full stream local only: docs/lan-monitor.log gitignored)
+ignore: DS18 lines
+prior_partial: docs/lan-monitor-soak-partial-20261001-0423.log
+checkpoint: scheduled ~6h (also note interim docs/lan-monitor-soak-interim-20261001-0607.log)
+
+=== latest status ===
+[10:23:40] gw=True presence=idle cpu=160 rssi=-39 up=0d 21h 48m 41s lcd=asleep heapPct=15 ver=1.00.01
+
+=== health ===
+overall: healthy / PASS
+lasting_gw_False: none
+MONITOR_STOP: none
+GW_REBIND: none
+uptime_reset/unexpected_reboot: none (continuous climb to ~21h48m)
+monitor_process: alive PID 25100 (lan-monitor-auth.ps1)
+
+=== abnormals since prior partial (after ~04:23 PT Oct 1) ===
+none
+(no new FETCH_FAIL, gw=False, reconnect storm, GW_REBIND, or MONITOR_STOP; six brief recovered FETCH_FAIL from earlier evening already reported in 0423/interim notes)

@@ -1,0 +1,36 @@
+﻿=== MiniMe II soak FINAL (compact) 2026-10-01T12:02:04-07:00 ===
+SOAK_START: 2026-09-30T12:45:46-07:00 (PID 25100)
+SOAK_END:   2026-10-01T12:02:04-07:00 (operator stop)
+wall_duration: ~23h 16m
+poll_interval: 2s (full stream local only: docs/lan-monitor.log gitignored)
+firmware: v1.00.01
+board: http://192.168.68.60
+result: PASS
+prior_partials: docs/lan-monitor-soak-partial-20261001-0423.log, docs/lan-monitor-soak-interim-20261001-0607.log, docs/lan-monitor-soak-partial-20261001-1023.log
+
+=== latest status (pre-stop) ===
+[12:02:03] gw=True presence=idle cpu=160 rssi=-40 up=0d 23h 27m 4s lcd=asleep heapPct=15 ver=1.00.01
+
+=== health summary ===
+overall: PASS
+lasting_gw_False: none
+MONITOR_STOP: none (monitor ended by operator Stop-Process)
+GW_REBIND: none
+uptime_reset/unexpected_reboot: none (continuous climb 0h10m48s -> 23h27m4s)
+monitor_process: stopped PID 25100 (lan-monitor-auth.ps1) at operator request
+
+=== abnormal events (all recovered; LAN FETCH_FAIL only) ===
+[2026-09-30 13:02:16] FETCH_FAIL timeout -> recovered [13:02:23] gw=True up=0d 0h 27m 24s
+[2026-09-30 15:08:15] FETCH_FAIL timeout -> recovered [15:08:22] gw=True up=0d 2h 33m 23s
+[2026-09-30 16:32:15] FETCH_FAIL timeout -> recovered [16:32:22] gw=True up=0d 3h 57m 23s
+[2026-09-30 17:02:16] FETCH_FAIL timeout -> recovered [17:02:23] gw=True up=0d 4h 27m 24s
+[2026-09-30 19:23:14] FETCH_FAIL timeout -> recovered [19:23:21] gw=True up=0d 6h 48m 23s
+[2026-09-30 19:29:14] FETCH_FAIL timeout -> recovered [19:29:21] gw=True up=0d 6h 54m 22s
+[2026-10-01 11:22:08] FETCH_FAIL timeout
+[2026-10-01 11:22:15] FETCH_FAIL timeout -> recovered [11:22:22] gw=True up=0d 22h 47m 23s
+[2026-10-01 11:28:57] FETCH_FAIL timeout -> recovered [11:29:04] gw=True up=0d 22h 54m 6s
+
+=== abnormals after 10:23 PT partial ===
+three brief FETCH_FAIL (11:22:08, 11:22:15, 11:28:57 PT); all recovered within ~7s; no lasting gw=False / MONITOR_STOP / GW_REBIND / uptime reset
+
+=== MONITOR_STOP operator 2026-10-01T12:02:04-07:00 elapsed_wall~23h16m from 12:45:46 start ===
