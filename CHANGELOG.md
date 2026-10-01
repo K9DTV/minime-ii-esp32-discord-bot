@@ -1,6 +1,11 @@
 # Changelog
 
-Older sections are append-only history (as written when that release shipped). Current firmware is **1.01.00** (see `VERSION` and README).
+Older sections are append-only history (as written when that release shipped). Current firmware is **1.01.01** (see `VERSION` and README).
+
+## 1.01.01
+
+- Fix: every command closed the Discord Gateway (`[TLS] low maxAlloc`, then `[GW] RESUME_ARMED tls_headroom` and a Resume). The core keeps every mbedTLS block in internal SRAM (~45 KB per TLS session), so with the Gateway up the largest free block was under the **24 KB** REST headroom check and `gwYieldForTlsHeadroom()` closed the Gateway before each HTTPS call. `setup()` now calls `tlsUsePsramForLargeBlocks()` before Wi-Fi: an mbedTLS allocator puts blocks of **4 KB** and up (chiefly the two ~16 KB record buffers per session) in PSRAM and keeps smaller blocks internal, so the Gateway and an HTTPS call fit together. Boot logs `[TLS] mbedTLS blocks >= 4096 B in PSRAM`. `MINIME_TLS_PSRAM 0` in `minime_config.h` restores the core default; the headroom yield stays as the safety net either way.
+- Fix: HTTP waits (`pumpNetWait`) no longer start a Gateway reconnect. A Gateway closed for headroom was reconnected from inside the HTTP wait, so its TLS handshake ran beside the HTTPS session being waited on and held up that wait. The wait still pumps heartbeats while the Gateway socket is up (`GatewayWsClient::socketOpen()`); `loop()` reconnects once the command returns. Confirm `Display  -  v1.01.01`.
 
 ## 1.01.00
 

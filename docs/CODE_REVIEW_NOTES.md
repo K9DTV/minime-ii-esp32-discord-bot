@@ -2,7 +2,7 @@
 
 See [`CHANGELOG.md`](../CHANGELOG.md) for the full per-version list; this document highlights only the durable architectural fixes.
 
-What we **fixed** vs what we **left** and why. Current: **v1.01.00**.
+What we **fixed** vs what we **left** and why. Current: **v1.01.01**.
 
 ## Fixed (through dual-core / fetch pumps / pro hardening)
 
@@ -77,6 +77,7 @@ What we **fixed** vs what we **left** and why. Current: **v1.01.00**.
 | LCD Log/Serial scrollbar | **0.8.3** -- track + thumb only on overflow (web overflow:auto twin); not content drag |
 | Drain busy reclaim | **0.8.5 / 1.00.00** -- stale `drainCmdsBusy` force-cleared after 75 s if panic skipped `~DrainBusyGuard` |
 | HTTP header/chunk String removal | **1.00.01** -- `discord_http.cpp` header/status/chunk-size/trailer parsing now uses stack `char[]`; no heap growth on any network path. Callers updated to `char*`+size API. |
+| TLS headroom drops on commands | **1.01.01** -- mbedTLS blocks >= 4 KB (record buffers) in PSRAM via `mbedtls_platform_set_calloc_free` (`MINIME_TLS_PSRAM`), so the Gateway and an HTTPS session fit together and commands no longer trip `gwYieldForTlsHeadroom`; HTTP waits pump a live Gateway only and never start its reconnect |
 | Cross-core atomics + fetch tidy | **0.9.0** -- F1 theme/layout bools + `lastDashMillis`/`dashBrandValid` `std::atomic`; F2 `otaInProgress` atomic (drop volatile); F3 `mm_prefs` `#include "display_internal.h"` (no local `extern dashForceFull`); F4 backlight asleep check+`ledcWrite` under `portMUX`; F5 dead `bodyLen > 24000` -> `sizeof(gFetchBody)-1`. Also header-phase pump + dead code removal. |
 
 ## Known tradeoffs (not deferred bugs)

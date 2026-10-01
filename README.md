@@ -61,7 +61,7 @@ Sample data, not a live board capture. Glass is 480x320. The LAN page is the sam
 |:----:|:-----:|
 | ![Web Controls dark](docs/ui-preview/web-controls-dark.png) | ![Web Controls light](docs/ui-preview/web-controls-light.png) |
 
-**Status:** Guition module firmware **v1.01.00** release -- Discord, LCD, LAN, Controls prefs. Soak testing continues for edge cases. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
+**Status:** Guition module firmware **v1.01.01** release -- Discord, LCD, LAN, Controls prefs. Soak testing continues for edge cases. See `VERSION` / `CHANGELOG.md` and [`docs/CODE_REVIEW_NOTES.md`](docs/CODE_REVIEW_NOTES.md).
 
 ### Arduino libraries
 
@@ -199,7 +199,7 @@ Shared UI state is a published **DashSnap** (seqlock; Core 1 writes, Core 0 pain
 ### Why this is hard (on one MCU)
 
 - Discord Gateway heartbeats must keep running while long HTTPS calls use the same TLS client (dual-core removes LCD/QSPI from that fight; fetch bodies pump HB via `readHttpBodyAfterHeaders`).
-- Large Gateway JSON lives in **PSRAM**; small Wi-Fi/TLS buffers must **not**.
+- Large Gateway JSON and the TLS record buffers live in **PSRAM**; small Wi-Fi/TLS buffers must **not**.
 - Backlight can turn off while Wi-Fi and the Gateway stay up (panel sleep != chip sleep).
 - Up to **22** live presence rows + 24h command counts on one landscape panel.
 
@@ -531,6 +531,7 @@ GitHub Actions runs **Compile**, **Sanity**, **Python**, and **HTML** on push (b
 - **RAM:** internal SRAM + **8MB OPI PSRAM**. **PSRAM -> OPI PSRAM** must be on.
 - Large Discord Gateway JSON (`GW_DOC_PSRAM` soft size) and LAN `statusDoc` use `JsonDocument` with `SpiRamAllocator` (PSRAM via `heap_caps_*`). Default `JsonDocument` is internal SRAM only.
 - Do **not** enable `heap_caps_malloc_extmem_enable` for small allocations (Wi-Fi / TLS in PSRAM can crash).
+- **TLS:** the core keeps every mbedTLS block in internal SRAM (~45 KB per session), too much for the Gateway and an HTTPS call together. `tlsUsePsramForLargeBlocks()` (`setup()`, before Wi-Fi) moves blocks of **4 KB** and up -- the two ~16 KB record buffers per session -- to PSRAM; smaller TLS blocks stay internal. `MINIME_TLS_PSRAM 0` in `minime_config.h` restores the core default (each HTTPS call then closes the Gateway for headroom; it Resumes afterwards).
 - **Flash:** **16MB**. `partitions.csv` is dual OTA apps + small coredump -- **no filesystem** yet (SD secrets are planned). First install over USB; later builds can use user-initiated Wi-Fi OTA (see **Firmware updates (OTA)**).
 
 ---
