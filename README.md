@@ -4,6 +4,7 @@
 [![Sanity](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/sanity.yml/badge.svg)](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/sanity.yml)
 [![Python](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/python.yml/badge.svg)](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/python.yml)
 [![HTML](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/html.yml/badge.svg)](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/html.yml)
+[![License](https://img.shields.io/github/license/K9DTV/minime-ii-esp32-discord-bot)](https://github.com/K9DTV/minime-ii-esp32-discord-bot/blob/master/LICENSE)
 
 **Project page:** https://k9dtv.com/project-minime-ii.html  
 **Sister project:** [MiniMe I (SSD1327 OLED)](https://github.com/K9DTV/minime-esp32-discord-bot) -- not this repo.
