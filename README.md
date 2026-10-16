@@ -4,7 +4,13 @@
 [![Sanity](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/sanity.yml/badge.svg)](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/sanity.yml)
 [![Python](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/python.yml/badge.svg)](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/python.yml)
 [![HTML](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/html.yml/badge.svg)](https://github.com/K9DTV/minime-ii-esp32-discord-bot/actions/workflows/html.yml)
-[![License](https://img.shields.io/github/license/K9DTV/minime-ii-esp32-discord-bot)](https://github.com/K9DTV/minime-ii-esp32-discord-bot/blob/master/LICENSE)
+[![Release](https://img.shields.io/github/v/release/K9DTV/minime-ii-esp32-discord-bot?label=release)](https://github.com/K9DTV/minime-ii-esp32-discord-bot/releases/latest)
+[![Status](https://img.shields.io/badge/status-active%201.01.01-brightgreen)](https://github.com/K9DTV/minime-ii-esp32-discord-bot/releases/tag/1.01.01)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Guition%20JC3248W535EN-red)](https://k9dtv.com/project-minime-ii.html)
+[![Discord](https://img.shields.io/badge/Discord-Gateway%20bot-5865F2)](https://discord.com)
+[![Display](https://img.shields.io/badge/display-AXS15231B%20480x320-orange)](https://k9dtv.com/project-minime-ii.html)
+[![Website](https://img.shields.io/badge/k9dtv.com-project%20page-0a7ea4)](https://k9dtv.com/project-minime-ii.html)
 
 **Project page:** https://k9dtv.com/project-minime-ii.html  
 **Sister project:** [MiniMe I (SSD1327 OLED)](https://github.com/K9DTV/minime-esp32-discord-bot) -- not this repo.
